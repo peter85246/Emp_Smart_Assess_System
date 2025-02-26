@@ -8,7 +8,10 @@ import { calculateWeightedScore, calculateFairnessIndex, generateImprovement, ca
 import { useNavigate } from 'react-router-dom';
 import { PerformanceEvaluator } from '../utils/performanceCalculations';
 
-// 修改進度條組件
+/**
+ * 共用組件：進度條
+ * 用於顯示各種指標的完成度
+ */
 const ProgressBar = ({ value, color }) => {
   // 創建一個顏色映射對象
   const colorMap = {
@@ -39,14 +42,23 @@ const ProgressBar = ({ value, color }) => {
   );
 };
 
-// 績效指標卡片組件
+/**
+ * 核心組件：績效指標卡片
+ * 顯示單個績效指標的詳細信息，包括：
+ * - 基本指標展示
+ * - 詳細模態框
+ * - 歷史趨勢圖表
+ * - 改進建議
+ */
 const PerformanceCard = ({ metric, data }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showLevelGuide, setShowLevelGuide] = useState(false);
   const value = metric.value(data);
   const breakdown = getScoreBreakdown(metric, data);
 
-  // 獲取最近三個月的數據
+  /**
+   * 數據處理方法：獲取最近三個月數據
+   */
   const getRecentMonthsData = () => {
     const now = new Date();
     const months = [];
@@ -64,8 +76,9 @@ const PerformanceCard = ({ metric, data }) => {
     }
     return months;
   };
-
-  // 獲取當前指標的顏色和名稱
+  /**
+   * 工具方法：獲取指標樣式
+   */
   const getMetricStyle = (metricId) => {
     const styleMap = {
       'workCompletion': { color: '#10B981', name: '完成率' },
@@ -78,20 +91,9 @@ const PerformanceCard = ({ metric, data }) => {
     return styleMap[metricId] || { color: '#10B981', name: '完成率' };
   };
 
-  // 獲取指標對應的數據鍵名
-  const getMetricDataKey = (metricId) => {
-    const keyMap = {
-      'workCompletion': 'completion',
-      'quality': 'quality',
-      'efficiency': 'efficiency',
-      'attendance': 'attendance',
-      'machineStatus': 'machineStatus',
-      'maintenance': 'maintenance'
-    };
-    return keyMap[metricId] || 'completion';
-  };
-
-  // 獲取詳細的得分說明
+  /**
+   * 數據處理方法：獲取詳細得分說明
+   */
   const getScoreExplanation = (metric, data) => {
     switch (metric.id) {
       case 'workHours':
@@ -152,7 +154,9 @@ const PerformanceCard = ({ metric, data }) => {
 
   const scoreExplanation = getScoreExplanation(metric, breakdown);
 
-  // 獲取建議文本列表
+  /**
+   * 工具方法：獲取建議文本
+   */
   const getSuggestions = (value, metric) => {
     const suggestions = [];
     
@@ -778,6 +782,10 @@ const MetricDetails = ({ metric, data, onClose }) => {
   );
 };
 
+/**
+ * 組件：評分詳情展示
+ * 顯示員工的總體評分和公平性指標
+ */
 export const ScoreDetails = ({ employeeData, role }) => {
   const totalScore = calculateTotalScore(employeeData, role);
   const fairnessIndex = calculateFairnessIndex([totalScore]);
@@ -823,6 +831,10 @@ export const ScoreDetails = ({ employeeData, role }) => {
   );
 };
 
+/**
+ * 主要組件：績效儀表板
+ * 整合所有子組件和功能的主容器
+ */
 export default function PerformanceDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedEmployee, setSelectedEmployee] = useState('EMP001');
@@ -853,6 +865,9 @@ export default function PerformanceDashboard() {
     ]
   });
 
+  /**
+   * 配置數據區域
+   */
   const employees = [
     { id: 'EMP001', name: '張小明' },
     { id: 'EMP002', name: '李小華' },
@@ -868,6 +883,10 @@ export default function PerformanceDashboard() {
     { month: '6月', completion: 89, quality: 94, efficiency: 90 }
   ];
 
+  /**
+   * 指標配置區域
+   * 定義所有績效指標的計算規則和展示方式
+   */
   const metrics = [
     {
       id: 'workCompletion',
@@ -993,7 +1012,10 @@ export default function PerformanceDashboard() {
     }
   ];
 
-  // 新增：顯示加班影響和特殊貢獻的指標
+  /**
+   * 額外指標配置區域
+   * 定義加班、推廣等特殊指標
+   */
   const additionalMetrics = [
     {
       id: 'overtime',
@@ -1096,7 +1118,11 @@ export default function PerformanceDashboard() {
     }
   };
 
+  /**
+   * 生命週期方法區域
+   */
   useEffect(() => {
+    // ... 數據加載邏輯 ...
     const loadEmployeeData = async () => {
       setIsLoading(true);
       evaluator.startPerformanceMonitoring();
@@ -1117,12 +1143,17 @@ export default function PerformanceDashboard() {
     loadEmployeeData();
   }, [selectedEmployee]);
 
+  /**
+   * 事件處理方法區域
+   */
   const handleLogout = () => {
+    // ... 登出處理邏輯 ...
     localStorage.removeItem('isAuthenticated');
     navigate('/login');
   };
 
   useEffect(() => {
+    // ... 點擊外部關閉用戶選單邏輯 ...
     const handleClickOutside = (event) => {
       if (showUserMenu && !event.target.closest('.user-menu')) {
         setShowUserMenu(false);
@@ -1135,6 +1166,9 @@ export default function PerformanceDashboard() {
     };
   }, [showUserMenu]);
 
+  /**
+   * 條件渲染：加載狀態
+   */
   if (!employeeData || isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gradient-to-br from-slate-800 to-slate-900">
@@ -1147,14 +1181,18 @@ export default function PerformanceDashboard() {
   }
 
   const handleEmployeeChange = (e) => {
+    // ... 員工選擇處理邏輯 ...
     setSelectedEmployee(e.target.value);
   };
 
+  /**
+   * 主要渲染邏輯
+   */
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
+          {/* 頁面頭部：標題和用戶選項 */}
           <div className="flex justify-between items-center mb-6">
             <h1 
               className="text-3xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors duration-200 flex items-center gap-2"
@@ -1209,7 +1247,7 @@ export default function PerformanceDashboard() {
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* 標籤導航區域 */}
           <div className="flex gap-4 mb-6">
             {[
               { id: 'dashboard', label: '績效儀表板', icon: <Activity size={20} /> },
@@ -1231,7 +1269,7 @@ export default function PerformanceDashboard() {
             ))}
           </div>
 
-          {/* Content */}
+          {/* 主要內容區域 */}
           <div className="space-y-6">
             {/* Dashboard View */}
             {activeTab === 'dashboard' && (
@@ -1266,7 +1304,7 @@ export default function PerformanceDashboard() {
               </>
             )}
 
-            {/* Details View */}
+            {/* 詳細數據視圖 */}
             {activeTab === 'details' && (
               <div className="bg-slate-700 rounded-xl p-6 text-white">
                 <h3 className="text-xl font-bold mb-4">詳細績效數據</h3>
@@ -1344,7 +1382,7 @@ export default function PerformanceDashboard() {
               </div>
             )}
 
-            {/* Recommendations View */}
+            {/* 改進建議視圖 */}
             {activeTab === 'recommendations' && (
               <div className="space-y-4">
                 {metrics.map((metric) => {
