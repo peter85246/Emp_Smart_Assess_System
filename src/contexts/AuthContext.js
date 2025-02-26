@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { authStats } from '../utils/authStats';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { authStats } from "../utils/authStats";
 
 const AuthContext = createContext(null);
 
@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // 檢查本地存儲的登錄狀態
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem("user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
@@ -20,29 +20,32 @@ export const AuthProvider = ({ children }) => {
     const startTime = performance.now();
     try {
       // 模擬API調用
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // 模擬驗證邏輯
-      if (credentials.username === 'admin' && credentials.password === 'password') {
+      if (
+        credentials.username === "admin" &&
+        credentials.password === "password"
+      ) {
         const userData = {
           id: 1,
           username: credentials.username,
-          role: 'admin'
+          role: "admin",
         };
-        
+
         setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
+        localStorage.setItem("user", JSON.stringify(userData));
+
         // 記錄登錄統計
         authStats.loginSuccess++;
         authStats.loginAttempts++;
         authStats.responseTime.push(performance.now() - startTime);
-        
+
         return { success: true };
       } else {
         authStats.loginAttempts++;
         authStats.unauthorizedAttempts++;
-        throw new Error('無效的憑證');
+        throw new Error("無效的憑證");
       }
     } catch (error) {
       throw error;
@@ -51,14 +54,14 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
   };
 
   const value = {
     user,
     login,
     logout,
-    loading
+    loading,
   };
 
   return (
@@ -71,7 +74,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth必須在AuthProvider內使用');
+    throw new Error("useAuth必須在AuthProvider內使用");
   }
   return context;
-}; 
+};

@@ -9,6 +9,7 @@
     "axios": "^1.7.9",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.454.0",
+    "prettify": "^0.1.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-feather": "^2.0.10",
@@ -22,7 +23,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "prettify": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\""
   },
   "eslintConfig": {
     "extends": [
@@ -45,6 +47,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
+    "prettier": "^3.5.2",
     "tailwindcss": "^3.4.14"
   }
 }
