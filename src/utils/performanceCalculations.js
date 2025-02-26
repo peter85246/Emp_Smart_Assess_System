@@ -69,18 +69,19 @@ const calculateKPIScore = (data) => {
 const calculateEfficiencyScore = (data) => {
   const { timeManagement, resourceUtilization } = scoringConfig.efficiencyMetrics;
   
-  let timeScore = 0;
-  let resourceScore = 0;
+  // 計算基本工時得分
+  const standardHours = data.standardHours || 40;
+  const actualHours = data.actualHours || 0;
+  const baseCompletion = Math.min((actualHours / standardHours) * 100, 100);
+  
+  // 加班時數的額外得分（可能有獎勵或扣分）
+  const overtime = Math.max(0, actualHours - standardHours);
+  const overtimeScore = overtime > 0 ? 
+    Math.min(overtime * timeManagement.overtimeBonus, timeManagement.maxOvertimeBonus) : 0;
+  
+  const timeScore = baseCompletion + overtimeScore;
 
-  // 計算工時分數
-  if (data.timeManagement >= timeManagement.scoring.excellent.threshold) 
-    timeScore = timeManagement.scoring.excellent.score;
-  else if (data.timeManagement >= timeManagement.scoring.good.threshold)
-    timeScore = timeManagement.scoring.good.score;
-  else if (data.timeManagement >= timeManagement.scoring.fair.threshold)
-    timeScore = timeManagement.scoring.fair.score;
-  else
-    timeScore = timeManagement.scoring.poor.score;
+  let resourceScore = 0;
 
   // 計算資源利用分數
   if (data.resourceUtilization >= resourceUtilization.scoring.excellent.threshold)

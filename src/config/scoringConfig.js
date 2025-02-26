@@ -58,6 +58,12 @@ export const scoringConfig = {
         good: { threshold: 90, score: 90 },
         fair: { threshold: 85, score: 80 },
         poor: { threshold: 80, score: 70 }
+      },
+      overtimeBonus: 0.5, // 每小時加班的額外分數
+      maxOvertimeBonus: 10, // 最高加班額外分數
+      overtimeImpact: {
+        perHourPenalty: 0.5, // 每小時加班的疲勞度扣分
+        maxPenalty: 10 // 最高疲勞度扣分
       }
     },
     resourceUtilization: {
