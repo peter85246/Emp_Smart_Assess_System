@@ -1586,7 +1586,7 @@ export default function PerformanceDashboard() {
                         <span
                           className={`px-2 py-1 rounded-full text-sm ${
                             performanceLevel === "perfect"
-                              ? "bg-gradient-to-r from-purple-300 via-purple-100 to-purple-300 text-purple-800 animate-shimmer relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent"
+                              ? "bg-purple-100 text-purple-800" // 移除漸變和動畫效果
                               : performanceLevel === "excellent"
                                 ? "bg-green-100 text-green-800"
                                 : performanceLevel === "good"
@@ -1597,14 +1597,6 @@ export default function PerformanceDashboard() {
                                       ? "bg-orange-100 text-orange-800"
                                       : "bg-red-100 text-red-800"
                           }`}
-                          style={
-                            performanceLevel === "perfect"
-                              ? {
-                                  backgroundSize: "200% 100%",
-                                  animation: "shimmer 2s infinite linear",
-                                }
-                              : undefined
-                          }
                         >
                           {performanceLevel === "perfect"
                             ? "表現完美"
