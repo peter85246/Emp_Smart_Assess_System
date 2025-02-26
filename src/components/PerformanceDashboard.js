@@ -108,7 +108,7 @@ const PerformanceCard = ({ metric, data }) => {
       const date = new Date(
         now.getFullYear(),
         now.getMonth() - i,
-        now.getDate(),
+        now.getDate()
       );
       const monthStr = `${date.getMonth() + 1}月${date.getDate()}日`;
 
@@ -205,37 +205,37 @@ const PerformanceCard = ({ metric, data }) => {
       suggestions.push(
         `目前${metric.title}表現完美，建議持續保持並協助其他同仁。`,
         "可以擔任部門內部的培訓講師，分享經驗。",
-        "建議參與跨部門專案，擴展影響力。",
+        "建議參與跨部門專案，擴展影響力。"
       );
     } else if (value >= 90) {
       suggestions.push(
         `目前${metric.title}表現優異，建議持續保持現有水準。`,
         "可以嘗試挑戰更高難度的任務。",
-        "建議分享工作方法，帶領團隊成長。",
+        "建議分享工作方法，帶領團隊成長。"
       );
     } else if (value >= 80) {
       suggestions.push(
         `目前${metric.title}表現良好，仍有提升空間。`,
         "建議參加進階培訓課程，提升專業技能。",
-        "可以向優秀同仁學習，找出改進方向。",
+        "可以向優秀同仁學習，找出改進方向。"
       );
     } else if (value >= 70) {
       suggestions.push(
         `建議參加${metric.title}相關培訓課程，提升專業技能。`,
         "與主管討論制定具體的改進計畫。",
-        "建議多與同仁交流，學習優秀經驗。",
+        "建議多與同仁交流，學習優秀經驗。"
       );
     } else if (value >= 60) {
       suggestions.push(
         `需要加強${metric.title}相關能力，建議尋求主管協助。`,
         "制定短期改進目標，逐步提升。",
-        "建議安排mentor指導，協助改進。",
+        "建議安排mentor指導，協助改進。"
       );
     } else {
       suggestions.push(
         `急需改進${metric.title}，建議立即進行專業培訓。`,
         "需要主管特別輔導和協助。",
-        "建議調整工作方法，找出問題癥結。",
+        "建議調整工作方法，找出問題癥結。"
       );
     }
     return suggestions;
@@ -575,7 +575,7 @@ const getScoreBreakdown = (metric, data) => {
   const calculateFinalScore = (baseScore, adjustments) => {
     const totalAdjustments = adjustments.reduce(
       (sum, adj) => sum + adj.score,
-      0,
+      0
     );
     return Math.min(100, baseScore + totalAdjustments);
   };
@@ -594,7 +594,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: workCompletionAdjustments,
         finalScore: calculateFinalScore(
           data.workCompletion || 0,
-          workCompletionAdjustments,
+          workCompletionAdjustments
         ),
       };
 
@@ -616,7 +616,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: qualityAdjustments,
         finalScore: calculateFinalScore(
           data.productQuality,
-          qualityAdjustments,
+          qualityAdjustments
         ),
       };
 
@@ -695,7 +695,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: machineStatusAdjustments,
         finalScore: calculateFinalScore(
           data.machineStatus,
-          machineStatusAdjustments,
+          machineStatusAdjustments
         ),
       };
 
@@ -717,7 +717,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: maintenanceAdjustments,
         finalScore: calculateFinalScore(
           data.maintenanceRecord,
-          maintenanceAdjustments,
+          maintenanceAdjustments
         ),
       };
 
@@ -739,7 +739,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: targetAchievementAdjustments,
         finalScore: calculateFinalScore(
           data.targetAchievement,
-          targetAchievementAdjustments,
+          targetAchievementAdjustments
         ),
       };
 
@@ -1167,7 +1167,7 @@ export default function PerformanceDashboard() {
         const evaluator = new PerformanceEvaluator(data.role);
         return evaluator.calculatePromotionBonus(
           data.monthInRole,
-          data.baseScore,
+          data.baseScore
         );
       },
       color: "bg-purple-500",
@@ -1596,7 +1596,7 @@ export default function PerformanceDashboard() {
                         <span
                           className={`px-2 py-1 rounded-full text-sm ${
                             performanceLevel === "perfect"
-                              ? "bg-gradient-to-r from-purple-300 via-purple-100 to-purple-300 text-purple-800 animate-shimmer relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent"
+                              ? "bg-purple-100 text-purple-800"
                               : performanceLevel === "excellent"
                                 ? "bg-green-100 text-green-800"
                                 : performanceLevel === "good"
@@ -1607,14 +1607,6 @@ export default function PerformanceDashboard() {
                                       ? "bg-orange-100 text-orange-800"
                                       : "bg-red-100 text-red-800"
                           }`}
-                          style={
-                            performanceLevel === "perfect"
-                              ? {
-                                  backgroundSize: "200% 100%",
-                                  animation: "shimmer 2s infinite linear",
-                                }
-                              : undefined
-                          }
                         >
                           {performanceLevel === "perfect"
                             ? "表現完美"
