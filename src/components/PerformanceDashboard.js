@@ -8,6 +8,13 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts";
 import {
   Activity,
@@ -19,6 +26,10 @@ import {
   Settings,
   Wrench,
   BarChart,
+  Grid,
+  Table,
+  TrendingUp,
+  TrendingDown,
   User,
   Key,
   LogOut,
@@ -30,6 +41,7 @@ import {
   X,
 } from "react-feather";
 import {
+  calculateWeightedScore,
   calculateFairnessIndex,
   generateImprovement,
   calculateTotalScore,
@@ -311,20 +323,18 @@ const PerformanceCard = ({ metric, data }) => {
                   得分計算明細
                 </h4>
                 <div className="bg-slate-700 rounded-lg p-4 space-y-4">
-                  {/* 基礎分數說明 - 修改這部分 */}
+                  {/* 基礎分數說明 */}
                   <div className="space-y-2">
-                    <p className="text-white font-medium">
-                      {scoreExplanation.baseScoreExplanation}
-                    </p>
-                    <ul className="space-y-1">
-                      <li className="text-slate-300 ml-4">
-                        • 基礎得分：{breakdown.baseScore}分
-                      </li>
-                      {/* 如果需要顯示其他詳細信息，可以在這裡添加 */}
-                    </ul>
-                    <p className="text-sm text-slate-400">
-                      {scoreExplanation.calculationMethod}
-                    </p>
+                    <h5 className="text-white font-medium">基礎得分：</h5>
+                    <div className="bg-slate-600/50 rounded p-3">
+                      <div className="flex justify-between text-slate-300">
+                        <span>{scoreExplanation.baseScoreExplanation}</span>
+                        <span>{breakdown.baseScore}分</span>
+                      </div>
+                      <div className="text-sm text-slate-400 mt-1">
+                        {scoreExplanation.calculationMethod}
+                      </div>
+                    </div>
                   </div>
 
                   {/* 加分項目 */}
@@ -567,7 +577,7 @@ const getScoreBreakdown = (metric, data) => {
       (sum, adj) => sum + adj.score,
       0,
     );
-    return Math.min(100, baseScore + totalAdjustments); // 確保不超過100分
+    return Math.min(100, baseScore + totalAdjustments);
   };
 
   switch (metric.id) {
@@ -580,10 +590,10 @@ const getScoreBreakdown = (metric, data) => {
         },
       ];
       return {
-        baseScore: data.workCompletion,
+        baseScore: data.workCompletion || 0,
         adjustments: workCompletionAdjustments,
         finalScore: calculateFinalScore(
-          data.workCompletion,
+          data.workCompletion || 0,
           workCompletionAdjustments,
         ),
       };
@@ -1586,7 +1596,7 @@ export default function PerformanceDashboard() {
                         <span
                           className={`px-2 py-1 rounded-full text-sm ${
                             performanceLevel === "perfect"
-                              ? "bg-purple-100 text-purple-800" // 移除漸變和動畫效果
+                              ? "bg-gradient-to-r from-purple-300 via-purple-100 to-purple-300 text-purple-800 animate-shimmer relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent"
                               : performanceLevel === "excellent"
                                 ? "bg-green-100 text-green-800"
                                 : performanceLevel === "good"
@@ -1597,6 +1607,14 @@ export default function PerformanceDashboard() {
                                       ? "bg-orange-100 text-orange-800"
                                       : "bg-red-100 text-red-800"
                           }`}
+                          style={
+                            performanceLevel === "perfect"
+                              ? {
+                                  backgroundSize: "200% 100%",
+                                  animation: "shimmer 2s infinite linear",
+                                }
+                              : undefined
+                          }
                         >
                           {performanceLevel === "perfect"
                             ? "表現完美"
