@@ -73,7 +73,7 @@ const ProgressBar = ({ value, color }) => {
   return (
     <div className="w-full h-2 bg-slate-600/50 rounded-full overflow-hidden">
       <div
-        className={`h-full transition-all duration-300 ${bgColorClass}`}
+        className={`h-full relative ${bgColorClass} animate-glow before:absolute before:inset-0 before:bg-progress-gradient before:animate-progressFlow`}
         style={{
           width: `${Math.min(Math.max(value, 0), 100)}%`,
           transition: "width 0.5s ease-in-out",
@@ -126,14 +126,17 @@ const PerformanceCard = ({ metric, data }) => {
    */
   const getMetricStyle = (metricId) => {
     const styleMap = {
-      workCompletion: { color: "#10B981", name: "完成率" },
-      quality: { color: "#3B82F6", name: "質量" },
-      efficiency: { color: "#F59E0B", name: "效率" },
-      attendance: { color: "#EC4899", name: "出勤率" },
-      machineStatus: { color: "#06B6D4", name: "機台狀態" },
-      maintenance: { color: "#8B5CF6", name: "維護記錄" },
+      workCompletion: { color: "#3B82F6", name: "完成率" },    // text-blue-500
+      quality: { color: "#10B981", name: "質量" },            // text-green-500
+      workHours: { color: "#F59E0B", name: "工作時間" },      // text-orange-400
+      attendance: { color: "#EC4899", name: "出勤率" },       // text-pink-400
+      machineStatus: { color: "#06B6D4", name: "機台狀態" },   // text-cyan-400
+      maintenance: { color: "#8B5CF6", name: "維護記錄" },     // text-purple-400
+      targetAchievement: { color: "#F87171", name: "目標達成" }, // text-red-400
+      kpi: { color: "#FBBF24", name: "KPI" },                // text-yellow-400
+      efficiency: { color: "#A3E635", name: "效率" },         // text-lime-400
     };
-    return styleMap[metricId] || { color: "#10B981", name: "完成率" };
+    return styleMap[metricId] || { color: "#3B82F6", name: "完成率" };
   };
 
   /**
@@ -245,23 +248,23 @@ const PerformanceCard = ({ metric, data }) => {
     <>
       <div
         onClick={() => setIsModalOpen(true)}
-        className="bg-slate-700/50 p-4 rounded-xl cursor-pointer hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+        className="bg-slate-700/50 p-4 rounded-xl cursor-pointer hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl backdrop-blur-sm hover:bg-slate-700/60 group"
       >
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`${metric.color}`}>{metric.icon}</span>
-              <h3 className={`text-lg font-semibold ${metric.color}`}>
+              <span className={`${metric.color} animate-glow`}>{metric.icon}</span>
+              <h3 className={`text-lg font-semibold ${metric.color} animate-glow`}>
                 {metric.title}
               </h3>
             </div>
-            <p className={`text-3xl font-bold ${metric.color}`}>{value}%</p>
+            <p className={`text-3xl font-bold ${metric.color} animate-glow`}>{value}%</p>
           </div>
           <div className="trend-indicator">
             {value > metric.target ? (
-              <ReactFeatherTrendingUp className="text-green-400" />
+              <ReactFeatherTrendingUp className="text-green-400 animate-glow" />
             ) : (
-              <ReactFeatherTrendingDown className="text-red-400" />
+              <ReactFeatherTrendingDown className="text-red-400 animate-glow" />
             )}
           </div>
         </div>
@@ -1493,42 +1496,34 @@ export default function PerformanceDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-600">
                       {metrics.map((metric) => (
-                        <tr key={metric.id}>
+                        <tr key={metric.id} className="hover:bg-slate-600/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap text-slate-200">
                             <div className="flex items-center">
-                              <span className="mr-2">{metric.icon}</span>
-                              {metric.title}
+                              <span className={`mr-2 animate-glow ${metric.color}`}>{metric.icon}</span>
+                              <span className="animate-glow">{metric.title}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                            {metric.value(employeeData)}%
+                            <span className="animate-glow">{metric.value(employeeData)}%</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                            80%
+                            <span className="animate-glow">80%</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`px-2 py-1 rounded-full text-sm ${
+                              className={`px-2 py-1 rounded-full text-sm animate-glow ${
                                 metric.value(employeeData) === 100
                                   ? "bg-gradient-to-r from-purple-300 via-purple-100 to-purple-300 text-purple-800"
                                   : metric.value(employeeData) >= 90
                                     ? "bg-green-100 text-green-800"
                                     : metric.value(employeeData) >= 80
-                                      ? "bg-blue-100 text-blue-800"
-                                      : metric.value(employeeData) >= 70
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : metric.value(employeeData) >= 60
-                                          ? "bg-orange-100 text-orange-800"
-                                          : "bg-red-100 text-red-800"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : metric.value(employeeData) >= 70
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : metric.value(employeeData) >= 60
+                                    ? "bg-orange-100 text-orange-800"
+                                    : "bg-red-100 text-red-800"
                               }`}
-                              style={
-                                metric.value(employeeData) === 100
-                                  ? {
-                                      backgroundSize: "200% 100%",
-                                      animation: "shimmer 2s infinite linear",
-                                    }
-                                  : undefined
-                              }
                             >
                               {metric.value(employeeData) === 100
                                 ? "完美"
@@ -1572,40 +1567,38 @@ export default function PerformanceDashboard() {
                   return (
                     <div
                       key={metric.id}
-                      className={`bg-slate-700 rounded-xl p-6 text-white border-l-4 ${
+                      className={`bg-slate-700 rounded-xl p-6 text-white border-l-4 hover:shadow-lg transition-all duration-300 ${
                         performanceLevel === "perfect"
                           ? "border-purple-500"
                           : performanceLevel === "excellent"
-                            ? "border-green-500"
-                            : performanceLevel === "good"
-                              ? "border-blue-500"
-                              : performanceLevel === "needsImprovement"
-                                ? "border-yellow-500"
-                                : performanceLevel === "poor"
-                                  ? "border-orange-500"
-                                  : "border-red-500"
+                          ? "border-green-500"
+                          : performanceLevel === "good"
+                          ? "border-blue-500"
+                          : performanceLevel === "needsImprovement"
+                          ? "border-yellow-500"
+                          : performanceLevel === "poor"
+                          ? "border-orange-500"
+                          : "border-red-500"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center">
-                          <span className="mr-2">{metric.icon}</span>
-                          <h3 className="text-lg font-bold">
-                            {metric.title}建議
-                          </h3>
+                          <span className={`mr-2 ${metric.color}`}>{metric.icon}</span>
+                          <h3 className="text-lg font-bold">{metric.title}建議</h3>
                         </div>
                         <span
-                          className={`px-2 py-1 rounded-full text-sm ${
+                          className={`px-2 py-1 rounded-full text-sm animate-glow ${
                             performanceLevel === "perfect"
                               ? "bg-purple-100 text-purple-800"
                               : performanceLevel === "excellent"
-                                ? "bg-green-100 text-green-800"
-                                : performanceLevel === "good"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : performanceLevel === "needsImprovement"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : performanceLevel === "poor"
-                                      ? "bg-orange-100 text-orange-800"
-                                      : "bg-red-100 text-red-800"
+                              ? "bg-green-100 text-green-800"
+                              : performanceLevel === "good"
+                              ? "bg-blue-100 text-blue-800"
+                              : performanceLevel === "needsImprovement"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : performanceLevel === "poor"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-red-100 text-red-800"
                           }`}
                         >
                           {performanceLevel === "perfect"

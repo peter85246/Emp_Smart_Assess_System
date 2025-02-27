@@ -4,30 +4,30 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
-    extend: {},
-  },
-  plugins: [],
-
-  theme: {
     extend: {
-      animation: {
-        'shimmer': 'shimmer 2s infinite',
-        'fadeIn': 'fadeIn 0.3s ease-in-out',
-        'slideUp': 'slideUp 0.3s ease-out',
-      },
       keyframes: {
         shimmer: {
-          '100%': { transform: 'translateX(100%)' },
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' }
         },
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
+        glow: {
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0.6 }
         },
-        slideUp: {
-          '0%': { transform: 'translateY(20px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
+        progressFlow: {
+          '0%': { backgroundPosition: '0% 50%' },
+          '100%': { backgroundPosition: '100% 50%' }
+        }
       },
+      animation: {
+        shimmer: 'shimmer 3s linear infinite',
+        glow: 'glow 2s ease-in-out infinite',
+        progressFlow: 'progressFlow 3s linear infinite'
+      },
+      backgroundImage: {
+        'progress-gradient': 'linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%)',
+      }
     },
   },
+  plugins: [],
 }

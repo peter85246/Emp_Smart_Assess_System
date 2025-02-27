@@ -4,6 +4,34 @@ import axios from "axios";
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:3000/api";
 
+// 新增：XML 解析和轉換工具
+const xmlParser = {
+  parseXML: (xmlString) => {
+    const parser = new DOMParser();
+    return parser.parseFromString(xmlString, "application/xml");
+  },
+  
+  convertToJSON: (xmlDoc) => {
+    const result = {};
+    const root = xmlDoc.documentElement;
+    
+    function parseNode(node, obj) {
+      const children = node.children;
+      if (children.length === 0) {
+        obj[node.tagName] = node.textContent;
+      } else {
+        obj[node.tagName] = {};
+        Array.from(children).forEach(child => {
+          parseNode(child, obj[node.tagName]);
+        });
+      }
+    }
+    
+    parseNode(root, result);
+    return result;
+  }
+};
+
 export const performanceAPI = {
   // 獲取員工績效數據
   // 支持 JSON 和 XML 格式（需要後端配合）
@@ -16,8 +44,16 @@ export const performanceAPI = {
             // 可以通過設置 Accept 頭來指定期望的響應格式
             Accept: "application/json, application/xml",
           },
-        },
+        }
       );
+
+      // 根據響應類型處理數據
+      const contentType = response.headers["content-type"];
+      if (contentType.includes("application/xml")) {
+        const xmlDoc = xmlParser.parseXML(response.data);
+        return xmlParser.convertToJSON(xmlDoc);
+      }
+      
       return response.data;
     } catch (error) {
       console.error("獲取員工數據失敗:", error);
@@ -35,8 +71,16 @@ export const performanceAPI = {
           headers: {
             Accept: "application/json, application/xml",
           },
-        },
+        }
       );
+
+      // 根據響應類型處理數據
+      const contentType = response.headers["content-type"];
+      if (contentType.includes("application/xml")) {
+        const xmlDoc = xmlParser.parseXML(response.data);
+        return xmlParser.convertToJSON(xmlDoc);
+      }
+
       return response.data;
     } catch (error) {
       console.error("獲取歷史數據失敗:", error);
