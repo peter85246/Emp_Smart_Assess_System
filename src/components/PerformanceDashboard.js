@@ -108,7 +108,7 @@ const PerformanceCard = ({ metric, data }) => {
       const date = new Date(
         now.getFullYear(),
         now.getMonth() - i,
-        now.getDate()
+        now.getDate(),
       );
       const monthStr = `${date.getMonth() + 1}月${date.getDate()}日`;
 
@@ -126,15 +126,15 @@ const PerformanceCard = ({ metric, data }) => {
    */
   const getMetricStyle = (metricId) => {
     const styleMap = {
-      workCompletion: { color: "#3B82F6", name: "完成率" },    // text-blue-500
-      quality: { color: "#10B981", name: "質量" },            // text-green-500
-      workHours: { color: "#F59E0B", name: "工作時間" },      // text-orange-400
-      attendance: { color: "#EC4899", name: "出勤率" },       // text-pink-400
-      machineStatus: { color: "#06B6D4", name: "機台狀態" },   // text-cyan-400
-      maintenance: { color: "#8B5CF6", name: "維護記錄" },     // text-purple-400
+      workCompletion: { color: "#3B82F6", name: "完成率" }, // text-blue-500
+      quality: { color: "#10B981", name: "質量" }, // text-green-500
+      workHours: { color: "#F59E0B", name: "工作時間" }, // text-orange-400
+      attendance: { color: "#EC4899", name: "出勤率" }, // text-pink-400
+      machineStatus: { color: "#06B6D4", name: "機台狀態" }, // text-cyan-400
+      maintenance: { color: "#8B5CF6", name: "維護記錄" }, // text-purple-400
       targetAchievement: { color: "#F87171", name: "目標達成" }, // text-red-400
-      kpi: { color: "#FBBF24", name: "KPI" },                // text-yellow-400
-      efficiency: { color: "#A3E635", name: "效率" },         // text-lime-400
+      kpi: { color: "#FBBF24", name: "KPI" }, // text-yellow-400
+      efficiency: { color: "#A3E635", name: "效率" }, // text-lime-400
     };
     return styleMap[metricId] || { color: "#3B82F6", name: "完成率" };
   };
@@ -208,37 +208,37 @@ const PerformanceCard = ({ metric, data }) => {
       suggestions.push(
         `目前${metric.title}表現完美，建議持續保持並協助其他同仁。`,
         "可以擔任部門內部的培訓講師，分享經驗。",
-        "建議參與跨部門專案，擴展影響力。"
+        "建議參與跨部門專案，擴展影響力。",
       );
     } else if (value >= 90) {
       suggestions.push(
         `目前${metric.title}表現優異，建議持續保持現有水準。`,
         "可以嘗試挑戰更高難度的任務。",
-        "建議分享工作方法，帶領團隊成長。"
+        "建議分享工作方法，帶領團隊成長。",
       );
     } else if (value >= 80) {
       suggestions.push(
         `目前${metric.title}表現良好，仍有提升空間。`,
         "建議參加進階培訓課程，提升專業技能。",
-        "可以向優秀同仁學習，找出改進方向。"
+        "可以向優秀同仁學習，找出改進方向。",
       );
     } else if (value >= 70) {
       suggestions.push(
         `建議參加${metric.title}相關培訓課程，提升專業技能。`,
         "與主管討論制定具體的改進計畫。",
-        "建議多與同仁交流，學習優秀經驗。"
+        "建議多與同仁交流，學習優秀經驗。",
       );
     } else if (value >= 60) {
       suggestions.push(
         `需要加強${metric.title}相關能力，建議尋求主管協助。`,
         "制定短期改進目標，逐步提升。",
-        "建議安排mentor指導，協助改進。"
+        "建議安排mentor指導，協助改進。",
       );
     } else {
       suggestions.push(
         `急需改進${metric.title}，建議立即進行專業培訓。`,
         "需要主管特別輔導和協助。",
-        "建議調整工作方法，找出問題癥結。"
+        "建議調整工作方法，找出問題癥結。",
       );
     }
     return suggestions;
@@ -253,12 +253,18 @@ const PerformanceCard = ({ metric, data }) => {
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`${metric.color} animate-glow`}>{metric.icon}</span>
-              <h3 className={`text-lg font-semibold ${metric.color} animate-glow`}>
+              <span className={`${metric.color} animate-glow`}>
+                {metric.icon}
+              </span>
+              <h3
+                className={`text-lg font-semibold ${metric.color} animate-glow`}
+              >
                 {metric.title}
               </h3>
             </div>
-            <p className={`text-3xl font-bold ${metric.color} animate-glow`}>{value}%</p>
+            <p className={`text-3xl font-bold ${metric.color} animate-glow`}>
+              {value}%
+            </p>
           </div>
           <div className="trend-indicator">
             {value > metric.target ? (
@@ -578,7 +584,7 @@ const getScoreBreakdown = (metric, data) => {
   const calculateFinalScore = (baseScore, adjustments) => {
     const totalAdjustments = adjustments.reduce(
       (sum, adj) => sum + adj.score,
-      0
+      0,
     );
     return Math.min(100, baseScore + totalAdjustments);
   };
@@ -597,7 +603,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: workCompletionAdjustments,
         finalScore: calculateFinalScore(
           data.workCompletion || 0,
-          workCompletionAdjustments
+          workCompletionAdjustments,
         ),
       };
 
@@ -619,7 +625,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: qualityAdjustments,
         finalScore: calculateFinalScore(
           data.productQuality,
-          qualityAdjustments
+          qualityAdjustments,
         ),
       };
 
@@ -698,7 +704,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: machineStatusAdjustments,
         finalScore: calculateFinalScore(
           data.machineStatus,
-          machineStatusAdjustments
+          machineStatusAdjustments,
         ),
       };
 
@@ -720,7 +726,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: maintenanceAdjustments,
         finalScore: calculateFinalScore(
           data.maintenanceRecord,
-          maintenanceAdjustments
+          maintenanceAdjustments,
         ),
       };
 
@@ -742,7 +748,7 @@ const getScoreBreakdown = (metric, data) => {
         adjustments: targetAchievementAdjustments,
         finalScore: calculateFinalScore(
           data.targetAchievement,
-          targetAchievementAdjustments
+          targetAchievementAdjustments,
         ),
       };
 
@@ -997,6 +1003,12 @@ export default function PerformanceDashboard() {
       { month: "4月", value: 86 },
       { month: "5月", value: 88 },
       { month: "6月", value: 90 },
+      { month: "7月", value: 91 },
+      { month: "8月", value: 89 },
+      { month: "9月", value: 92 },
+      { month: "10月", value: 93 },
+      { month: "11月", value: 91 },
+      { month: "12月", value: 94 },
     ],
   });
 
@@ -1016,6 +1028,12 @@ export default function PerformanceDashboard() {
     { month: "4月", completion: 85, quality: 91, efficiency: 87 },
     { month: "5月", completion: 87, quality: 93, efficiency: 88 },
     { month: "6月", completion: 89, quality: 94, efficiency: 90 },
+    { month: "7月", completion: 91, quality: 95, efficiency: 92 },
+    { month: "8月", completion: 90, quality: 93, efficiency: 91 },
+    { month: "9月", completion: 92, quality: 94, efficiency: 93 },
+    { month: "10月", completion: 93, quality: 96, efficiency: 94 },
+    { month: "11月", completion: 94, quality: 95, efficiency: 93 },
+    { month: "12月", completion: 95, quality: 97, efficiency: 95 },
   ];
 
   /**
@@ -1170,7 +1188,7 @@ export default function PerformanceDashboard() {
         const evaluator = new PerformanceEvaluator(data.role);
         return evaluator.calculatePromotionBonus(
           data.monthInRole,
-          data.baseScore
+          data.baseScore,
         );
       },
       color: "bg-purple-500",
@@ -1496,15 +1514,26 @@ export default function PerformanceDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-600">
                       {metrics.map((metric) => (
-                        <tr key={metric.id} className="hover:bg-slate-600/50 transition-colors">
+                        <tr
+                          key={metric.id}
+                          className="hover:bg-slate-600/50 transition-colors"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap text-slate-200">
                             <div className="flex items-center">
-                              <span className={`mr-2 animate-glow ${metric.color}`}>{metric.icon}</span>
-                              <span className="animate-glow">{metric.title}</span>
+                              <span
+                                className={`mr-2 animate-glow ${metric.color}`}
+                              >
+                                {metric.icon}
+                              </span>
+                              <span className="animate-glow">
+                                {metric.title}
+                              </span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                            <span className="animate-glow">{metric.value(employeeData)}%</span>
+                            <span className="animate-glow">
+                              {metric.value(employeeData)}%
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-slate-200">
                             <span className="animate-glow">80%</span>
@@ -1517,12 +1546,12 @@ export default function PerformanceDashboard() {
                                   : metric.value(employeeData) >= 90
                                     ? "bg-green-100 text-green-800"
                                     : metric.value(employeeData) >= 80
-                                    ? "bg-blue-100 text-blue-800"
-                                    : metric.value(employeeData) >= 70
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : metric.value(employeeData) >= 60
-                                    ? "bg-orange-100 text-orange-800"
-                                    : "bg-red-100 text-red-800"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : metric.value(employeeData) >= 70
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : metric.value(employeeData) >= 60
+                                          ? "bg-orange-100 text-orange-800"
+                                          : "bg-red-100 text-red-800"
                               }`}
                             >
                               {metric.value(employeeData) === 100
@@ -1571,34 +1600,38 @@ export default function PerformanceDashboard() {
                         performanceLevel === "perfect"
                           ? "border-purple-500"
                           : performanceLevel === "excellent"
-                          ? "border-green-500"
-                          : performanceLevel === "good"
-                          ? "border-blue-500"
-                          : performanceLevel === "needsImprovement"
-                          ? "border-yellow-500"
-                          : performanceLevel === "poor"
-                          ? "border-orange-500"
-                          : "border-red-500"
+                            ? "border-green-500"
+                            : performanceLevel === "good"
+                              ? "border-blue-500"
+                              : performanceLevel === "needsImprovement"
+                                ? "border-yellow-500"
+                                : performanceLevel === "poor"
+                                  ? "border-orange-500"
+                                  : "border-red-500"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center">
-                          <span className={`mr-2 ${metric.color}`}>{metric.icon}</span>
-                          <h3 className="text-lg font-bold">{metric.title}建議</h3>
+                          <span className={`mr-2 ${metric.color}`}>
+                            {metric.icon}
+                          </span>
+                          <h3 className="text-lg font-bold">
+                            {metric.title}建議
+                          </h3>
                         </div>
                         <span
                           className={`px-2 py-1 rounded-full text-sm animate-glow ${
                             performanceLevel === "perfect"
                               ? "bg-purple-100 text-purple-800"
                               : performanceLevel === "excellent"
-                              ? "bg-green-100 text-green-800"
-                              : performanceLevel === "good"
-                              ? "bg-blue-100 text-blue-800"
-                              : performanceLevel === "needsImprovement"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : performanceLevel === "poor"
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-red-100 text-red-800"
+                                ? "bg-green-100 text-green-800"
+                                : performanceLevel === "good"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : performanceLevel === "needsImprovement"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : performanceLevel === "poor"
+                                      ? "bg-orange-100 text-orange-800"
+                                      : "bg-red-100 text-red-800"
                           }`}
                         >
                           {performanceLevel === "perfect"
