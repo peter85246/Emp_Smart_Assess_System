@@ -46,8 +46,18 @@ import {
   generateImprovement,
   calculateTotalScore,
 } from "../utils/performanceCalculations";
+import {
+  convertPercentageToScore,
+  getPerformanceAnalysis,
+  getGradeBadgeColor,
+  getUpgradeInfo,
+  getGradeFromScore,
+  getScoreBreakdown  // 新增：從工具模組導入
+} from "../utils/scoreCalculations";
 import { useNavigate } from "react-router-dom";
 import { PerformanceEvaluator } from "../utils/performanceCalculations";
+import { performanceAPI } from "../services/api";
+import { mockEmployeeData } from "../models/employeeData";
 
 /**
  * 共用組件：進度條
@@ -94,32 +104,136 @@ const ProgressBar = ({ value, color }) => {
 const PerformanceCard = ({ metric, data }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showLevelGuide, setShowLevelGuide] = useState(false);
-  const value = metric.value(data);
+  const baseValue = metric.value(data);
   const breakdown = getScoreBreakdown(metric, data);
+  
+  // 使用最終得分而非基礎得分
+  const value = breakdown.finalScore;
+  
+  // 得分計算表整合
+  const scoreData = convertPercentageToScore(value);
+  const performanceAnalysis = getPerformanceAnalysis(value, metric.id, metric.title);
 
   /**
    * 數據處理方法：獲取最近三個月數據
+   * 🎯 完整修正歷史趨勢一致性問題：
+   * - 支援所有9個指標的歷史數據映射
+   * - 當前月份（7月）使用最終得分（包含加分機制）
+   * - 前兩個月使用基礎分數（原始數據）
+   * - 確保每個指標的7月歷史數據與當前顯示的得分一致
+   * - 修正dataKey映射邏輯，避免所有指標錯誤使用同一字段
    */
   const getRecentMonthsData = () => {
     const now = new Date();
-    const months = [];
-
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // getMonth()返回0-11，需要+1
+    
+    // 獲取對應員工的年度數據
+    const employeeId = data?.employeeId || 'EMP001'; // 從data中獲取員工ID，預設為EMP001
+    const employeeAllData = mockEmployeeData[employeeId];
+    
+    if (!employeeAllData || !employeeAllData.yearlyData || !employeeAllData.yearlyData[currentYear]) {
+      // 如果沒有年度數據，使用預設的三個月數據（調整為與當前最終得分一致）
+      const currentFieldValue = metric.id === 'workCompletion' ? 'completion' :
+                               metric.id === 'quality' ? 'quality' :
+                               metric.id === 'workHours' ? 'workHours' :
+                               metric.id === 'attendance' ? 'attendance' :
+                               metric.id === 'machineStatus' ? 'machineStatus' :
+                               metric.id === 'maintenance' ? 'maintenance' :
+                               metric.id === 'targetAchievement' ? 'targetAchievement' :
+                               metric.id === 'kpi' ? 'kpi' : 'efficiency';
+      
+      return [
+        { month: "5月", completion: 70, quality: 75, efficiency: 72, workHours: 75, attendance: 95, machineStatus: 90, maintenance: 80, targetAchievement: 85, kpi: 80 },
+        { month: "6月", completion: 72, quality: 77, efficiency: 75, workHours: 75, attendance: 96, machineStatus: 92, maintenance: 82, targetAchievement: 87, kpi: 82 },
+        { month: "7月", [currentFieldValue]: value, completion: 75, quality: 80, efficiency: 77, workHours: 75, attendance: 98, machineStatus: 95, maintenance: 85, targetAchievement: 90, kpi: 85 } // 使用當前最終得分
+      ];
+    }
+    
+    const yearData = employeeAllData.yearlyData[currentYear];
+    
+    // 獲取最近三個月的數據，包括當前月份
+    const recentThreeMonths = [];
     for (let i = 2; i >= 0; i--) {
-      const date = new Date(
-        now.getFullYear(),
-        now.getMonth() - i,
-        now.getDate(),
-      );
-      const monthStr = `${date.getMonth() + 1}月${date.getDate()}日`;
-
-      months.push({
-        month: monthStr,
-        completion: Math.round(Math.random() * 20 + 80), // 模擬數據
-        quality: Math.round(Math.random() * 20 + 80),
-        efficiency: Math.round(Math.random() * 20 + 80),
+      const targetMonth = currentMonth - i;
+      if (targetMonth > 0 && targetMonth <= yearData.length) {
+        const monthData = yearData[targetMonth - 1]; // 數組索引從0開始
+        
+        // 🎯 關鍵修正：如果是當前月份，需要調整數據以反映最終得分
+        if (targetMonth === currentMonth) {
+          // 當前月份使用最終得分，確保與數據卡片一致
+          let adjustedData = {
+            month: monthData.month,
+            completion: monthData.completion,
+            quality: monthData.quality, 
+            efficiency: monthData.efficiency,
+            workHours: monthData.workHours || 75,
+            attendance: monthData.attendance || 98,
+            machineStatus: monthData.machineStatus || 95,
+            maintenance: monthData.maintenance || 85,
+            targetAchievement: monthData.targetAchievement || 95,
+            kpi: monthData.kpi || 88
+          };
+          
+          // 根據當前指標類型調整對應的數值為最終得分
+          if (metric.id === 'workCompletion') {
+            adjustedData.completion = value; // 使用最終得分
+          } else if (metric.id === 'quality') {
+            adjustedData.quality = value; // 使用最終得分
+          } else if (metric.id === 'workHours') {
+            adjustedData.workHours = value; // 使用最終得分
+          } else if (metric.id === 'attendance') {
+            adjustedData.attendance = value; // 使用最終得分
+          } else if (metric.id === 'machineStatus') {
+            adjustedData.machineStatus = value; // 使用最終得分
+          } else if (metric.id === 'maintenance') {
+            adjustedData.maintenance = value; // 使用最終得分
+          } else if (metric.id === 'targetAchievement') {
+            adjustedData.targetAchievement = value; // 使用最終得分
+          } else if (metric.id === 'kpi') {
+            adjustedData.kpi = value; // 使用最終得分
+          } else if (metric.id === 'efficiency') {
+            adjustedData.efficiency = value; // 使用最終得分
+          }
+          
+          recentThreeMonths.push(adjustedData);
+        } else {
+          // 前幾個月保持原始數據
+          recentThreeMonths.push({
+            month: monthData.month,
+            completion: monthData.completion,
+            quality: monthData.quality,
+            efficiency: monthData.efficiency,
+            workHours: monthData.workHours || 75,
+            attendance: monthData.attendance || 98,
+            machineStatus: monthData.machineStatus || 95,
+            maintenance: monthData.maintenance || 85,
+            targetAchievement: monthData.targetAchievement || 95,
+            kpi: monthData.kpi || 88
+          });
+        }
+      }
+    }
+    
+    // 如果數據不足三個月，用現有數據填充
+    while (recentThreeMonths.length < 3) {
+      const lastData = recentThreeMonths[recentThreeMonths.length - 1] || 
+        { month: "當月", completion: 75, quality: 75, efficiency: 75, workHours: 75, attendance: 95, machineStatus: 90, maintenance: 80, targetAchievement: 85, kpi: 80 };
+      recentThreeMonths.unshift({
+        month: `${recentThreeMonths.length + 1}月前`,
+        completion: Math.max(0, lastData.completion - 5),
+        quality: Math.max(0, lastData.quality - 3),
+        efficiency: Math.max(0, lastData.efficiency - 4),
+        workHours: Math.max(0, (lastData.workHours || 75) - 2),
+        attendance: Math.max(0, (lastData.attendance || 95) - 1),
+        machineStatus: Math.max(0, (lastData.machineStatus || 90) - 3),
+        maintenance: Math.max(0, (lastData.maintenance || 80) - 2),
+        targetAchievement: Math.max(0, (lastData.targetAchievement || 85) - 3),
+        kpi: Math.max(0, (lastData.kpi || 80) - 2)
       });
     }
-    return months;
+    
+    return recentThreeMonths;
   };
   /**
    * 工具方法：獲取指標樣式
@@ -199,48 +313,242 @@ const PerformanceCard = ({ metric, data }) => {
   const scoreExplanation = getScoreExplanation(metric, breakdown);
 
   /**
-   * 工具方法：獲取建議文本
+   * 工具方法：獲取計算公式文本
+   */
+  const getCalculationFormula = (metricId, value) => {
+    // 導入詳細計算公式配置
+    const { getDetailedCalculationFormula } = require('../config/scoringConfig');
+    const formulaConfig = getDetailedCalculationFormula(metricId);
+    
+    if (formulaConfig && formulaConfig.formula !== "計算公式未定義") {
+      return `${formulaConfig.formula} = ${value}%`;
+    }
+    
+    // 備用的簡化版本（向後兼容）
+    switch (metricId) {
+      case "workCompletion":
+        return "工作完成量 = 完成量 / 應交量 × 100 = " + value + "%";
+      case "quality":
+        return "產品質量 = 已完成工單數 / 總工單數 × 100 = " + value + "%";
+      case "workHours":
+        return "工作時間效率 = 單位時間完成數 / 平均值 x 100 = " + value + "%";
+      case "attendance":
+        return "差勤紀錄 = 出勤日 / 應出勤日 × 100 = " + value + "%";
+      case "machineStatus":
+        return "機台稼動率 = Running時間 / 總時間 × 100 = " + value + "%";
+      case "maintenance":
+        return "維護表現 = 100 - (Alarm時間 / 總時間 × 100) = " + value + "%";
+      case "targetAchievement":
+        return "目標達成率 = 員工產出 / 工單需求 × 100 = " + value + "%";
+      case "kpi":
+        return "關鍵績效指標 = 各項指標加權平均 = " + value + "%";
+      case "efficiency":
+        return "效率指標 = 實際效率 / 標準效率 × 100 = " + value + "%";
+      default:
+        return "計算結果 = " + value + "%";
+    }
+  };
+
+  /**
+   * 工具方法：獲取個性化建議文本
+   * 根據不同指標和分數範圍提供具體且可操作的建議
    */
   const getSuggestions = (value, metric) => {
     const suggestions = [];
+    const metricSpecificSuggestions = getMetricSpecificSuggestions(metric.id, value);
+    const generalSuggestions = getGeneralSuggestions(value, metric.title);
+    
+    return [...metricSpecificSuggestions, ...generalSuggestions];
+  };
 
-    if (value === 100) {
-      suggestions.push(
-        `目前${metric.title}表現完美，建議持續保持並協助其他同仁。`,
-        "可以擔任部門內部的培訓講師，分享經驗。",
-        "建議參與跨部門專案，擴展影響力。",
-      );
-    } else if (value >= 90) {
-      suggestions.push(
-        `目前${metric.title}表現優異，建議持續保持現有水準。`,
-        "可以嘗試挑戰更高難度的任務。",
-        "建議分享工作方法，帶領團隊成長。",
-      );
-    } else if (value >= 80) {
-      suggestions.push(
-        `目前${metric.title}表現良好，仍有提升空間。`,
-        "建議參加進階培訓課程，提升專業技能。",
-        "可以向優秀同仁學習，找出改進方向。",
-      );
-    } else if (value >= 70) {
-      suggestions.push(
-        `建議參加${metric.title}相關培訓課程，提升專業技能。`,
-        "與主管討論制定具體的改進計畫。",
-        "建議多與同仁交流，學習優秀經驗。",
-      );
-    } else if (value >= 60) {
-      suggestions.push(
-        `需要加強${metric.title}相關能力，建議尋求主管協助。`,
-        "制定短期改進目標，逐步提升。",
-        "建議安排mentor指導，協助改進。",
-      );
-    } else {
-      suggestions.push(
-        `急需改進${metric.title}，建議立即進行專業培訓。`,
-        "需要主管特別輔導和協助。",
-        "建議調整工作方法，找出問題癥結。",
-      );
+  /**
+   * 根據具體指標類型提供針對性建議
+   */
+  const getMetricSpecificSuggestions = (metricId, value) => {
+    const suggestions = [];
+    
+    switch (metricId) {
+      case "workCompletion":
+        if (value >= 95) {
+          suggestions.push("🎯 恭喜達成超額完成目標！考慮分享時間管理技巧給團隊");
+          suggestions.push("📊 可嘗試協助處理更多複雜工單，發揮經驗優勢");
+        } else if (value >= 85) {
+          suggestions.push("⏰ 建議檢視工作流程，找出可優化的環節");
+          suggestions.push("🤝 與高效同事交流，學習任務優先順序安排技巧");
+        } else if (value >= 70) {
+          suggestions.push("📋 建議使用工作清單工具，追踪任務進度");
+          suggestions.push("🎯 專注處理核心任務，避免同時進行太多工作");
+        } else {
+          suggestions.push("🚨 立即與主管討論工作負荷，確認是否需要資源支援");
+          suggestions.push("📚 參加時間管理培訓課程，掌握基本工作技巧");
+        }
+        break;
+        
+      case "quality":
+        if (value >= 95) {
+          suggestions.push("🏆 質量表現卓越！可擔任質量標準制定的關鍵角色");
+          suggestions.push("🔍 分享質量控制心得，建立最佳實務範例");
+        } else if (value >= 85) {
+          suggestions.push("🎯 針對偶發性質量問題建立檢核清單");
+          suggestions.push("📈 定期檢視質量數據，找出改善機會點");
+        } else if (value >= 70) {
+          suggestions.push("🔧 建議加強作業前檢查，確認設備狀況");
+          suggestions.push("📖 參與質量管理系統培訓，了解標準作業程序");
+        } else {
+          suggestions.push("⚠️ 緊急改善質量控制流程，避免持續性缺陷");
+          suggestions.push("👨‍🏫 安排一對一質量指導，重新學習作業標準");
+        }
+        break;
+        
+      case "workHours":
+        if (value >= 90) {
+          suggestions.push("⚡ 工時效率優異！可研究自動化改善方案");
+          suggestions.push("🎓 分享效率提升經驗，幫助團隊整體進步");
+        } else if (value >= 80) {
+          suggestions.push("🔄 檢視重複性作業，尋找標準化機會");
+          suggestions.push("💡 學習使用更有效的工具或方法");
+        } else if (value >= 70) {
+          suggestions.push("📊 記錄每日工時分配，找出時間浪費點");
+          suggestions.push("🎯 設定每小時產能目標，逐步提升效率");
+        } else {
+          suggestions.push("🔴 檢查是否存在技能缺口或設備問題");
+          suggestions.push("📞 立即尋求技術支援，解決效率瓶頸");
+        }
+        break;
+        
+      case "attendance":
+        if (value >= 98) {
+          suggestions.push("🌟 全勤表現優秀！展現了高度的工作責任感");
+          suggestions.push("👥 可擔任團隊出勤模範，鼓勵其他同仁");
+        } else if (value >= 90) {
+          suggestions.push("📅 維持穩定出勤習慣，避免非必要請假");
+          suggestions.push("🏃‍♂️ 注意身體健康，預防因病缺勤");
+        } else if (value >= 80) {
+          suggestions.push("⏰ 檢討請假原因，建立更好的時間管理");
+          suggestions.push("🚗 如有通勤問題，考慮調整交通方式");
+        } else {
+          suggestions.push("🚨 出勤率需要立即改善，與HR討論具體問題");
+          suggestions.push("📋 建立個人出勤改善計劃，設定月度目標");
+        }
+        break;
+        
+      case "machineStatus":
+        if (value >= 95) {
+          suggestions.push("🤖 機台操作技能純熟！可指導新手操作技巧");
+          suggestions.push("🔧 參與設備改善專案，提升整體稼動率");
+        } else if (value >= 85) {
+          suggestions.push("📋 建立機台檢查清單，減少停機時間");
+          suggestions.push("🎯 學習預防性維護技巧，提升設備效率");
+        } else if (value >= 70) {
+          suggestions.push("📚 加強機台操作培訓，熟悉設備特性");
+          suggestions.push("⚡ 學習快速故障排除方法，減少待機時間");
+        } else {
+          suggestions.push("🔴 機台稼動率過低，需要緊急技術支援");
+          suggestions.push("👨‍🔧 安排資深技師一對一指導操作技巧");
+        }
+        break;
+        
+      case "maintenance":
+        if (value >= 90) {
+          suggestions.push("🛠️ 維護表現傑出！可擔任維護團隊領導角色");
+          suggestions.push("📖 編寫維護最佳實務手冊，傳承經驗");
+        } else if (value >= 80) {
+          suggestions.push("🔍 建立設備異常早期預警系統");
+          suggestions.push("📅 規劃更完善的預防性維護計劃");
+        } else if (value >= 70) {
+          suggestions.push("📊 記錄設備異常模式，建立維護資料庫");
+          suggestions.push("🎓 參加設備維護進階課程，提升技能");
+        } else {
+          suggestions.push("⚠️ 維護能力需要大幅改善，避免設備損害");
+          suggestions.push("👨‍🏫 安排維護專家指導，重新學習維護程序");
+        }
+        break;
+        
+      case "targetAchievement":
+        if (value >= 95) {
+          suggestions.push("🎯 目標達成優異！可參與更有挑戰性的專案");
+          suggestions.push("📈 分享目標管理方法，提升團隊整體表現");
+        } else if (value >= 85) {
+          suggestions.push("🔄 檢視目標設定方式，確保合理且可達成");
+          suggestions.push("📊 運用數據分析工具，掌握進度狀況");
+        } else if (value >= 70) {
+          suggestions.push("📅 將大目標分解為小階段，逐步達成");
+          suggestions.push("🤝 主動與主管溝通，尋求目標達成支援");
+        } else {
+          suggestions.push("🚨 目標達成率過低，需要重新評估能力與資源");
+          suggestions.push("🎯 設定更實際的短期目標，重建信心");
+        }
+        break;
+        
+      case "kpi":
+        if (value >= 90) {
+          suggestions.push("📊 KPI表現卓越！可協助制定部門績效標準");
+          suggestions.push("🏆 分享績效管理心得，成為標竿學習對象");
+        } else if (value >= 80) {
+          suggestions.push("🎯 分析各項KPI權重，專注改善關鍵指標");
+          suggestions.push("📈 建立個人績效追蹤儀表板");
+        } else if (value >= 70) {
+          suggestions.push("📚 學習績效改善方法論，系統性提升表現");
+          suggestions.push("🤝 與績效優異同事組成學習小組");
+        } else {
+          suggestions.push("🔴 KPI表現需要全面改善，制定緊急行動計劃");
+          suggestions.push("👨‍💼 與主管密切配合，定期檢討改善進度");
+        }
+        break;
+        
+      case "efficiency":
+        if (value >= 90) {
+          suggestions.push("⚡ 效率表現優異！可研究作業流程優化方案");
+          suggestions.push("🎓 開發效率提升工具，造福整個團隊");
+        } else if (value >= 80) {
+          suggestions.push("🔄 運用精實生產原理，消除浪費環節");
+          suggestions.push("📊 分析工作瓶頸，找出效率改善機會");
+        } else if (value >= 70) {
+          suggestions.push("⏱️ 學習時間動作研究，優化作業方法");
+          suggestions.push("🛠️ 熟悉更多工具使用技巧，提升作業速度");
+        } else {
+          suggestions.push("🚨 效率表現急需改善，檢查是否有技能或工具問題");
+          suggestions.push("📚 參加效率改善培訓，學習基本作業方法");
+        }
+        break;
+        
+      default:
+        suggestions.push("📈 持續關注這項指標的表現趨勢");
+        suggestions.push("🎯 設定明確的改善目標和時程");
     }
+    
+    return suggestions;
+  };
+
+  /**
+   * 根據分數範圍提供通用建議
+   */
+  const getGeneralSuggestions = (value, metricTitle) => {
+    const suggestions = [];
+    
+    if (value === 100) {
+      suggestions.push("🌟 已達到滿分表現，考慮挑戰更高層次的目標");
+      suggestions.push("🎯 制定創新改善方案，為團隊帶來突破性進展");
+    } else if (value >= 95) {
+      suggestions.push("💎 表現接近完美，注意維持穩定的高水準");
+      suggestions.push("🚀 可嘗試跨領域學習，擴展專業技能範圍");
+    } else if (value >= 90) {
+      suggestions.push("🎉 表現優秀，距離頂尖只差一步之遙");
+      suggestions.push("🔍 細部檢視流程，找出最後的改善空間");
+    } else if (value >= 80) {
+      suggestions.push("📈 穩健的表現，持續努力可達到優秀水準");
+      suggestions.push("🎓 投資學習新技能，為下一階段成長做準備");
+    } else if (value >= 70) {
+      suggestions.push("⚡ 表現有改善空間，專注於關鍵能力提升");
+      suggestions.push("🤝 主動尋求指導和回饋，加速改善進程");
+    } else if (value >= 60) {
+      suggestions.push("🎯 制定具體的改善計劃，設定可達成的里程碑");
+      suggestions.push("📚 參與相關培訓課程，強化基礎技能");
+    } else {
+      suggestions.push("🚨 需要立即採取改善行動，尋求專業協助");
+      suggestions.push("🛠️ 檢討基本作業方法，重新建立正確習慣");
+    }
+    
     return suggestions;
   };
 
@@ -262,23 +570,35 @@ const PerformanceCard = ({ metric, data }) => {
                 {metric.title}
               </h3>
             </div>
-            <p className={`text-3xl font-bold ${metric.color} animate-glow`}>
-              {value}%
-            </p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className={`text-3xl font-bold ${metric.color} animate-glow`}>
+                {value}%
+              </p>
+            </div>
+            {/* 等級標示 */}
+            <div className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${getGradeBadgeColor(scoreData.grade)} animate-glow`}>
+              {scoreData.grade}級
+            </div>
           </div>
-          <div className="trend-indicator">
+          <div className="trend-indicator flex flex-col items-end gap-1">
             {value > metric.target ? (
               <ReactFeatherTrendingUp className="text-green-400 animate-glow" />
             ) : (
               <ReactFeatherTrendingDown className="text-red-400 animate-glow" />
             )}
+            <span className="text-xs text-slate-400">{scoreData.gradeDescription}</span>
           </div>
         </div>
         <div className="mt-4">
           <ProgressBar value={value} color={metric.color} />
-          <p className={`text-sm mt-1 ${metric.color}`}>
-            目標: {metric.target}%
-          </p>
+          <div className="flex justify-between items-center mt-1">
+            <p className={`text-sm ${metric.color}`}>
+              目標: {metric.target}%
+            </p>
+            <p className="text-sm text-slate-400">
+              滿分: 100%
+            </p>
+          </div>
         </div>
       </div>
 
@@ -310,84 +630,157 @@ const PerformanceCard = ({ metric, data }) => {
                 scrollbarColor: "#475569 #1e293b",
               }}
             >
-              {/* 得分資訊 */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* 當前績效表現 */}
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-700 p-4 rounded-lg text-center">
-                  <p className="text-slate-300 mb-1">得分</p>
+                  <p className="text-slate-300 mb-1">百分比表現</p>
                   <p className={`text-3xl font-bold ${metric.color}`}>
                     {value}%
                   </p>
                 </div>
                 <div className="bg-slate-700 p-4 rounded-lg text-center">
-                  <p className="text-slate-300 mb-1">目標得分</p>
-                  <p className="text-3xl font-bold text-white">
-                    {metric.target}%
+                  <p className="text-slate-300 mb-1">得分計算表積分</p>
+                  <p className="text-3xl font-bold text-orange-400">
+                    {scoreData.score}分
                   </p>
+                </div>
+                <div className="bg-slate-700 p-4 rounded-lg text-center">
+                  <p className="text-slate-300 mb-1">評等級別</p>
+                  <div className={`inline-block px-3 py-1 rounded-full text-lg font-bold ${getGradeBadgeColor(scoreData.grade)}`}>
+                    {scoreData.grade}級
+                  </div>
+                </div>
+              </div>
+              
+              {/* 目標與升級資訊 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <p className="text-slate-300 mb-2">目標設定</p>
+                  <div className="space-y-1">
+                    <p className="text-white">目標百分比: {metric.target}%</p>
+                    <p className="text-white">目標積分: {metric.target}分以上</p>
+                  </div>
+                </div>
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <p className="text-slate-300 mb-2">升級條件</p>
+                  <div className="space-y-1">
+                    {performanceAnalysis.upgrade.isMaxGrade ? (
+                      <p className="text-green-400 font-medium">{performanceAnalysis.upgrade.message}</p>
+                    ) : (
+                      <>
+                        <p className="text-white">距離{performanceAnalysis.upgrade.nextGrade}級還需: {performanceAnalysis.upgrade.scoreNeeded}分</p>
+                        <p className="text-orange-400 text-sm">{performanceAnalysis.upgrade.upgradeMessage}</p>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* 更詳細的得分計算明細 */}
+              {/* 計算方式說明 */}
               <div className="space-y-2">
                 <h4 className="text-lg font-semibold text-white">
-                  得分計算明細
+                  數據來源與計算依據
                 </h4>
-                <div className="bg-slate-700 rounded-lg p-4 space-y-4">
-                  {/* 基礎分數說明 */}
+                <div className="bg-slate-700 rounded-lg p-4 space-y-3">
                   <div className="space-y-2">
-                    <h5 className="text-white font-medium">基礎得分：</h5>
-                    <div className="bg-slate-600/50 rounded p-3">
-                      <div className="flex justify-between text-slate-300">
-                        <span>{scoreExplanation.baseScoreExplanation}</span>
-                        <span>{breakdown.baseScore}分</span>
-                      </div>
-                      <div className="text-sm text-slate-400 mt-1">
+                    <h5 className="text-white font-medium">資料來源：</h5>
+                    <div className="bg-slate-600/50 rounded p-3 text-sm text-slate-300">
+                      {scoreExplanation.baseScoreExplanation}
+                      <div className="text-slate-400 mt-1">
                         {scoreExplanation.calculationMethod}
                       </div>
                     </div>
                   </div>
-
-                  {/* 加分項目 */}
-                  {breakdown.adjustments.length > 0 && (
-                    <div className="space-y-3 pt-3 border-t border-slate-600">
-                      <h5 className="text-white font-medium">加分項目：</h5>
-                      {breakdown.adjustments.map((adjustment, index) => (
-                        <div
-                          key={index}
-                          className="bg-slate-600/50 rounded p-3"
-                        >
-                          <div className="flex justify-between text-slate-300">
-                            <span>{adjustment.reason}</span>
-                            <span>+{adjustment.score}分</span>
-                          </div>
-                          <div className="text-sm text-slate-400 mt-1">
-                            {adjustment.description}
-                          </div>
-                        </div>
-                      ))}
+                  <div className="space-y-2">
+                    <h5 className="text-white font-medium">計算公式：</h5>
+                    <div className="bg-slate-600/50 rounded p-3 text-sm">
+                      <div className="text-slate-300 font-mono">
+                        {getCalculationFormula(metric.id, value)}
+                      </div>
                     </div>
-                  )}
+                  </div>
+                </div>
+              </div>
 
-                  {/* 最終得分計算 */}
-                  <div className="pt-3 border-t border-slate-600">
-                    <div className="space-y-2">
+              {/* 得分計算表整合說明 */}
+              <div className="space-y-2">
+                <h4 className="text-lg font-semibold text-white">
+                  得分計算表整合說明
+                </h4>
+                <div className="bg-slate-700 rounded-lg p-4 space-y-4">
+                  {/* 分數區間說明 */}
+                  <div className="space-y-2">
+                    <h5 className="text-white font-medium">分數區間：</h5>
+                    <div className="bg-slate-600/50 rounded p-3">
+                      <div className="flex justify-between text-slate-300">
+                        <span>當前分數區間</span>
+                        <span>{scoreData.range}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-300 mt-1">
+                        <span>對應等級</span>
+                        <span>{scoreData.grade}級 - {scoreData.gradeDescription}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 獎懲機制說明 */}
+                  <div className="space-y-2">
+                    <h5 className="text-white font-medium">獎懲機制：</h5>
+                    <div className="bg-slate-600/50 rounded p-3">
                       <div className="flex justify-between text-slate-300">
                         <span>基礎得分</span>
-                        <span>{breakdown.baseScore}分</span>
+                        <span>{performanceAnalysis.bonus.baseScore}分</span>
                       </div>
-                      {breakdown.adjustments.map((adj, index) => (
-                        <div
-                          key={index}
-                          className="flex justify-between text-slate-300"
-                        >
-                          <span>{adj.reason}</span>
-                          <span>+{adj.score}分</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between text-white font-semibold pt-2 border-t border-slate-500">
+                      {performanceAnalysis.bonus.bonusReasons.length > 0 ? (
+                        performanceAnalysis.bonus.bonusReasons.map((reason, index) => (
+                          <div key={index} className="flex justify-between text-green-400 text-sm">
+                            <span>{reason}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-400 text-sm">無額外加分項目</div>
+                      )}
+                      <div className="flex justify-between text-white font-semibold pt-2 border-t border-slate-500 mt-2">
                         <span>最終得分</span>
-                        <span>{breakdown.finalScore}分</span>
+                        <span>{performanceAnalysis.bonus.finalScore}分</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 詳細評分依據 */}
+              <div className="space-y-2">
+                <h4 className="text-lg font-semibold text-white">
+                  詳細評分依據
+                </h4>
+                <div className="bg-slate-700 rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="bg-slate-600/50 rounded p-3">
+                      <h6 className="text-green-400 font-medium mb-2">A級標準（90-100分）</h6>
+                      <p className="text-sm text-slate-300">90%以上 → 優秀表現</p>
+                    </div>
+                    <div className="bg-slate-600/50 rounded p-3">
+                      <h6 className="text-blue-400 font-medium mb-2">B級標準（80-89分）</h6>
+                      <p className="text-sm text-slate-300">80-89% → 良好表現</p>
+                    </div>
+                    <div className="bg-slate-600/50 rounded p-3">
+                      <h6 className="text-yellow-400 font-medium mb-2">C級標準（70-79分）</h6>
+                      <p className="text-sm text-slate-300">70-79% → 待改進表現</p>
+                    </div>
+                    <div className="bg-slate-600/50 rounded p-3">
+                      <h6 className="text-orange-400 font-medium mb-2">D級以下（60分以下）</h6>
+                      <p className="text-sm text-slate-300">60%以下 → 需加強表現</p>
+                    </div>
+                  </div>
+                  <div className="bg-slate-600/50 rounded p-3 mt-3">
+                    <h6 className="text-white font-medium mb-2">目前狀態分析：</h6>
+                    <p className="text-slate-300 text-sm">
+                      位於{scoreData.grade}級區間（{scoreData.range}），{scoreData.gradeDescription}
+                      {!performanceAnalysis.upgrade.isMaxGrade && 
+                        `，${performanceAnalysis.upgrade.upgradeMessage}`
+                      }
+                    </p>
                   </div>
                 </div>
               </div>
@@ -413,11 +806,15 @@ const PerformanceCard = ({ metric, data }) => {
                       <Line
                         type="monotone"
                         dataKey={
-                          metric.id === "workCompletion"
-                            ? "completion"
-                            : metric.id === "quality"
-                              ? "quality"
-                              : "efficiency"
+                          metric.id === "workCompletion" ? "completion" :
+                          metric.id === "quality" ? "quality" :
+                          metric.id === "workHours" ? "workHours" :
+                          metric.id === "attendance" ? "attendance" :
+                          metric.id === "machineStatus" ? "machineStatus" :
+                          metric.id === "maintenance" ? "maintenance" :
+                          metric.id === "targetAchievement" ? "targetAchievement" :
+                          metric.id === "kpi" ? "kpi" :
+                          "efficiency"
                         }
                         name={getMetricStyle(metric.id).name}
                         stroke={getMetricStyle(metric.id).color}
@@ -450,56 +847,70 @@ const PerformanceCard = ({ metric, data }) => {
 
                 <div
                   className={`bg-slate-700 p-4 rounded-lg border-l-4 ${
-                    value >= 90
+                    scoreData.grade === 'A'
                       ? "border-green-500"
-                      : value >= 80
+                      : scoreData.grade === 'B'
                         ? "border-blue-500"
-                        : value >= 70
+                        : scoreData.grade === 'C'
                           ? "border-yellow-500"
-                          : value >= 60
+                          : scoreData.grade === 'D'
                             ? "border-orange-500"
                             : "border-red-500"
                   }`}
                 >
-                  {/* 新增：等級標籤 */}
-                  <div className="mb-3 flex items-center gap-2">
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        value >= 90
-                          ? "bg-green-500"
-                          : value >= 80
-                            ? "bg-blue-500"
-                            : value >= 70
-                              ? "bg-yellow-500"
-                              : value >= 60
-                                ? "bg-orange-500"
-                                : "bg-red-500"
-                      }`}
-                    ></div>
-                    <span className="text-sm text-slate-300">
-                      {value >= 90
-                        ? "優異表現"
-                        : value >= 80
-                          ? "良好表現"
-                          : value >= 70
-                            ? "待加強"
-                            : value >= 60
-                              ? "需要改進"
-                              : "急需協助"}
-                    </span>
+                  {/* 等級與表現標籤 */}
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-3 h-3 rounded-full ${
+                          scoreData.grade === 'A'
+                            ? "bg-green-500"
+                            : scoreData.grade === 'B'
+                              ? "bg-blue-500"
+                              : scoreData.grade === 'C'
+                                ? "bg-yellow-500"
+                                : scoreData.grade === 'D'
+                                  ? "bg-orange-500"
+                                  : "bg-red-500"
+                        }`}
+                      ></div>
+                      <span className="text-sm text-slate-300">
+                        {scoreData.gradeDescription}
+                      </span>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${getGradeBadgeColor(scoreData.grade)}`}>
+                      {scoreData.grade}級 · {scoreData.score}分
+                    </div>
                   </div>
 
-                  <ul className="space-y-2">
-                    {getSuggestions(value, metric).map((suggestion, index) => (
-                      <li
-                        key={index}
-                        className="text-slate-300 flex items-start gap-2"
-                      >
-                        <span className="text-slate-400 mt-1">•</span>
-                        <span>{suggestion}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* 短期目標 */}
+                  {!performanceAnalysis.upgrade.isMaxGrade && (
+                    <div className="mb-4 p-3 bg-slate-600/50 rounded">
+                      <h6 className="text-orange-400 font-medium mb-2">短期目標：</h6>
+                      <p className="text-sm text-slate-300 mb-1">
+                        1個月內提升至{performanceAnalysis.upgrade.nextGrade}級（{performanceAnalysis.upgrade.nextGradeTarget}分以上）
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        需要提升: {performanceAnalysis.upgrade.scoreNeeded}分（對應{performanceAnalysis.upgrade.percentageNeeded}%）
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 具體建議 */}
+                  <div className="space-y-3">
+                    <h6 className="text-white font-medium">具體行動建議：</h6>
+                    <ul className="space-y-2">
+                      {getSuggestions(value, metric).map((suggestion, index) => (
+                        <li
+                          key={index}
+                          className="text-slate-300 flex items-start gap-2"
+                        >
+                          <span className="text-slate-400 mt-1">•</span>
+                          <span>{suggestion}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
@@ -579,225 +990,8 @@ const PerformanceCard = ({ metric, data }) => {
   );
 };
 
-// 修改得分計算明細的邏輯
-const getScoreBreakdown = (metric, data) => {
-  const calculateFinalScore = (baseScore, adjustments) => {
-    const totalAdjustments = adjustments.reduce(
-      (sum, adj) => sum + adj.score,
-      0,
-    );
-    return Math.min(100, baseScore + totalAdjustments);
-  };
-
-  switch (metric.id) {
-    case "workCompletion":
-      const workCompletionAdjustments = [
-        {
-          reason: "目標達成獎勵",
-          score: data.workCompletion >= 95 ? 5 : 0,
-          description: "超過95%目標完成率的額外獎勵",
-        },
-      ];
-      return {
-        baseScore: data.workCompletion || 0,
-        adjustments: workCompletionAdjustments,
-        finalScore: calculateFinalScore(
-          data.workCompletion || 0,
-          workCompletionAdjustments,
-        ),
-      };
-
-    case "quality":
-      const qualityAdjustments = [
-        {
-          reason: "品質穩定度",
-          score: data.productQuality >= 90 ? 3 : 0,
-          description: "連續保持90%以上的品質水準",
-        },
-        {
-          reason: "零缺陷生產",
-          score: data.productQuality >= 95 ? 2 : 0,
-          description: "達成零缺陷生產目標",
-        },
-      ];
-      return {
-        baseScore: data.productQuality,
-        adjustments: qualityAdjustments,
-        finalScore: calculateFinalScore(
-          data.productQuality,
-          qualityAdjustments,
-        ),
-      };
-
-    case "workHours":
-      const standardHours = data?.standardHours || 176;
-      const actualHours = data?.actualHours || 0;
-      const baseScore = Math.round((actualHours / standardHours) * 100);
-
-      const workHoursAdjustments = [
-        {
-          reason: "效率提升",
-          score: data?.efficiency >= 90 ? 3 : 0,
-          description: "工作效率超過90%",
-        },
-        {
-          reason: "時間管理",
-          score: data?.attendance >= 95 ? 2 : 0,
-          description: "優秀的時間管理表現",
-        },
-      ];
-
-      const finalScore = calculateFinalScore(baseScore, workHoursAdjustments);
-
-      return {
-        baseScore: baseScore,
-        calculation: {
-          formula: "(實際工時 / 標準工時) × 100",
-          details: [
-            {
-              label: "標準工時",
-              value: `${standardHours}小時`,
-            },
-            {
-              label: "實際工時",
-              value: `${actualHours}小時`,
-            },
-            {
-              label: "計算過程",
-              value: `(${actualHours} / ${standardHours}) × 100 = ${baseScore}分`,
-            },
-          ],
-        },
-        adjustments: workHoursAdjustments,
-        finalScore: finalScore,
-      };
-
-    case "attendance":
-      const attendanceAdjustments = [
-        {
-          reason: "全勤獎勵",
-          score: data.attendance >= 98 ? 2 : 0,
-          description: "月度全勤表現",
-        },
-      ];
-      return {
-        baseScore: data.attendance,
-        adjustments: attendanceAdjustments,
-        finalScore: calculateFinalScore(data.attendance, attendanceAdjustments),
-      };
-
-    case "machineStatus":
-      const machineStatusAdjustments = [
-        {
-          reason: "設備優化",
-          score: data.machineStatus >= 95 ? 3 : 0,
-          description: "設備運行效率優化",
-        },
-        {
-          reason: "預防維護",
-          score: data.maintenanceRecord >= 90 ? 2 : 0,
-          description: "執行預防性維護工作",
-        },
-      ];
-      return {
-        baseScore: data.machineStatus,
-        adjustments: machineStatusAdjustments,
-        finalScore: calculateFinalScore(
-          data.machineStatus,
-          machineStatusAdjustments,
-        ),
-      };
-
-    case "maintenance":
-      const maintenanceAdjustments = [
-        {
-          reason: "預防性維護",
-          score: data.preventiveMaintenance ? 2 : 0,
-          description: "執行預防性維護計劃",
-        },
-        {
-          reason: "設備效能提升",
-          score: data.machineStatus >= 90 ? 2 : 0,
-          description: "提升設備運行效能",
-        },
-      ];
-      return {
-        baseScore: data.maintenanceRecord,
-        adjustments: maintenanceAdjustments,
-        finalScore: calculateFinalScore(
-          data.maintenanceRecord,
-          maintenanceAdjustments,
-        ),
-      };
-
-    case "targetAchievement":
-      const targetAchievementAdjustments = [
-        {
-          reason: "超額完成",
-          score: data.targetAchievement >= 95 ? 3 : 0,
-          description: "超過預期目標的表現",
-        },
-        {
-          reason: "持續改善",
-          score: data.efficiency >= 90 ? 2 : 0,
-          description: "持續改善流程效率",
-        },
-      ];
-      return {
-        baseScore: data.targetAchievement,
-        adjustments: targetAchievementAdjustments,
-        finalScore: calculateFinalScore(
-          data.targetAchievement,
-          targetAchievementAdjustments,
-        ),
-      };
-
-    case "kpi":
-      const kpiAdjustments = [
-        {
-          reason: "績效卓越",
-          score: data.kpi >= 95 ? 3 : 0,
-          description: "卓越的關鍵績效表現",
-        },
-        {
-          reason: "團隊貢獻",
-          score: data.teamwork >= 90 ? 2 : 0,
-          description: "對團隊績效的正面貢獻",
-        },
-      ];
-      return {
-        baseScore: data.kpi,
-        adjustments: kpiAdjustments,
-        finalScore: calculateFinalScore(data.kpi, kpiAdjustments),
-      };
-
-    case "efficiency":
-      const efficiencyAdjustments = [
-        {
-          reason: "效率提升",
-          score: data.efficiency >= 95 ? 3 : 0,
-          description: "顯著的效率改善",
-        },
-        {
-          reason: "資源優化",
-          score: data.resourceUtilization >= 90 ? 2 : 0,
-          description: "優化資源使用效率",
-        },
-      ];
-      return {
-        baseScore: data.efficiency,
-        adjustments: efficiencyAdjustments,
-        finalScore: calculateFinalScore(data.efficiency, efficiencyAdjustments),
-      };
-
-    default:
-      return {
-        baseScore: data[metric.id] || 0,
-        adjustments: [],
-        finalScore: data[metric.id] || 0,
-      };
-  }
-};
+// 註：getScoreBreakdown 函數已移至 src/utils/scoreCalculations.js 
+// 以避免重複邏輯，提升程式碼維護性
 
 // 修改詳情彈窗組件
 const MetricDetails = ({ metric, data, onClose }) => {
@@ -981,6 +1175,7 @@ export default function PerformanceDashboard() {
   const [selectedEmployee, setSelectedEmployee] = useState("EMP001");
   const [isLoading, setIsLoading] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(2025); // 年份選擇狀態，默認2025年
   const navigate = useNavigate();
   const evaluator = new PerformanceEvaluator("operator");
   const [showLevelGuide, setShowLevelGuide] = useState(false);
@@ -1015,26 +1210,71 @@ export default function PerformanceDashboard() {
   /**
    * 配置數據區域
    */
-  const employees = [
-    { id: "EMP001", name: "張小明" },
-    { id: "EMP002", name: "李小華" },
-    { id: "EMP003", name: "王大明" },
-  ];
 
-  const timeSeriesData = [
-    { month: "1月", completion: 82, quality: 88, efficiency: 85 },
-    { month: "2月", completion: 85, quality: 90, efficiency: 86 },
-    { month: "3月", completion: 88, quality: 92, efficiency: 89 },
-    { month: "4月", completion: 85, quality: 91, efficiency: 87 },
-    { month: "5月", completion: 87, quality: 93, efficiency: 88 },
-    { month: "6月", completion: 89, quality: 94, efficiency: 90 },
-    { month: "7月", completion: 91, quality: 95, efficiency: 92 },
-    { month: "8月", completion: 90, quality: 93, efficiency: 91 },
-    { month: "9月", completion: 92, quality: 94, efficiency: 93 },
-    { month: "10月", completion: 93, quality: 96, efficiency: 94 },
-    { month: "11月", completion: 94, quality: 95, efficiency: 93 },
-    { month: "12月", completion: 95, quality: 97, efficiency: 95 },
-  ];
+  // 根據選擇的年份和員工動態生成時間序列數據
+  const getTimeSeriesData = () => {
+    const data = mockEmployeeData[selectedEmployee];
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; // getMonth()返回0-11，需要+1
+    
+    if (!data || !data.yearlyData || !data.yearlyData[selectedYear]) {
+      // 如果沒有對應年份數據，使用預設數據
+      return [
+        { month: "1月", completion: 60, quality: 65, efficiency: 62 },
+        { month: "2月", completion: 62, quality: 67, efficiency: 64 },
+        { month: "3月", completion: 65, quality: 70, efficiency: 67 },
+        { month: "4月", completion: 68, quality: 72, efficiency: 70 },
+        { month: "5月", completion: 70, quality: 75, efficiency: 72 },
+        { month: "6月", completion: 72, quality: 77, efficiency: 75 },
+        { month: "7月", completion: 75, quality: 80, efficiency: 77 },
+        { month: "8月", completion: 77, quality: 82, efficiency: 80 },
+        { month: "9月", completion: 80, quality: 85, efficiency: 82 },
+        { month: "10月", completion: 82, quality: 87, efficiency: 85 },
+        { month: "11月", completion: 85, quality: 90, efficiency: 87 },
+        { month: "12月", completion: 87, quality: 92, efficiency: 90 },
+      ];
+    }
+    
+    let yearData = [...data.yearlyData[selectedYear]];
+    
+    // 如果選中的是當前年份，需要根據當前月份動態處理數據
+    if (selectedYear === currentYear) {
+      // 如果當前月份超過已有數據的月份，動態生成新的月份數據
+      const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+      const existingMonthsCount = yearData.length;
+      
+      // 如果當前月份超過已有數據，生成缺失的月份數據
+      if (currentMonth > existingMonthsCount) {
+        const lastDataPoint = yearData[yearData.length - 1];
+        
+        // 為每個缺失的月份生成數據
+        for (let month = existingMonthsCount + 1; month <= currentMonth; month++) {
+          // 基於最後一個數據點生成新數據，加入一些變化
+          const variation = () => Math.round((Math.random() - 0.5) * 4); // ±2的變化
+          
+          const newDataPoint = {
+            month: monthNames[month - 1],
+            completion: Math.max(0, Math.min(100, lastDataPoint.completion + variation())),
+            quality: Math.max(0, Math.min(100, lastDataPoint.quality + variation())),
+            efficiency: Math.max(0, Math.min(100, lastDataPoint.efficiency + variation()))
+          };
+          
+          yearData.push(newDataPoint);
+        }
+      } else {
+        // 如果當前月份小於等於已有數據，只顯示到當前月份
+        yearData = yearData.slice(0, currentMonth);
+      }
+    }
+    
+    return yearData;
+  };
+
+  const timeSeriesData = getTimeSeriesData();
+
+  // 可選年份列表
+  const availableYears = [2025, 2024, 2023, 2022];
 
   /**
    * 指標配置區域
@@ -1166,6 +1406,87 @@ export default function PerformanceDashboard() {
   ];
 
   /**
+   * 員工等級計算區域 
+   * 在metrics定義之後計算員工等級
+   */
+  // 動態計算員工等級
+  const calculateEmployeeGrade = (employeeId) => {
+    const data = mockEmployeeData[employeeId];
+    if (!data) return 'E';
+    
+    const grades = [];
+    metrics.forEach(metric => {
+      const value = metric.value(data);
+      const grade = getGradeFromScore(value);
+      grades.push(grade);
+    });
+    
+    // 統計各等級數量
+    const gradeCount = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    grades.forEach(grade => gradeCount[grade]++);
+    
+    // 找出最多的等級作為主要等級
+    const maxCount = Math.max(...Object.values(gradeCount));
+    const dominantGrade = Object.keys(gradeCount).find(grade => gradeCount[grade] === maxCount);
+    
+    return dominantGrade;
+  };
+
+  const getGradeDescription = (grade) => {
+    const descriptions = {
+      'A': '優秀',
+      'B': '良好', 
+      'C': '待改進',
+      'D': '需加強',
+      'E': '急需協助'
+    };
+    return descriptions[grade] || '未知';
+  };
+
+  const employees = [
+    { 
+      id: "EMP001", 
+      name: "張小明", 
+      grade: calculateEmployeeGrade("EMP001"),
+      get displayName() { 
+        return `${this.name} (${this.grade}級-${getGradeDescription(this.grade)})`;
+      }
+    },
+    { 
+      id: "EMP002", 
+      name: "李小華", 
+      grade: calculateEmployeeGrade("EMP002"),
+      get displayName() { 
+        return `${this.name} (${this.grade}級-${getGradeDescription(this.grade)})`;
+      }
+    },
+    { 
+      id: "EMP003", 
+      name: "王大明", 
+      grade: calculateEmployeeGrade("EMP003"),
+      get displayName() { 
+        return `${this.name} (${this.grade}級-${getGradeDescription(this.grade)})`;
+      }
+    },
+    { 
+      id: "EMP004", 
+      name: "陳小芳", 
+      grade: calculateEmployeeGrade("EMP004"),
+      get displayName() { 
+        return `${this.name} (${this.grade}級-${getGradeDescription(this.grade)})`;
+      }
+    },
+    { 
+      id: "EMP005", 
+      name: "林小強", 
+      grade: calculateEmployeeGrade("EMP005"),
+      get displayName() { 
+        return `${this.name} (${this.grade}級-${getGradeDescription(this.grade)})`;
+      }
+    },
+  ].sort((a, b) => a.grade.localeCompare(b.grade)); // 按等級A-E排序
+
+  /**
    * 額外指標配置區域
    * 定義加班、推廣等特殊指標
    */
@@ -1205,95 +1526,40 @@ export default function PerformanceDashboard() {
     },
   ];
 
-  // 確保 mockEmployeeData 中有正確的數據
-  const mockEmployeeData = {
-    EMP001: {
-      // 張小明
-      standardHours: 176, // 標準工時
-      actualHours: 176, // 實際工時
-      workHours: 92, // 工時達成率
-      workCompletion: 92,
-      productQuality: 95,
-      attendance: 98,
-      machineStatus: 94,
-      maintenanceRecord: 92,
-      targetAchievement: 91,
-      kpi: 88,
-      efficiency: 93,
-      teamwork: 95,
-      resourceUtilization: 92,
-      preventiveMaintenance: true,
-      historicalData: [
-        { month: "1月", completion: 88, quality: 92, efficiency: 90 },
-        { month: "2月", completion: 90, quality: 93, efficiency: 91 },
-        { month: "3月", completion: 92, quality: 95, efficiency: 93 },
-      ],
-    },
-
-    EMP002: {
-      // 李小華
-      standardHours: 176, // 標準工時
-      actualHours: 168, // 實際工時
-      workHours: 85, // 工時達成率
-      workCompletion: 85,
-      productQuality: 88,
-      attendance: 95,
-      machineStatus: 87,
-      maintenanceRecord: 86,
-      targetAchievement: 84,
-      kpi: 82,
-      efficiency: 85,
-      teamwork: 92,
-      resourceUtilization: 88,
-      preventiveMaintenance: true,
-      historicalData: [
-        { month: "1月", completion: 82, quality: 85, efficiency: 83 },
-        { month: "2月", completion: 84, quality: 86, efficiency: 84 },
-        { month: "3月", completion: 85, quality: 88, efficiency: 85 },
-      ],
-    },
-
-    EMP003: {
-      // 王大明
-      standardHours: 176, // 標準工時
-      actualHours: 160, // 實際工時
-      workHours: 78, // 工時達成率
-      workCompletion: 95, // 優異 (≥95)
-      productQuality: 88, // 良好 (85-94)
-      attendance: 74, // 需協助 (65-74)
-      machineStatus: 60, // 不及格 (<65)
-      maintenanceRecord: 79, // 待改進
-      targetAchievement: 92, // 良好
-      kpi: 68, // 需協助
-      efficiency: 63, // 不及格
-      teamwork: 82, // 待改進
-      resourceUtilization: 77, // 待改進
-      preventiveMaintenance: false,
-      historicalData: [
-        { month: "1月", completion: 75, quality: 80, efficiency: 76 },
-        { month: "2月", completion: 76, quality: 81, efficiency: 77 },
-        { month: "3月", completion: 78, quality: 82, efficiency: 78 },
-      ],
-    },
-  };
-
   /**
    * 生命週期方法區域
    */
   useEffect(() => {
-    // ... 數據加載邏輯 ...
     const loadEmployeeData = async () => {
       setIsLoading(true);
-      evaluator.startPerformanceMonitoring();
-
+      
       try {
-        // 使用模擬數據
-        setTimeout(() => {
-          setEmployeeData(mockEmployeeData[selectedEmployee]);
-          setIsLoading(false);
-        }, 1000);
+        console.group('數據整合結果');
+        
+        // 並行獲取數據
+        const [jsonData, xmlData] = await Promise.all([
+          performanceAPI.getEmployeeData(selectedEmployee, 'json'),
+          performanceAPI.getEmployeeData(selectedEmployee, 'xml')
+        ]);
+
+        // 只顯示關鍵數據比對
+        console.log('多格式數據比對：', {
+          JSON格式: {
+            工作完成度: jsonData.employeeData[selectedEmployee].workCompletion,
+            產品質量: jsonData.employeeData[selectedEmployee].productQuality
+          },
+          XML格式: {
+            工作完成度: xmlData.employeeData.employee.workCompletion,
+            產品質量: xmlData.employeeData.employee.productQuality
+          }
+        });
+
+        setEmployeeData(jsonData.employeeData[selectedEmployee]);
+        console.groupEnd();
+        
       } catch (error) {
-        console.error("Error loading employee data:", error);
+        console.error("數據整合失敗:", error);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -1364,7 +1630,7 @@ export default function PerformanceDashboard() {
               >
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.name}
+                    {emp.displayName}
                   </option>
                 ))}
               </select>
@@ -1451,7 +1717,21 @@ export default function PerformanceDashboard() {
                 </div>
 
                 <div className="bg-slate-700 rounded-xl p-6 text-white">
-                  <h3 className="text-xl font-bold mb-4">績效趨勢分析</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold">績效趨勢分析</h3>
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm text-slate-300">選擇年份：</label>
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
+                      >
+                        {availableYears.map(year => (
+                          <option key={year} value={year}>{year}年</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={timeSeriesData}>
