@@ -7,8 +7,12 @@ import {
 } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Login from "./components/Login";
+import Register from "./components/Register";
 import PerformanceDashboard from "./components/PerformanceDashboard";
+import PointsManagementDashboard from "./components/PointsManagement/PointsManagementDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ApiTestPage from "./components/ApiTestPage";
+import DebugTestPage from "./components/DebugTestPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -30,11 +34,22 @@ function App() {
         />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/api-test" element={<ApiTestPage />} />
+          <Route path="/debug-test" element={<DebugTestPage />} />
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <PerformanceDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/points-management"
+            element={
+              <ProtectedRoute>
+                <PointsManagementDashboard />
               </ProtectedRoute>
             }
           />

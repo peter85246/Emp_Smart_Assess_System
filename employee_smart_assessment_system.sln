@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PointsManagementAPI", "PointsManagementAPI\PointsManagementAPI.csproj", "{E5FA2508-4C1A-4D60-50EA-7562F25CF47B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E5FA2508-4C1A-4D60-50EA-7562F25CF47B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5FA2508-4C1A-4D60-50EA-7562F25CF47B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5FA2508-4C1A-4D60-50EA-7562F25CF47B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5FA2508-4C1A-4D60-50EA-7562F25CF47B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {325A42A0-23A5-4A98-898F-27249F21A9F9}
+	EndGlobalSection
+EndGlobal

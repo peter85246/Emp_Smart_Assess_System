@@ -1,7 +1,14 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { authStats } from "../utils/authStats";
 
 const AuthContext = createContext(null);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -16,37 +23,14 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (credentials) => {
-    const startTime = performance.now();
+  const login = async (userData) => {
     try {
-      // 模擬API調用
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // 直接設置用戶數據（已由API驗證）
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("isAuthenticated", "true");
 
-      // 模擬驗證邏輯
-      if (
-        credentials.username === "admin" &&
-        credentials.password === "password"
-      ) {
-        const userData = {
-          id: 1,
-          username: credentials.username,
-          role: "admin",
-        };
-
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
-
-        // 記錄登錄統計
-        authStats.loginSuccess++;
-        authStats.loginAttempts++;
-        authStats.responseTime.push(performance.now() - startTime);
-
-        return { success: true };
-      } else {
-        authStats.loginAttempts++;
-        authStats.unauthorizedAttempts++;
-        throw new Error("無效的憑證");
-      }
+      return { success: true };
     } catch (error) {
       throw error;
     }
@@ -55,6 +39,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("authToken");
   };
 
   const value = {
@@ -71,10 +57,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth必須在AuthProvider內使用");
-  }
-  return context;
-};
+

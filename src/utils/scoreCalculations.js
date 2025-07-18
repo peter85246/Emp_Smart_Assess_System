@@ -243,11 +243,16 @@ export const getImprovementRecommendations = (percentage, metricType, metricTitl
  */
 export const getScoreBreakdown = (metric, data) => {
   const calculateFinalScore = (baseScore, adjustments) => {
+    // 確保baseScore是有效數值
+    const validBaseScore = isNaN(baseScore) || baseScore === null || baseScore === undefined ? 0 : baseScore;
+
     const totalAdjustments = adjustments.reduce(
-      (sum, adj) => sum + adj.score,
+      (sum, adj) => sum + (adj.score || 0),
       0,
     );
-    return Math.min(100, baseScore + totalAdjustments);
+
+    const finalScore = validBaseScore + totalAdjustments;
+    return Math.min(100, Math.max(0, finalScore));
   };
 
   switch (metric.id) {
@@ -260,10 +265,10 @@ export const getScoreBreakdown = (metric, data) => {
         },
       ];
       return {
-        baseScore: data.workCompletion || 0,
+        baseScore: data?.workCompletion || 0,
         adjustments: workCompletionAdjustments,
         finalScore: calculateFinalScore(
-          data.workCompletion || 0,
+          data?.workCompletion || 0,
           workCompletionAdjustments,
         ),
       };
@@ -272,20 +277,20 @@ export const getScoreBreakdown = (metric, data) => {
       const qualityAdjustments = [
         {
           reason: "品質穩定度",
-          score: data.productQuality >= 90 ? 3 : 0,
+          score: (data?.productQuality || 0) >= 90 ? 3 : 0,
           description: "連續保持90%以上的品質水準",
         },
         {
           reason: "零缺陷生產",
-          score: data.productQuality >= 95 ? 2 : 0,
+          score: (data?.productQuality || 0) >= 95 ? 2 : 0,
           description: "達成零缺陷生產目標",
         },
       ];
       return {
-        baseScore: data.productQuality,
+        baseScore: data?.productQuality || 0,
         adjustments: qualityAdjustments,
         finalScore: calculateFinalScore(
-          data.productQuality,
+          data?.productQuality || 0,
           qualityAdjustments,
         ),
       };
@@ -335,34 +340,34 @@ export const getScoreBreakdown = (metric, data) => {
       const attendanceAdjustments = [
         {
           reason: "全勤獎勵",
-          score: data.attendance >= 98 ? 2 : 0,
+          score: (data?.attendance || 0) >= 98 ? 2 : 0,
           description: "月度全勤表現",
         },
       ];
       return {
-        baseScore: data.attendance,
+        baseScore: data?.attendance || 0,
         adjustments: attendanceAdjustments,
-        finalScore: calculateFinalScore(data.attendance, attendanceAdjustments),
+        finalScore: calculateFinalScore(data?.attendance || 0, attendanceAdjustments),
       };
 
     case "machineStatus":
       const machineStatusAdjustments = [
         {
           reason: "設備優化",
-          score: data.machineStatus >= 95 ? 3 : 0,
+          score: (data?.machineStatus || 0) >= 95 ? 3 : 0,
           description: "設備運行效率優化",
         },
         {
           reason: "預防維護",
-          score: data.maintenanceRecord >= 90 ? 2 : 0,
+          score: (data?.maintenanceRecord || 0) >= 90 ? 2 : 0,
           description: "執行預防性維護工作",
         },
       ];
       return {
-        baseScore: data.machineStatus,
+        baseScore: data?.machineStatus || 0,
         adjustments: machineStatusAdjustments,
         finalScore: calculateFinalScore(
-          data.machineStatus,
+          data?.machineStatus || 0,
           machineStatusAdjustments,
         ),
       };
@@ -371,20 +376,20 @@ export const getScoreBreakdown = (metric, data) => {
       const maintenanceAdjustments = [
         {
           reason: "預防性維護",
-          score: data.preventiveMaintenance ? 2 : 0,
+          score: data?.preventiveMaintenance ? 2 : 0,
           description: "執行預防性維護計劃",
         },
         {
           reason: "設備效能提升",
-          score: data.machineStatus >= 90 ? 2 : 0,
+          score: (data?.machineStatus || 0) >= 90 ? 2 : 0,
           description: "提升設備運行效能",
         },
       ];
       return {
-        baseScore: data.maintenanceRecord,
+        baseScore: data?.maintenanceRecord || 0,
         adjustments: maintenanceAdjustments,
         finalScore: calculateFinalScore(
-          data.maintenanceRecord,
+          data?.maintenanceRecord || 0,
           maintenanceAdjustments,
         ),
       };
@@ -393,20 +398,20 @@ export const getScoreBreakdown = (metric, data) => {
       const targetAchievementAdjustments = [
         {
           reason: "超額完成",
-          score: data.targetAchievement >= 95 ? 3 : 0,
+          score: (data?.targetAchievement || 0) >= 95 ? 3 : 0,
           description: "超過預期目標的表現",
         },
         {
           reason: "持續改善",
-          score: data.efficiency >= 90 ? 2 : 0,
+          score: (data?.efficiency || 0) >= 90 ? 2 : 0,
           description: "持續改善流程效率",
         },
       ];
       return {
-        baseScore: data.targetAchievement,
+        baseScore: data?.targetAchievement || 0,
         adjustments: targetAchievementAdjustments,
         finalScore: calculateFinalScore(
-          data.targetAchievement,
+          data?.targetAchievement || 0,
           targetAchievementAdjustments,
         ),
       };
@@ -415,38 +420,38 @@ export const getScoreBreakdown = (metric, data) => {
       const kpiAdjustments = [
         {
           reason: "績效卓越",
-          score: data.kpi >= 95 ? 3 : 0,
+          score: (data?.kpi || 0) >= 95 ? 3 : 0,
           description: "卓越的關鍵績效表現",
         },
         {
           reason: "團隊貢獻",
-          score: data.teamwork >= 90 ? 2 : 0,
+          score: (data?.teamwork || 0) >= 90 ? 2 : 0,
           description: "對團隊績效的正面貢獻",
         },
       ];
       return {
-        baseScore: data.kpi,
+        baseScore: data?.kpi || 0,
         adjustments: kpiAdjustments,
-        finalScore: calculateFinalScore(data.kpi, kpiAdjustments),
+        finalScore: calculateFinalScore(data?.kpi || 0, kpiAdjustments),
       };
 
     case "efficiency":
       const efficiencyAdjustments = [
         {
           reason: "流程優化",
-          score: data.efficiency >= 95 ? 3 : 0,
+          score: (data?.efficiency || 0) >= 95 ? 3 : 0,
           description: "工作流程優化表現",
         },
         {
           reason: "創新改善",
-          score: data.innovation >= 85 ? 2 : 0,
+          score: (data?.innovation || 0) >= 85 ? 2 : 0,
           description: "創新改善提案貢獻",
         },
       ];
       return {
-        baseScore: data.efficiency,
+        baseScore: data?.efficiency || 0,
         adjustments: efficiencyAdjustments,
-        finalScore: calculateFinalScore(data.efficiency, efficiencyAdjustments),
+        finalScore: calculateFinalScore(data?.efficiency || 0, efficiencyAdjustments),
       };
 
     default:

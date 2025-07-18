@@ -34,7 +34,10 @@ import {
   Key,
   LogOut,
   Info,
+  Calculator,
+  ArrowLeft,
 } from "lucide-react";
+import PointsManagementDashboard from './PointsManagement/PointsManagementDashboard';
 import {
   TrendingUp as ReactFeatherTrendingUp,
   TrendingDown as ReactFeatherTrendingDown,
@@ -106,10 +109,19 @@ const PerformanceCard = ({ metric, data }) => {
   const [showLevelGuide, setShowLevelGuide] = useState(false);
   const baseValue = metric.value(data);
   const breakdown = getScoreBreakdown(metric, data);
-  
-  // 使用最終得分而非基礎得分
-  const value = breakdown.finalScore;
-  
+
+  // 使用最終得分而非基礎得分，確保數值有效性
+  let value = breakdown.finalScore;
+
+  // 檢查並修復NaN值
+  if (isNaN(value) || value === null || value === undefined) {
+    console.warn(`Invalid value for metric ${metric.id}:`, value, 'data:', data);
+    value = 0;
+  }
+
+  // 確保數值在合理範圍內
+  value = Math.max(0, Math.min(100, value));
+
   // 得分計算表整合
   const scoreData = convertPercentageToScore(value);
   const performanceAnalysis = getPerformanceAnalysis(value, metric.id, metric.title);
@@ -1176,6 +1188,7 @@ export default function PerformanceDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedYear, setSelectedYear] = useState(2025); // 年份選擇狀態，默認2025年
+  const [showPointsManagement, setShowPointsManagement] = useState(false); // 積分管理系統狀態
   const navigate = useNavigate();
   const evaluator = new PerformanceEvaluator("operator");
   const [showLevelGuide, setShowLevelGuide] = useState(false);
@@ -1532,10 +1545,10 @@ export default function PerformanceDashboard() {
   useEffect(() => {
     const loadEmployeeData = async () => {
       setIsLoading(true);
-      
+
       try {
         console.group('數據整合結果');
-        
+
         // 並行獲取數據
         const [jsonData, xmlData] = await Promise.all([
           performanceAPI.getEmployeeData(selectedEmployee, 'json'),
@@ -1554,11 +1567,41 @@ export default function PerformanceDashboard() {
           }
         });
 
-        setEmployeeData(jsonData.employeeData[selectedEmployee]);
+        // 合併API數據和假數據，確保所有指標都有值
+        const apiData = jsonData.employeeData[selectedEmployee];
+        const mergedData = {
+          workCompletion: apiData.workCompletion || 85, // 工作完成量
+          productQuality: apiData.productQuality || 92, // 產品質量
+          workHours: apiData.workHours || 88, // 工作時間
+          attendance: apiData.attendance || 95, // 差勤紀錄
+          machineStatus: apiData.machineStatus || 87, // 機台運行狀態
+          maintenanceRecord: apiData.maintenanceRecord || 90, // 機台維護紀錄
+          targetAchievement: apiData.targetAchievement || 86, // 目標達成率
+          kpi: apiData.kpi || 89, // 關鍵績效指標
+          efficiency: apiData.efficiency || 91, // 效率指標
+          historicalData: apiData.historicalData || [
+            { month: "1月", value: 85 },
+            { month: "2月", value: 87 },
+            { month: "3月", value: 89 },
+            { month: "4月", value: 86 },
+            { month: "5月", value: 88 },
+            { month: "6月", value: 90 },
+            { month: "7月", value: 91 },
+            { month: "8月", value: 89 },
+            { month: "9月", value: 92 },
+            { month: "10月", value: 93 },
+            { month: "11月", value: 91 },
+            { month: "12月", value: 94 },
+          ]
+        };
+
+        console.log('合併後的數據:', mergedData);
+        setEmployeeData(mergedData);
         console.groupEnd();
-        
+
       } catch (error) {
-        console.error("數據整合失敗:", error);
+        console.error("數據整合失敗，使用假數據:", error);
+        // API失敗時保持原有的假數據，不做任何更改
       } finally {
         setIsLoading(false);
       }
@@ -1612,6 +1655,23 @@ export default function PerformanceDashboard() {
   /**
    * 主要渲染邏輯
    */
+
+  // 如果顯示積分管理，則渲染整頁積分管理系統
+  if (showPointsManagement) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900">
+        {/* 積分管理內容 */}
+        <div className="w-full">
+          <PointsManagementDashboard
+            onClose={() => setShowPointsManagement(false)}
+            currentUser={null}
+            isFullPage={true}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 p-6">
@@ -1634,6 +1694,16 @@ export default function PerformanceDashboard() {
                   </option>
                 ))}
               </select>
+
+              {/* 積分管理按鈕 */}
+              <button
+                onClick={() => setShowPointsManagement(true)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                title="開啟積分管理系統"
+              >
+                <Calculator className="w-5 h-5" />
+                <span>積分管理</span>
+              </button>
 
               {/* 用戶選單 */}
               <div className="relative user-menu">
@@ -1948,6 +2018,8 @@ export default function PerformanceDashboard() {
           </div>
         </div>
       </div>
+
+
     </>
   );
 }

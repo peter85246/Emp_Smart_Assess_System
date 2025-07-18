@@ -1,13 +1,9 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useAuth } from "../contexts/AuthContext";
+import { authAPI } from "../services/authAPI";
 import "react-toastify/dist/ReactToastify.css";
-
-// 預設帳密
-const DEFAULT_CREDENTIALS = {
-  username: "admin",
-  password: "123456",
-};
 
 // 成功和錯誤的 toast 配置 (顏色)
 export const toastConfig = {
@@ -38,31 +34,35 @@ export const toastConfig = {
 };
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [employeeNumber, setEmployeeNumber] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // 設定為固定的 2 秒載入時間
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
     try {
-      if (
-        username === DEFAULT_CREDENTIALS.username &&
-        password === DEFAULT_CREDENTIALS.password
-      ) {
-        toast.success("登入成功！", toastConfig.success);
-        localStorage.setItem("isAuthenticated", "true");
-        navigate("/dashboard");
-      } else {
-        toast.error("帳號或密碼錯誤！", toastConfig.error);
-      }
+      const credentials = {
+        employeeNumber,
+        password
+      };
+
+      const response = await authAPI.login(credentials);
+      const userData = response.data.user;
+
+      // 使用AuthContext的login方法保存用戶資訊
+      await login(userData);
+
+      toast.success(`歡迎回來，${userData.name}！`, toastConfig.success);
+      
+      // 登入後統一導向Dashboard主頁面
+      navigate("/dashboard");
     } catch (error) {
-      toast.error("登入失敗，請稍後再試！", toastConfig.error);
+      const errorMessage = error.response?.data?.message || "登入失敗，請稍後再試！";
+      toast.error(errorMessage, toastConfig.error);
     } finally {
       setLoading(false);
     }
@@ -98,10 +98,10 @@ export default function Login() {
               </svg>
             </div>
             <h2 className="text-3xl font-bold text-white mb-2 text-center">
-              員工智慧考核系統
+              積分管理系統
             </h2>
             <p className="text-slate-300 text-sm mb-8">
-              請輸入您的帳號密碼進行登入
+              請輸入您的員工編號和密碼
             </p>
           </div>
 
@@ -110,20 +110,20 @@ export default function Login() {
             <div className="space-y-4">
               <div>
                 <label
-                  htmlFor="username"
+                  htmlFor="employeeNumber"
                   className="block text-sm font-medium text-slate-300 mb-1"
                 >
-                  帳號
+                  員工編號
                 </label>
                 <input
-                  id="username"
-                  name="username"
+                  id="employeeNumber"
+                  name="employeeNumber"
                   type="text"
                   required
                   className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/25 rounded-lg text-white placeholder-slate-400 transition-all duration-200"
-                  placeholder="請輸入帳號"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="例如: EMP001"
+                  value={employeeNumber}
+                  onChange={(e) => setEmployeeNumber(e.target.value)}
                 />
               </div>
               <div>
@@ -188,6 +188,19 @@ export default function Login() {
                 "登入"
               )}
             </button>
+            
+            {/* 註冊連結 */}
+            <div className="text-center mt-6">
+              <p className="text-slate-300">
+                還沒有帳號？{' '}
+                <Link
+                  to="/register"
+                  className="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-200"
+                >
+                  立即註冊
+                </Link>
+              </p>
+            </div>
           </form>
         </div>
       </div>
