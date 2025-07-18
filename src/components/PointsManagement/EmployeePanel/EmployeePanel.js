@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Eye, FileText, BarChart3, Calendar } from 'lucide-react';
+import { Plus, FileText, BarChart3, Calendar } from 'lucide-react';
 
 // 子組件
 import InteractivePointsForm from './InteractivePointsForm';

@@ -1,4 +1,4 @@
-import { API_CONFIG, getApiUrl } from '../config/apiConfig';
+import { getApiUrl } from '../config/apiConfig';
 
 // 簡化的積分API服務
 export const pointsAPI = {
@@ -385,4 +385,5 @@ export const fileUploadAPI = {
   }
 };
 
-export default { pointsAPI, workLogAPI, fileUploadAPI };
+const PointsAPIService = { pointsAPI, workLogAPI, fileUploadAPI };
+export default PointsAPIService;

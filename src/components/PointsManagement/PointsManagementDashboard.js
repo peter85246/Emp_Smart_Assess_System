@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Users, Award, TrendingUp, FileText, Settings, Eye, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { pointsConfig } from '../../config/pointsConfig';
+
 import { authAPI } from '../../services/authAPI';
 import { pointsAPI } from '../../services/pointsAPI';
 

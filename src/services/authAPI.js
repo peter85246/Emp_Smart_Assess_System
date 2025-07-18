@@ -1,4 +1,4 @@
-import { API_CONFIG, getApiUrl } from '../config/apiConfig';
+import { getApiUrl } from '../config/apiConfig';
 
 // 簡化的認證API服務
 export const authAPI = {

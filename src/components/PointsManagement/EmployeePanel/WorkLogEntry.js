@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, Tag, FileText, Edit, Trash2, AlertTriangle, X, CheckCircle, XCircle, Upload, Download, Eye, Image, Loader, Save } from 'lucide-react';
+import { Plus, Search, Calendar, Tag, FileText, Edit, Trash2, X, Download, Eye, Image, Loader, Save } from 'lucide-react';
 import { workLogAPI, fileUploadAPI } from '../../../services/pointsAPI';
 import { pointsConfig } from '../../../config/pointsConfig';
 import useNotification from '../hooks/useNotification';

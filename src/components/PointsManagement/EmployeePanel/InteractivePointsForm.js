@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Upload, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { pointsUtils } from '../../../config/pointsConfig';
 import { pointsAPI } from '../../../services/pointsAPI';
 import NotificationToast from '../shared/NotificationToast';

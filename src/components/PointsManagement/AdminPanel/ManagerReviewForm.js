@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Edit, CheckCircle, XCircle, Star, FileText, Download } from 'lucide-react';
+import { Edit, CheckCircle, XCircle, Star, FileText, Download } from 'lucide-react';
 import NotificationToast from '../shared/NotificationToast';
 import { pointsAPI } from '../../../services/pointsAPI';
 

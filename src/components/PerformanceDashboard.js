@@ -8,13 +8,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ComposedChart,
-  Bar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
 } from "recharts";
 import {
   Activity,
@@ -26,16 +19,11 @@ import {
   Settings,
   Wrench,
   BarChart,
-  Grid,
-  Table,
-  TrendingUp,
-  TrendingDown,
   User,
   Key,
   LogOut,
   Info,
   Calculator,
-  ArrowLeft,
 } from "lucide-react";
 import PointsManagementDashboard from './PointsManagement/PointsManagementDashboard';
 import {
@@ -44,7 +32,6 @@ import {
   X,
 } from "react-feather";
 import {
-  calculateWeightedScore,
   calculateFairnessIndex,
   generateImprovement,
   calculateTotalScore,
@@ -53,7 +40,6 @@ import {
   convertPercentageToScore,
   getPerformanceAnalysis,
   getGradeBadgeColor,
-  getUpgradeInfo,
   getGradeFromScore,
   getScoreBreakdown  // 新增：從工具模組導入
 } from "../utils/scoreCalculations";
