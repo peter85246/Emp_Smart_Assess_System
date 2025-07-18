@@ -33,7 +33,6 @@ import {
 } from "react-feather";
 import {
   calculateFairnessIndex,
-  generateImprovement,
   calculateTotalScore,
 } from "../utils/performanceCalculations";
 import {
@@ -44,7 +43,6 @@ import {
   getScoreBreakdown  // 新增：從工具模組導入
 } from "../utils/scoreCalculations";
 import { useNavigate } from "react-router-dom";
-import { PerformanceEvaluator } from "../utils/performanceCalculations";
 import { performanceAPI } from "../services/api";
 import { mockEmployeeData } from "../models/employeeData";
 
@@ -93,7 +91,6 @@ const ProgressBar = ({ value, color }) => {
 const PerformanceCard = ({ metric, data }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showLevelGuide, setShowLevelGuide] = useState(false);
-  const baseValue = metric.value(data);
   const breakdown = getScoreBreakdown(metric, data);
 
   // 使用最終得分而非基礎得分，確保數值有效性
@@ -352,7 +349,6 @@ const PerformanceCard = ({ metric, data }) => {
    * 根據不同指標和分數範圍提供具體且可操作的建議
    */
   const getSuggestions = (value, metric) => {
-    const suggestions = [];
     const metricSpecificSuggestions = getMetricSpecificSuggestions(metric.id, value);
     const generalSuggestions = getGeneralSuggestions(value, metric.title);
     
@@ -991,121 +987,7 @@ const PerformanceCard = ({ metric, data }) => {
 // 註：getScoreBreakdown 函數已移至 src/utils/scoreCalculations.js 
 // 以避免重複邏輯，提升程式碼維護性
 
-// 修改詳情彈窗組件
-const MetricDetails = ({ metric, data, onClose }) => {
-  const breakdown = getScoreBreakdown(metric, data);
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-slate-800 rounded-xl p-6 max-w-lg w-full mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-white">{metric.title}詳情</h3>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* 指標說明 */}
-          <div className="bg-slate-700/50 rounded-lg p-4">
-            <p className="text-slate-300">
-              {metric.description || `${metric.title}的績效表現指標`}
-            </p>
-          </div>
-
-          {/* 得分明細 */}
-          <div className="bg-slate-700 rounded-lg p-4">
-            <h4 className="text-lg font-semibold text-white mb-2">
-              得分計算明細
-            </h4>
-
-            {/* 基礎分數 */}
-            <div className="mb-4">
-              <div className="flex justify-between text-slate-300">
-                <span>基礎得分</span>
-                <span>{breakdown.baseScore.toFixed(1)}分</span>
-              </div>
-              <div className="text-sm text-slate-400 mt-1">
-                基於{metric.title}的基本表現計算
-              </div>
-            </div>
-
-            {/* 調整項目 */}
-            {breakdown.adjustments.length > 0 && (
-              <div className="space-y-3">
-                <h5 className="text-white font-medium">加分項目：</h5>
-                {breakdown.adjustments.map((adjustment, index) => (
-                  <div key={index} className="bg-slate-600/50 rounded p-3">
-                    <div className="flex justify-between text-slate-300">
-                      <span>{adjustment.reason}</span>
-                      <span>+{adjustment.score.toFixed(1)}分</span>
-                    </div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      {adjustment.description}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 最終得分 */}
-            <div className="mt-4 pt-3 border-t border-slate-600">
-              <div className="flex justify-between text-white font-semibold">
-                <span>最終得分</span>
-                <span>{breakdown.finalScore.toFixed(1)}分</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 歷史趨勢 */}
-          <div className="bg-slate-700 rounded-lg p-4">
-            <h4 className="text-lg font-semibold text-white mb-2">歷史趨勢</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={data.historicalData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="month" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "none",
-                    borderRadius: "0.5rem",
-                    padding: "0.5rem",
-                  }}
-                  labelStyle={{ color: "#94a3b8" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={{ fill: "#3b82f6" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 改進建議 */}
-          <div className="bg-slate-700 rounded-lg p-4">
-            <h4 className="text-lg font-semibold text-white mb-2">改進建議</h4>
-            <ul className="list-disc list-inside text-slate-300 space-y-2">
-              {generateImprovement(data)
-                .suggestions.filter((s) => s.category === metric.id)
-                .map((suggestion, index) => (
-                  <li key={index} className="text-sm">
-                    {suggestion.message}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 /**
  * 組件：評分詳情展示
@@ -1176,8 +1058,7 @@ export default function PerformanceDashboard() {
   const [selectedYear, setSelectedYear] = useState(2025); // 年份選擇狀態，默認2025年
   const [showPointsManagement, setShowPointsManagement] = useState(false); // 積分管理系統狀態
   const navigate = useNavigate();
-  const evaluator = new PerformanceEvaluator("operator");
-  const [showLevelGuide, setShowLevelGuide] = useState(false);
+
 
   // 修改 employeeData 的初始狀態，確保所有指標都有數據
   const [employeeData, setEmployeeData] = useState({
@@ -1485,45 +1366,7 @@ export default function PerformanceDashboard() {
     },
   ].sort((a, b) => a.grade.localeCompare(b.grade)); // 按等級A-E排序
 
-  /**
-   * 額外指標配置區域
-   * 定義加班、推廣等特殊指標
-   */
-  const additionalMetrics = [
-    {
-      id: "overtime",
-      title: "加班影響",
-      description: "加班時數對績效的影響",
-      value: (data) => {
-        const evaluator = new PerformanceEvaluator(data.role);
-        return evaluator.calculateOvertimeImpact(data.overtimeHours);
-      },
-      color: "bg-yellow-500",
-    },
-    {
-      id: "promotion",
-      title: "推廣加成",
-      description: "推廣期間的績效加成",
-      value: (data) => {
-        const evaluator = new PerformanceEvaluator(data.role);
-        return evaluator.calculatePromotionBonus(
-          data.monthInRole,
-          data.baseScore,
-        );
-      },
-      color: "bg-purple-500",
-    },
-    {
-      id: "special",
-      title: "特殊貢獻",
-      description: "特殊貢獻加分",
-      value: (data) => {
-        const evaluator = new PerformanceEvaluator(data.role);
-        return evaluator.calculateSpecialContribution(data.contributions);
-      },
-      color: "bg-green-500",
-    },
-  ];
+
 
   /**
    * 生命週期方法區域

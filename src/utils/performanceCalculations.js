@@ -26,98 +26,11 @@ const calculateWeightedScore = (data, metrics) => {
   }, 0);
 };
 
-// 計算目標達成率得分
-const calculateTargetScore = (workCompletion) => {
-  const { scoring } = scoringConfig.targetAchievementMetrics.workCompletion;
 
-  if (workCompletion >= scoring.excellent.threshold)
-    return scoring.excellent.score;
-  if (workCompletion >= scoring.good.threshold) return scoring.good.score;
-  if (workCompletion >= scoring.fair.threshold) return scoring.fair.score;
-  return scoring.poor.score;
-};
 
-// 計算KPI得分
-const calculateKPIScore = (data) => {
-  const { qualityControl, attendance, maintenance } = scoringConfig.kpiMetrics;
 
-  let qualityScore = 0;
-  let attendanceScore = 0;
-  let maintenanceScore = 0;
 
-  // 計算品質分數
-  if (data.quality >= 98) qualityScore = qualityControl.scoring.noDefects.score;
-  else if (data.quality >= 90)
-    qualityScore = qualityControl.scoring.minorDefects.score;
-  else qualityScore = qualityControl.scoring.majorDefects.score;
 
-  // 計算出勤分數
-  if (data.attendance >= 98) attendanceScore = attendance.scoring.perfect.score;
-  else if (data.attendance >= 90)
-    attendanceScore = attendance.scoring.good.score;
-  else attendanceScore = attendance.scoring.poor.score;
-
-  // 計算維護分數
-  if (data.maintenance >= 95)
-    maintenanceScore = maintenance.scoring.excellent.score;
-  else if (data.maintenance >= 85)
-    maintenanceScore = maintenance.scoring.good.score;
-  else maintenanceScore = maintenance.scoring.poor.score;
-
-  // 計算加權總分
-  return (
-    (qualityScore * qualityControl.weight +
-      attendanceScore * attendance.weight +
-      maintenanceScore * maintenance.weight) /
-    (qualityControl.weight + attendance.weight + maintenance.weight)
-  );
-};
-
-// 計算效率指標得分
-const calculateEfficiencyScore = (data) => {
-  const { timeManagement, resourceUtilization } =
-    scoringConfig.efficiencyMetrics;
-
-  // 計算基本工時得分
-  const standardHours = data.standardHours || 40;
-  const actualHours = data.actualHours || 0;
-  const baseCompletion = Math.min((actualHours / standardHours) * 100, 100);
-
-  // 加班時數的額外得分（可能有獎勵或扣分）
-  const overtime = Math.max(0, actualHours - standardHours);
-  const overtimeScore =
-    overtime > 0
-      ? Math.min(
-          overtime * timeManagement.overtimeBonus,
-          timeManagement.maxOvertimeBonus,
-        )
-      : 0;
-
-  const timeScore = baseCompletion + overtimeScore;
-
-  let resourceScore = 0;
-
-  // 計算資源利用分數
-  if (
-    data.resourceUtilization >= resourceUtilization.scoring.excellent.threshold
-  )
-    resourceScore = resourceUtilization.scoring.excellent.score;
-  else if (
-    data.resourceUtilization >= resourceUtilization.scoring.good.threshold
-  )
-    resourceScore = resourceUtilization.scoring.good.score;
-  else if (
-    data.resourceUtilization >= resourceUtilization.scoring.fair.threshold
-  )
-    resourceScore = resourceUtilization.scoring.fair.score;
-  else resourceScore = resourceUtilization.scoring.poor.score;
-
-  return (
-    (timeScore * timeManagement.weight +
-      resourceScore * resourceUtilization.weight) /
-    (timeManagement.weight + resourceUtilization.weight)
-  );
-};
 
 // 計算總分
 const calculateTotalScore = (employeeData, role = "operator") => {
@@ -213,18 +126,7 @@ const calculateTotalScore = (employeeData, role = "operator") => {
   return totalScore;
 };
 
-// 計算標準差
-const calculateStandardDeviation = (scores) => {
-  const mean = scores.reduce((a, b) => a + b) / scores.length;
-  const variance =
-    scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / scores.length;
-  return Math.sqrt(variance);
-};
 
-// 計算平均值
-const calculateMean = (scores) => {
-  return scores.reduce((a, b) => a + b) / scores.length;
-};
 
 // 計算公平性指標
 const calculateFairnessIndex = (scores) => {

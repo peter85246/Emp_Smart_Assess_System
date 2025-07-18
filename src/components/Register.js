@@ -130,7 +130,7 @@ export default function Register() {
       delete submitData.customPosition;
       // 注意：保留 confirmPassword 字段給後端驗證
 
-      const response = await authAPI.register(submitData);
+      await authAPI.register(submitData);
       toast.success('註冊成功！請登入', toastConfig.success);
       
       // 註冊成功後導向登入頁面
