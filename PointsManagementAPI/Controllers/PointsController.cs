@@ -42,7 +42,7 @@ namespace PointsManagementAPI.Controllers
                     query = query.Where(p => p.EntryDate <= endDate.Value);
 
                 // 使用明確的 Select 來避免模型問題
-                var points = await query
+                var pointsQuery = await query
                     .OrderByDescending(p => p.EntryDate)
                     .Select(p => new
                     {
@@ -57,6 +57,10 @@ namespace PointsManagementAPI.Controllers
                         description = p.Description,
                         evidenceFiles = p.EvidenceFiles,
                         createdAt = p.CreatedAt,
+                        // 審核相關欄位
+                        reviewComments = p.ReviewComments,
+                        approvedBy = p.ApprovedBy,
+                        approvedAt = p.ApprovedAt,
                         standard = new
                         {
                             id = p.Standard.Id,
@@ -66,6 +70,59 @@ namespace PointsManagementAPI.Controllers
                         }
                     })
                     .ToListAsync();
+
+                // 擴展檔案信息（向後兼容）
+                var points = new List<object>();
+                foreach (var point in pointsQuery)
+                {
+                    var fileDetails = new List<object>();
+                    
+                    // 解析檔案ID並獲取檔案詳細信息
+                    if (!string.IsNullOrEmpty(point.evidenceFiles))
+                    {
+                        try
+                        {
+                            var fileIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(point.evidenceFiles);
+                            var fileAttachments = await _context.FileAttachments
+                                .Where(f => fileIds.Contains(f.Id) && f.IsActive)
+                                .Select(f => new
+                                {
+                                    id = f.Id,
+                                    fileName = f.FileName,
+                                    fileSize = f.FileSize,
+                                    contentType = f.ContentType,
+                                    uploadedAt = f.UploadedAt
+                                })
+                                .ToListAsync();
+                            
+                            fileDetails.AddRange(fileAttachments);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"解析檔案信息時出錯: {ex.Message}");
+                        }
+                    }
+
+                    points.Add(new
+                    {
+                        id = point.id,
+                        employeeId = point.employeeId,
+                        standardId = point.standardId,
+                        entryDate = point.entryDate,
+                        pointsEarned = point.pointsEarned,
+                        basePoints = point.basePoints,
+                        bonusPoints = point.bonusPoints,
+                        status = point.status,
+                        description = point.description,
+                        evidenceFiles = point.evidenceFiles, // 保留原始JSON字符串（向後兼容）
+                        evidenceFileDetails = fileDetails, // 新增：檔案詳細信息列表
+                        createdAt = point.createdAt,
+                        reviewComments = point.reviewComments,
+                        approvedBy = point.approvedBy,
+                        approvedAt = point.approvedAt,
+                        standard = point.standard
+                    });
+                }
 
                 _logger.LogInformation("找到 {Count} 筆積分記錄", points.Count);
                 return Ok(points);
@@ -394,31 +451,99 @@ namespace PointsManagementAPI.Controllers
 
                         // 處理檔案上傳
                         var uploadedFiles = new List<string>();
-                        if (files != null && files.Count > 0)
+                        var entryFileMap = new Dictionary<int, List<int>>(); // 每個entry對應的檔案ID列表
+                        
+                        if (files != null && files.Count > 0 && fileKeys != null && fileKeys.Count > 0)
                         {
                             try
                             {
-                                foreach (var file in files)
+                                Console.WriteLine($"開始處理 {files.Count} 個檔案，對應 {fileKeys.Count} 個檔案鍵");
+                                
+                                // 根據fileKeys將檔案分配到對應的積分記錄
+                                for (int i = 0; i < files.Count && i < fileKeys.Count; i++)
                                 {
-                                    // 為每個積分記錄保存檔案
-                                    foreach (var entry in results)
+                                    var file = files[i];
+                                    var fileKey = fileKeys[i];
+                                    
+                                    Console.WriteLine($"處理檔案 {file.FileName}，對應鍵: {fileKey}");
+                                    
+                                    // 解析fileKey以確定對應的項目索引
+                                    // fileKey格式應該是 "g1_0", "g2_0" 等
+                                    var keyParts = fileKey.Split('_');
+                                    if (keyParts.Length >= 1)
                                     {
-                                        var fileAttachment = await _fileStorageService.SaveFileAsync(
-                                            file,
-                                            "PointsEntry",
-                                            entry.Id,
-                                            int.Parse(employeeId)
-                                        );
-                                        uploadedFiles.Add(fileAttachment.FileName);
+                                        var itemKey = keyParts[0]; // 例如 "g1", "g2"
+                                        
+                                        // 從itemKey提取索引（去掉'g'前綴）
+                                        if (itemKey.StartsWith("g") && int.TryParse(itemKey.Substring(1), out int itemIndex))
+                                        {
+                                            // 調整索引為從0開始
+                                            itemIndex = itemIndex - 1;
+                                            
+                                            if (itemIndex >= 0 && itemIndex < results.Count)
+                                            {
+                                                var targetEntry = results[itemIndex];
+                                                
+                                                // 保存檔案
+                                                var fileAttachment = await _fileStorageService.SaveFileAsync(
+                                                    file,
+                                                    "PointsEntry",
+                                                    targetEntry.Id,
+                                                    int.Parse(employeeId)
+                                                );
+                                                
+                                                uploadedFiles.Add(fileAttachment.FileName);
+                                                
+                                                // 記錄檔案關聯到對應的積分記錄
+                                                if (!entryFileMap.ContainsKey(targetEntry.Id))
+                                                {
+                                                    entryFileMap[targetEntry.Id] = new List<int>();
+                                                }
+                                                entryFileMap[targetEntry.Id].Add(fileAttachment.Id);
+                                                
+                                                Console.WriteLine($"檔案 {file.FileName} 已關聯到積分記錄 {targetEntry.Id} (項目索引: {itemIndex})");
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"警告：檔案鍵 {fileKey} 對應的項目索引 {itemIndex} 超出範圍");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"警告：無法解析檔案鍵 {fileKey} 的項目索引");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"警告：檔案鍵格式不正確: {fileKey}");
                                     }
                                 }
-                                Console.WriteLine($"成功上傳 {uploadedFiles.Count} 個檔案");
+                                
+                                // 更新PointsEntry的EvidenceFiles欄位
+                                foreach (var kvp in entryFileMap)
+                                {
+                                    var entry = results.FirstOrDefault(e => e.Id == kvp.Key);
+                                    if (entry != null)
+                                    {
+                                        entry.EvidenceFiles = System.Text.Json.JsonSerializer.Serialize(kvp.Value);
+                                        Console.WriteLine($"積分記錄 {entry.Id} 關聯檔案: {string.Join(", ", kvp.Value)}");
+                                    }
+                                }
+                                
+                                // 保存檔案關聯更新
+                                await _context.SaveChangesAsync();
+                                
+                                Console.WriteLine($"成功上傳 {uploadedFiles.Count} 個檔案並建立正確關聯");
                             }
                             catch (Exception fileEx)
                             {
                                 Console.WriteLine($"檔案上傳警告: {fileEx.Message}");
                                 // 檔案上傳失敗不影響積分記錄的保存
                             }
+                        }
+                        else if (files != null && files.Count > 0)
+                        {
+                            Console.WriteLine("檔案存在但無對應的檔案鍵，跳過檔案處理");
                         }
 
                         var successMessage = $"積分提交成功！創建了 {results.Count} 個積分記錄，總積分: {results.Sum(r => r.PointsEarned):F1}";
@@ -479,7 +604,7 @@ namespace PointsManagementAPI.Controllers
             {
                 _logger.LogInformation("獲取待審核積分記錄");
 
-                var pendingEntries = await _context.PointsEntries
+                var pendingQuery = await _context.PointsEntries
                     .Include(p => p.Employee)
                     .ThenInclude(e => e.Department)
                     .Include(p => p.Standard)
@@ -488,6 +613,7 @@ namespace PointsManagementAPI.Controllers
                     .Select(p => new
                     {
                         id = p.Id,
+                        employeeId = p.EmployeeId,
                         employeeName = p.Employee.Name,
                         employeeNumber = p.Employee.EmployeeNumber,
                         department = p.Employee.Department!.Name,
@@ -502,6 +628,58 @@ namespace PointsManagementAPI.Controllers
                         promotionMultiplier = p.PromotionMultiplier
                     })
                     .ToListAsync();
+
+                // 擴展檔案信息（向後兼容）
+                var pendingEntries = new List<object>();
+                foreach (var entry in pendingQuery)
+                {
+                    var fileDetails = new List<object>();
+                    
+                    // 解析檔案ID並獲取檔案詳細信息
+                    if (!string.IsNullOrEmpty(entry.evidenceFiles))
+                    {
+                        try
+                        {
+                            var fileIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(entry.evidenceFiles);
+                            var fileAttachments = await _context.FileAttachments
+                                .Where(f => fileIds.Contains(f.Id) && f.IsActive)
+                                .Select(f => new
+                                {
+                                    id = f.Id,
+                                    fileName = f.FileName,
+                                    fileSize = f.FileSize,
+                                    contentType = f.ContentType,
+                                    uploadedAt = f.UploadedAt
+                                })
+                                .ToListAsync();
+                            
+                            fileDetails.AddRange(fileAttachments);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"解析待審核檔案信息時出錯: {ex.Message}");
+                        }
+                    }
+
+                    pendingEntries.Add(new
+                    {
+                        id = entry.id,
+                        employeeId = entry.employeeId,
+                        employeeName = entry.employeeName,
+                        employeeNumber = entry.employeeNumber,
+                        department = entry.department,
+                        standardName = entry.standardName,
+                        description = entry.description,
+                        pointsCalculated = entry.pointsCalculated,
+                        evidenceFiles = entry.evidenceFiles, // 保留原始JSON字符串（向後兼容）
+                        evidenceFileDetails = fileDetails, // 新增：檔案詳細信息列表
+                        submittedAt = entry.submittedAt,
+                        status = entry.status,
+                        basePoints = entry.basePoints,
+                        bonusPoints = entry.bonusPoints,
+                        promotionMultiplier = entry.promotionMultiplier
+                    });
+                }
 
                 _logger.LogInformation("找到 {Count} 筆待審核記錄", pendingEntries.Count);
                 return Ok(pendingEntries);
@@ -535,7 +713,7 @@ namespace PointsManagementAPI.Controllers
                 entry.Status = "rejected";
                 entry.ApprovedBy = request.RejectedBy;
                 entry.ApprovedAt = DateTime.UtcNow;
-                entry.Description = entry.Description + $"\n拒絕原因: {request.Reason}";
+                entry.ReviewComments = request.Reason;
 
                 await _context.SaveChangesAsync();
 
