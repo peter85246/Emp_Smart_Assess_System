@@ -41,13 +41,14 @@ export const pointsAPI = {
       // 將items對象轉換為後端期望的數組格式，並建立索引映射
       const itemsArray = [];
       const itemIndexMap = {}; // 原始itemId -> 數組索引的映射
-      
+
       if (data.items) {
         let arrayIndex = 0;
         Object.entries(data.items).forEach(([key, item]) => {
           if (item && (item.checked || item.value > 0 || item.selectedValue > 0)) {
             itemsArray.push({
-              description: item.description || item.name || key,
+              categoryName: item.categoryName || item.name || key, // 使用categoryName作為積分項目類別名稱
+              description: item.description || '', // 員工填寫的工作說明
               calculatedPoints: parseFloat(item.calculatedPoints || item.points || 0),
               checked: item.checked,
               value: item.value,

@@ -618,22 +618,24 @@ const ManagerReviewForm = ({ currentUser }) => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-transparent">
+    <div className="min-h-screen p-6 space-y-6 bg-transparent">
       <h2 className="text-2xl font-bold text-white">👨‍💼 主管審核與評分</h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[calc(100vh-8rem)]">
         {/* 左側：待審核列表 */}
-        <div className="lg:col-span-1">
-          <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 p-4">
+        <div className="lg:col-span-1 h-full">
+          <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 p-4 h-full flex flex-col">
             <h3 className="text-lg font-semibold text-white mb-4">📋 待審核提交</h3>
             
             {submissions.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-slate-500" />
-                <p>目前沒有待審核的提交</p>
+              <div className="flex-1 flex items-center justify-center text-slate-400">
+                <div className="text-center">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-slate-500" />
+                  <p>目前沒有待審核的提交</p>
+                </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="flex-1 overflow-y-auto space-y-3">
                 {submissions.map((submission) => (
                   <div
                     key={submission.id}
@@ -660,9 +662,9 @@ const ManagerReviewForm = ({ currentUser }) => {
         </div>
 
         {/* 右側：審核詳情 */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 h-full">
           {selectedSubmission ? (
-            <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 p-6 space-y-6">
+            <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 p-6 space-y-6 h-full flex flex-col">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-bold text-white">
@@ -684,8 +686,8 @@ const ManagerReviewForm = ({ currentUser }) => {
               </div>
 
               {/* 積分項目詳情 */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="flex-1 flex flex-col space-y-4">
+                <div className="flex items-center justify-between flex-shrink-0">
                   <h4 className="text-lg font-semibold text-white">📝 積分項目詳情</h4>
                   <button
                     onClick={() => setEditMode(!editMode)}
@@ -697,7 +699,7 @@ const ManagerReviewForm = ({ currentUser }) => {
                 </div>
 
                 {/* 所有積分項目列表 */}
-                <div className="space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3">
                   {selectedSubmission.items?.map((item, index) => {
                     const isProcessing = processingItems.has(item.id);
                     const itemStatus = itemStatuses[item.id];
@@ -717,15 +719,17 @@ const ManagerReviewForm = ({ currentUser }) => {
                               {/* 審核狀態標示 */}
                               {isReviewed && (
                                 <span className={`text-xs px-2 py-1 rounded-full ${
-                                  itemStatus.status === 'approved' 
-                                    ? 'bg-green-600/20 text-green-400' 
+                                  itemStatus.status === 'approved'
+                                    ? 'bg-green-600/20 text-green-400'
                                     : 'bg-red-600/20 text-red-400'
                                 }`}>
                                   {itemStatus.status === 'approved' ? '已核准' : '已拒絕'}
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-slate-300 mt-1 line-clamp-1">{item.description}</p>
+                            <p className="text-sm text-slate-300 mt-1 line-clamp-1">
+                              積分項目：{item.standardName}
+                            </p>
                           </div>
                           <div className="flex items-center space-x-3">
                             <div className="text-right">
@@ -745,10 +749,21 @@ const ManagerReviewForm = ({ currentUser }) => {
                         {expandedItems[item.id] && (
                           <div className="border-t border-slate-500/50 p-4 bg-slate-700/20">
                             <div className="space-y-3">
-                              {/* 項目詳情 */}
+                              {/* 員工工作說明 */}
+                              <div className="bg-blue-600/10 border border-blue-400/30 rounded-lg p-3">
+                                <h6 className="text-sm font-medium text-blue-300 mb-2 flex items-center">
+                                  📝 員工工作說明
+                                </h6>
+                                <div className="text-sm text-slate-200 leading-relaxed">
+                                  {item.description || (
+                                    <span className="text-slate-400 italic">員工未填寫工作說明</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* 積分詳情 */}
                               <div>
-                                <p className="text-sm text-slate-200">{item.description}</p>
-                                <div className="text-xs text-slate-400 mt-1">
+                                <div className="text-xs text-slate-400">
                                   基礎積分: {item.basePoints?.toFixed(1)}
                                   {item.bonusPoints > 0 && (
                                     <span className="text-green-400 ml-2">
@@ -1092,10 +1107,12 @@ const ManagerReviewForm = ({ currentUser }) => {
               </div>
             </div>
           ) : (
-            <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 p-8 text-center">
-              <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">選擇要審核的提交</h3>
-              <p className="text-slate-300">請從左側列表選擇一個待審核的積分提交</p>
+            <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 h-full flex items-center justify-center">
+              <div className="text-center">
+                <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-white mb-2">選擇要審核的提交</h3>
+                <p className="text-slate-300">請從左側列表選擇一個待審核的積分提交</p>
+              </div>
             </div>
           )}
         </div>

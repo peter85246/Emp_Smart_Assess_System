@@ -181,11 +181,102 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
   // 月份數據篩選函數
   const filterDataByMonth = (data, selectedMonth) => {
     if (!selectedMonth) return data;
-    
+
     return data.filter(item => {
       const itemMonth = item.entryDate.slice(0, 7); // YYYY-MM格式
       return itemMonth === selectedMonth;
     });
+  };
+
+  // 根據積分項目名稱映射到正確的類型
+  const getPointsTypeByName = (standardName) => {
+    // 積分項目名稱到類型的映射表
+    const nameToTypeMapping = {
+      // 一般積分項目
+      '刀具五金準備': 'general',
+      '定時巡機檢驗': 'general',
+      '生產損耗率': 'general',
+      '工具回收歸位': 'general',
+      '清理機台': 'general',
+      '機台運作正常': 'general',
+      '製程巡檢單': 'general',
+      '提出改善方案': 'general',
+      '完成改善方案': 'general',
+      '工作日誌': 'general',
+      '學習型組織': 'general',
+      '基本區域打掃': 'general',
+      '安全檢查': 'general',
+      '設備保養': 'general',
+
+      // 品質工程積分項目
+      'ISO外部稽核': 'quality',
+      '抽檢驗收': 'quality',
+      '進料檢驗': 'quality',
+      '包裝出貨': 'quality',
+      '外觀產品全檢': 'quality',
+      '庫存盤點': 'quality',
+      '客戶投訴處理': 'quality',
+      '品質改善提案': 'quality',
+
+      // 專業積分項目
+      '凸輪改機': 'professional',
+      'CNC改機': 'professional',
+      'CNC編碼': 'professional',
+      '零件2D製圖': 'professional',
+      '零件3D製圖': 'professional',
+      '治具設計': 'professional',
+      '夾具設計': 'professional',
+      '模具設計': 'professional',
+      '程式設計': 'professional',
+      '技術指導': 'professional',
+      '技術文件': 'professional',
+
+      // 管理積分項目
+      '下屬工作日誌': 'management',
+      '下屬積分達標': 'management',
+      '稽核SOP': 'management',
+      '教育訓練': 'management',
+      '幹部會議': 'management',
+      '績效面談': 'management',
+      '團隊建設': 'management',
+      '跨部門協調': 'management',
+
+      // 核心職能積分項目
+      '誠信正直': 'core',
+      '創新效率': 'core',
+      '卓越品質': 'core',
+      '專業服務': 'core'
+    };
+
+    return nameToTypeMapping[standardName] || 'general';
+  };
+
+  // 積分類型映射函數 - 統一處理新舊類型格式和項目名稱映射
+  const mapPointsType = (pointsType, standardName) => {
+    // 首先嘗試根據項目名稱獲取正確的類型
+    if (standardName) {
+      const typeByName = getPointsTypeByName(standardName);
+      if (typeByName !== 'general' || !pointsType) {
+        return typeByName;
+      }
+    }
+
+    if (!pointsType) return 'general';
+
+    // 如果已經是新格式，直接返回
+    if (pointsConfig.pointsTypes[pointsType]) {
+      return pointsType;
+    }
+
+    // 舊格式到新格式的映射
+    const typeMapping = {
+      'production': 'professional',
+      'basic': 'general',
+      'tech': 'professional',
+      'mgmt': 'management'
+    };
+
+    return typeMapping[pointsType] || pointsType;
   };
 
   const calculateMonthlyStats = (allData, selectedMonth) => {
@@ -202,8 +293,9 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
     
     const total = approvedData.reduce((sum, item) => sum + (item.pointsEarned || 0), 0);
     const byType = approvedData.reduce((acc, item) => {
-      const type = item.pointsType || 'general';
-      acc[type] = (acc[type] || 0) + (item.pointsEarned || 0);
+      // 使用映射後的類型進行統計
+      const mappedType = mapPointsType(item.pointsType, item.standardName);
+      acc[mappedType] = (acc[mappedType] || 0) + (item.pointsEarned || 0);
       return acc;
     }, {});
 
@@ -312,25 +404,7 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
     };
   });
 
-  // 積分類型映射函數 - 統一處理新舊類型格式
-  const mapPointsType = (pointsType) => {
-    if (!pointsType) return 'general';
-    
-    // 如果已經是新格式，直接返回
-    if (pointsConfig.pointsTypes[pointsType]) {
-      return pointsType;
-    }
-    
-    // 舊格式到新格式的映射
-    const typeMapping = {
-      'production': 'professional',
-      'basic': 'general',
-      'tech': 'professional', 
-      'mgmt': 'management'
-    };
-    
-    return typeMapping[pointsType] || pointsType;
-  };
+
 
   // 篩選積分數據 - 支援月份、類型映射和搜索
   const filteredPointsData = pointsData.filter(item => {
@@ -341,10 +415,10 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
       item.standardName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // 增強的分類篩選邏輯 - 支援新舊格式映射
-    const matchesCategory = !selectedCategory || 
-      item.pointsType === selectedCategory ||                    // 直接匹配
-      mapPointsType(item.pointsType) === selectedCategory;       // 映射後匹配
+    // 增強的分類篩選邏輯 - 支援新舊格式映射和項目名稱映射
+    const matchesCategory = !selectedCategory ||
+      item.pointsType === selectedCategory ||                           // 直接匹配
+      mapPointsType(item.pointsType, item.standardName) === selectedCategory;  // 映射後匹配
 
     return matchesMonth && matchesSearch && matchesCategory;
   });
@@ -833,15 +907,15 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
       
       const matchedItems = pointsData.filter(item => {
         const directMatch = item.pointsType === selectedCategory;
-        const mappedMatch = mapPointsType(item.pointsType) === selectedCategory;
+        const mappedMatch = mapPointsType(item.pointsType, item.standardName) === selectedCategory;
         return directMatch || mappedMatch;
       });
-      
+
       matchedItems.forEach((item, index) => {
         const directMatch = item.pointsType === selectedCategory;
-        const mappedMatch = mapPointsType(item.pointsType) === selectedCategory;
+        const mappedMatch = mapPointsType(item.pointsType, item.standardName) === selectedCategory;
         const matchType = directMatch ? '直接匹配' : '映射匹配';
-        console.log(`${index + 1}. ${item.standardName} | 原始類型: ${item.pointsType} | 映射類型: ${mapPointsType(item.pointsType)} | ${matchType}`);
+        console.log(`${index + 1}. ${item.standardName} | 原始類型: ${item.pointsType} | 映射類型: ${mapPointsType(item.pointsType, item.standardName)} | ${matchType}`);
       });
     }
   }
@@ -1222,8 +1296,8 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
                     </td>
                                           <td className="px-6 py-4 whitespace-nowrap">
                         {(() => {
-                         // 使用統一的類型映射邏輯
-                         const mappedType = mapPointsType(item.pointsType);
+                         // 使用統一的類型映射邏輯，包含項目名稱映射
+                         const mappedType = mapPointsType(item.pointsType, item.standardName);
                          let typeName = mappedType;
                          let typeColor = '#6B7280'; // 默認灰色
 

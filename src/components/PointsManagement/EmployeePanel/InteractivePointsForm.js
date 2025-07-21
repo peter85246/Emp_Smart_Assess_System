@@ -144,11 +144,13 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
 
   // 處理表單項目變更
   const handleItemChange = (itemId, field, value) => {
+    const item = findItemById(itemId);
     setFormData(prev => ({
       ...prev,
       [itemId]: {
         ...prev[itemId],
         [field]: value,
+        categoryName: item?.name || '', // 添加積分項目類別名稱
         calculatedPoints: calculateItemPoints(itemId, { ...prev[itemId], [field]: value })
       }
     }));
@@ -224,6 +226,7 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
       };
 
       console.log('提交積分表單:', submissionData);
+      console.log('表單數據詳情:', JSON.stringify(formData, null, 2));
 
       // 調用批量提交API
       const result = await pointsAPI.submitBatchPoints(submissionData);

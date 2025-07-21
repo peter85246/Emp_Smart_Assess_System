@@ -396,35 +396,35 @@ namespace PointsManagementAPI.Controllers
                 {
                     try
                     {
-                        Console.WriteLine($"處理項目: {item.Description}, 積分: {item.CalculatedPoints}");
-                        
+                        Console.WriteLine($"處理項目: {item.CategoryName}, 工作說明: {item.Description}, 積分: {item.CalculatedPoints}");
+
                         // 驗證項目數據
-                        if (string.IsNullOrWhiteSpace(item.Description))
+                        if (string.IsNullOrWhiteSpace(item.CategoryName))
                         {
-                            Console.WriteLine("跳過項目：描述為空");
+                            Console.WriteLine("跳過項目：積分項目類別名稱為空");
                             continue;
                         }
-                        
+
                         if (item.CalculatedPoints <= 0)
                         {
-                            Console.WriteLine($"跳過項目 {item.Description}：積分為 {item.CalculatedPoints}");
+                            Console.WriteLine($"跳過項目 {item.CategoryName}：積分為 {item.CalculatedPoints}");
                             continue;
                         }
-                        
-                        // 查找對應的標準設定 - 使用簡單的查詢避免欄位問題
+
+                        // 查找對應的標準設定 - 使用CategoryName查找積分項目類別
                         var standard = await _context.StandardSettings
-                            .Where(s => s.CategoryName == item.Description)
+                            .Where(s => s.CategoryName == item.CategoryName)
                             .Select(s => new { s.Id, s.CategoryName, s.PointsValue })
                             .FirstOrDefaultAsync();
 
                         int standardId;
                         if (standard == null)
                         {
-                            Console.WriteLine($"為項目 '{item.Description}' 創建新的標準設定");
+                            Console.WriteLine($"為項目 '{item.CategoryName}' 創建新的標準設定");
                             // 如果找不到標準，創建一個新的
                             var newStandard = new StandardSetting
                             {
-                                CategoryName = item.Description,
+                                CategoryName = item.CategoryName, // 使用積分項目類別名稱
                                 PointsValue = item.CalculatedPoints,
                                 PointsType = "general",
                                 InputType = "number",
@@ -437,7 +437,7 @@ namespace PointsManagementAPI.Controllers
                         }
                         else
                         {
-                            Console.WriteLine($"找到現有標準設定 ID: {standard.Id} 為項目 '{item.Description}'");
+                            Console.WriteLine($"找到現有標準設定 ID: {standard.Id} 為項目 '{item.CategoryName}'");
                             standardId = standard.Id;
                         }
 
@@ -901,7 +901,8 @@ namespace PointsManagementAPI.Controllers
 
     public class PointsItem
     {
-        public string Description { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty; // 積分項目類別名稱
+        public string Description { get; set; } = string.Empty; // 員工填寫的工作說明
         public decimal CalculatedPoints { get; set; }
         public bool? Checked { get; set; }
         public decimal? Value { get; set; }
