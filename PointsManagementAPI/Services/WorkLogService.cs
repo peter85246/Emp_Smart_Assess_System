@@ -37,6 +37,11 @@ namespace PointsManagementAPI.Services
         public async Task<WorkLog> CreateWorkLogAsync(WorkLog workLog)
         {
             workLog.CreatedAt = DateTime.UtcNow;
+            // 確保LogDate有正確的值 - 如果沒有設置，使用當前日期
+            if (workLog.LogDate == default(DateTime))
+            {
+                workLog.LogDate = DateTime.UtcNow;
+            }
             _context.WorkLogs.Add(workLog);
             await _context.SaveChangesAsync();
             return workLog;

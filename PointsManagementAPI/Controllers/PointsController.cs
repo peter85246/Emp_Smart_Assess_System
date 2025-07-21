@@ -7,6 +7,11 @@ using System.Text.Json;
 
 namespace PointsManagementAPI.Controllers
 {
+    /// <summary>
+    /// 積分管理控制器 - 處理員工積分相關的所有API操作
+    /// 主要功能：積分查詢、提交、審核、統計
+    /// API路由前綴：/api/points
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class PointsController : ControllerBase
@@ -16,6 +21,13 @@ namespace PointsManagementAPI.Controllers
         private readonly ILogger<PointsController> _logger;
         private readonly IFileStorageService _fileStorageService;
 
+        /// <summary>
+        /// 積分控制器建構函數 - 注入必要的服務依賴
+        /// </summary>
+        /// <param name="context">資料庫上下文</param>
+        /// <param name="calculationService">積分計算服務</param>
+        /// <param name="logger">日誌記錄器</param>
+        /// <param name="fileStorageService">檔案存儲服務</param>
         public PointsController(PointsDbContext context, IPointsCalculationService calculationService, ILogger<PointsController> logger, IFileStorageService fileStorageService)
         {
             _context = context;
@@ -24,6 +36,15 @@ namespace PointsManagementAPI.Controllers
             _fileStorageService = fileStorageService;
         }
 
+        /// <summary>
+        /// 【GET】 /api/points/employee/{employeeId} - 獲取指定員工的積分記錄
+        /// 功能：查詢員工的所有積分記錄，支援日期範圍篩選
+        /// 前端使用：個人積分查詢、績效報告
+        /// </summary>
+        /// <param name="employeeId">員工ID</param>
+        /// <param name="startDate">開始日期（可選）</param>
+        /// <param name="endDate">結束日期（可選）</param>
+        /// <returns>包含積分記錄和檔案詳情的列表</returns>
         [HttpGet("employee/{employeeId}")]
         public async Task<ActionResult> GetEmployeePoints(int employeeId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
         {
@@ -231,6 +252,15 @@ namespace PointsManagementAPI.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// 【POST】 /api/points/{id}/approve - 審核通過積分記錄
+        /// 功能：主管審核員工積分提交，標記為通過狀態
+        /// 前端使用：ManagerReviewForm組件的審核通過功能
+        /// 權限：僅限主管角色使用
+        /// </summary>
+        /// <param name="id">積分記錄ID</param>
+        /// <param name="request">審核請求，包含審核人ID和備註</param>
+        /// <returns>審核結果</returns>
         [HttpPost("{id}/approve")]
         public async Task<ActionResult> ApprovePointsEntry(int id, [FromBody] ApprovalRequest request)
         {
@@ -316,6 +346,20 @@ namespace PointsManagementAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// 【POST】 /api/points/batch/submit - 批量提交積分項目（支援多項目+檔案上傳）
+        /// 功能：員工一次提交多個積分項目，每個項目可附帶檔案證明
+        /// 前端使用：InteractivePointsForm組件的主要提交功能
+        /// 特色：支援檔案與特定項目的精確關聯
+        /// </summary>
+        /// <param name="employeeId">員工ID</param>
+        /// <param name="submissionDate">提交日期</param>
+        /// <param name="status">狀態（通常為pending）</param>
+        /// <param name="totalPoints">總積分</param>
+        /// <param name="items">積分項目JSON字符串</param>
+        /// <param name="files">上傳的檔案列表（可選）</param>
+        /// <param name="fileKeys">檔案關聯鍵（格式：g1_0, g2_0等）</param>
+        /// <returns>創建的積分記錄摘要</returns>
         [HttpPost("batch/submit")]
         public async Task<ActionResult> SubmitBatchPoints(
             [FromForm] string employeeId,
@@ -596,7 +640,13 @@ namespace PointsManagementAPI.Controllers
             }
         }
 
-        // 獲取待審核的積分記錄
+        /// <summary>
+        /// 【GET】 /api/points/pending - 獲取所有待審核的積分記錄
+        /// 功能：供主管查看所有員工提交的待審核積分項目
+        /// 前端使用：ManagerReviewForm組件顯示待審核列表
+        /// 特色：包含完整的員工信息、檔案詳情、部門信息
+        /// </summary>
+        /// <returns>待審核積分記錄列表，包含員工和檔案詳情</returns>
         [HttpGet("pending")]
         public async Task<ActionResult<List<object>>> GetPendingEntries()
         {
@@ -691,7 +741,15 @@ namespace PointsManagementAPI.Controllers
             }
         }
 
-        // 拒絕積分記錄
+        /// <summary>
+        /// 【POST】 /api/points/{id}/reject - 審核拒絕積分記錄
+        /// 功能：主管審核員工積分提交，標記為拒絕狀態並記錄拒絕原因
+        /// 前端使用：ManagerReviewForm組件的審核拒絕功能
+        /// 權限：僅限主管角色使用
+        /// </summary>
+        /// <param name="id">積分記錄ID</param>
+        /// <param name="request">拒絕請求，包含拒絕人ID和拒絕原因</param>
+        /// <returns>拒絕結果</returns>
         [HttpPost("{id}/reject")]
         public async Task<ActionResult> RejectPointsEntry(int id, [FromBody] PointsManagementAPI.Models.AuthModels.RejectRequest request)
         {

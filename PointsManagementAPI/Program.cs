@@ -65,20 +65,12 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add Entity Framework - 暫時使用內存數據庫
+// Add Entity Framework - 使用PostgreSQL數據庫
 builder.Services.AddDbContext<PointsDbContext>(options =>
 {
-    if (builder.Environment.IsDevelopment())
-    {
-        // 開發環境使用內存數據庫
-        options.UseInMemoryDatabase("PointsManagementDB");
-        Console.WriteLine("🔧 使用內存數據庫 (InMemory)");
-    }
-    else
-    {
-        // 生產環境使用PostgreSQL
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    }
+    // 開發和生產環境都使用PostgreSQL
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    Console.WriteLine("🔧 使用PostgreSQL數據庫");
 });
 
 // Add CORS - 支持動態端口配置

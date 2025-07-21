@@ -3,17 +3,38 @@ using PointsManagementAPI.Services;
 
 namespace PointsManagementAPI.Controllers
 {
+    /// <summary>
+    /// 檔案上傳控制器 - 處理檔案上傳、下載、預覽功能
+    /// 主要功能：檔案上傳、檔案下載、檔案預覽
+    /// API路由前綴：/api/fileupload
+    /// 支援格式：圖片、PDF、Word、Excel等
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class FileUploadController : ControllerBase
     {
         private readonly IFileStorageService _fileStorageService;
 
+        /// <summary>
+        /// 檔案上傳控制器建構函數
+        /// </summary>
+        /// <param name="fileStorageService">檔案存儲服務</param>
         public FileUploadController(IFileStorageService fileStorageService)
         {
             _fileStorageService = fileStorageService;
         }
 
+        /// <summary>
+        /// 【POST】 /api/fileupload/upload - 上傳檔案並存儲到指定實體
+        /// 功能：處理檔案上傳，存儲檔案並記錄到資料庫
+        /// 前端使用：各種檔案上傳功能（積分證明、工作日誌附件等）
+        /// 支援：自動檔案驗證、路徑管理、資料庫記錄
+        /// </summary>
+        /// <param name="file">上傳的檔案</param>
+        /// <param name="entityType">實體類型（如PointsEntry、WorkLog）</param>
+        /// <param name="entityId">實體ID</param>
+        /// <param name="uploadedBy">上傳者ID，預設為1</param>
+        /// <returns>檔案上傳結果，包含檔案ID和基本信息</returns>
         [HttpPost("upload")]
         public async Task<ActionResult> UploadFile(
             IFormFile file,

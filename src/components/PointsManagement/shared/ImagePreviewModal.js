@@ -10,13 +10,17 @@ const ImagePreviewModal = ({
 }) => {
   const [zoom, setZoom] = React.useState(1);
   const [rotation, setRotation] = React.useState(0);
+  const [imageLoading, setImageLoading] = React.useState(true);
+  const [imageError, setImageError] = React.useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
       setZoom(1);
       setRotation(0);
+      setImageLoading(true);
+      setImageError(false);
     }
-  }, [isOpen]);
+  }, [isOpen, imageSrc]);
 
   // 鍵盤快捷鍵支持
   React.useEffect(() => {
@@ -174,38 +178,43 @@ const ImagePreviewModal = ({
                 maxWidth: zoom <= 1 ? '100%' : 'none',
                 maxHeight: zoom <= 1 ? '100%' : 'none',
                 width: zoom > 1 ? 'auto' : 'auto',
-                height: zoom > 1 ? 'auto' : 'auto'
+                height: zoom > 1 ? 'auto' : 'auto',
+                display: imageError ? 'none' : 'block'
               }}
               draggable={false}
               onError={(e) => {
                 console.error('圖片加載失敗:', imageSrc);
-                e.target.style.display = 'none';
-                // 顯示錯誤提示
-                const errorDiv = e.target.parentNode.querySelector('.error-message');
-                if (!errorDiv) {
-                  const errorElement = document.createElement('div');
-                  errorElement.className = 'error-message text-center text-slate-400';
-                  errorElement.innerHTML = `
-                    <div class="text-6xl mb-4">🖼️</div>
-                    <p class="text-lg mb-2">圖片載入失敗</p>
-                    <p class="text-sm">請檢查圖片是否存在或嘗試重新載入</p>
-                  `;
-                  e.target.parentNode.appendChild(errorElement);
-                }
+                setImageLoading(false);
+                setImageError(true);
               }}
               onLoad={() => {
                 console.log('圖片載入成功:', imageSrc);
+                setImageLoading(false);
+                setImageError(false);
               }}
             />
           </div>
 
-          {/* 載入提示 */}
-          <div className="absolute inset-0 flex items-center justify-center text-slate-400 pointer-events-none">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mx-auto mb-2"></div>
-              <p className="text-sm">載入中...</p>
+          {/* 載入提示 - 只在載入時顯示 */}
+          {imageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center text-slate-400 pointer-events-none bg-slate-900/50">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mx-auto mb-2"></div>
+                <p className="text-sm">載入中...</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* 錯誤提示 - 只在載入失敗時顯示 */}
+          {imageError && (
+            <div className="absolute inset-0 flex items-center justify-center text-slate-400 pointer-events-none bg-slate-900/50">
+              <div className="text-center">
+                <div className="text-6xl mb-4">🖼️</div>
+                <p className="text-lg mb-2">圖片載入失敗</p>
+                <p className="text-sm">請檢查圖片是否存在或嘗試重新載入</p>
+              </div>
+            </div>
+          )}
 
           {/* 滑動提示 */}
           {zoom > 1 && (

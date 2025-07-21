@@ -1,23 +1,34 @@
-// 簡化的API配置文件
+/**
+ * API配置檔案 - 集中管理所有API端點和配置
+ * 功能：統一管理API基礎URL、端點路徑、請求配置
+ * 使用：所有API服務模組的基礎配置來源
+ * 
+ * 配置項目：
+ * - BASE_URL: 後端API的基礎URL
+ * - ENDPOINTS: 所有API端點的路徑定義
+ * - 超時設定、重試邏輯等配置
+ */
 export const API_CONFIG = {
-  // 基礎URL配置
+  // 基礎URL配置 - 後端API服務地址
   BASE_URL: 'http://localhost:5001/api',
   
-  // 端點配置
+  // API端點配置 - 按功能模組分類組織
   ENDPOINTS: {
+    // 認證相關端點 - 用戶登入、註冊、權限管理
     auth: {
-      login: '/auth/login',
-      logout: '/auth/logout',
-      register: '/auth/register',
-      refresh: '/auth/refresh',
-      profile: '/auth/profile'
+      login: '/auth/login',          // 用戶登入
+      logout: '/auth/logout',        // 用戶登出
+      register: '/auth/register',    // 用戶註冊
+      refresh: '/auth/refresh',      // Token刷新
+      profile: '/auth/profile'       // 用戶檔案
     },
+    // 積分管理端點 - 積分提交、查詢、審核
     points: {
-      submit: '/points/submit',
-      employee: '/points/employee',
-      pending: '/points/pending',
-      approve: '/points/approve',
-      reject: '/points/reject',
+      submit: '/points/submit',      // 單項積分提交
+      employee: '/points/employee',  // 員工積分查詢
+      pending: '/points/pending',    // 待審核項目查詢
+      approve: '/points/approve',    // 積分審核通過
+      reject: '/points/reject',      // 積分審核拒絕
       summary: '/points/summary',
       batch: '/points/batch'
     },

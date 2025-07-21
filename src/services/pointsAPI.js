@@ -1,8 +1,32 @@
 import { getApiUrl } from '../config/apiConfig';
 
-// 簡化的積分API服務
+/**
+ * 積分管理API服務模組
+ * 功能：封裝所有與積分相關的API呼叫
+ * 包含：積分提交、查詢、審核、檔案操作
+ * 
+ * 主要方法：
+ * - submitBatchPoints: 批量提交積分（支援多項目+檔案）
+ * - getEmployeePoints: 獲取員工積分記錄
+ * - getPendingEntries: 獲取待審核項目（主管專用）
+ * - downloadFile: 檔案下載功能
+ */
 export const pointsAPI = {
-  // 提交積分記錄
+  /**
+   * 批量提交積分項目 - 核心提交功能
+   * API: POST /api/points/batch/submit
+   * 功能：支援多項目同時提交，每項目可關聯多個檔案
+   * 特色：智能檔案索引映射，確保檔案正確關聯到對應項目
+   * 
+   * @param {Object} data - 提交數據
+   * @param {number} data.employeeId - 員工ID
+   * @param {string} data.submissionDate - 提交日期
+   * @param {string} data.status - 狀態（通常為pending）
+   * @param {number} data.totalPoints - 總積分
+   * @param {Object} data.items - 積分項目對象
+   * @param {Object} data.files - 檔案對象 {itemId: [File, File, ...]}
+   * @returns {Promise} 提交結果
+   */
   async submitBatchPoints(data) {
     try {
       // 創建FormData來符合後端要求
@@ -14,11 +38,14 @@ export const pointsAPI = {
       formData.append('status', data.status || 'pending');
       formData.append('totalPoints', data.totalPoints.toString());
       
-      // 將items對象轉換為後端期望的數組格式
+      // 將items對象轉換為後端期望的數組格式，並建立索引映射
       const itemsArray = [];
+      const itemIndexMap = {}; // 原始itemId -> 數組索引的映射
+      
       if (data.items) {
+        let arrayIndex = 0;
         Object.entries(data.items).forEach(([key, item]) => {
-          if (item && (item.checked || item.value > 0)) {
+          if (item && (item.checked || item.value > 0 || item.selectedValue > 0)) {
             itemsArray.push({
               description: item.description || item.name || key,
               calculatedPoints: parseFloat(item.calculatedPoints || item.points || 0),
@@ -26,19 +53,43 @@ export const pointsAPI = {
               value: item.value,
               selectedValue: item.selectedValue
             });
+            // 記錄原始itemId到數組索引的映射
+            itemIndexMap[key] = arrayIndex;
+            arrayIndex++;
           }
         });
       }
       
       console.log('轉換後的items數組:', itemsArray);
+      console.log('項目索引映射:', itemIndexMap);
       formData.append('items', JSON.stringify(itemsArray));
       
-      // 如果有檔案，添加到FormData
+      // 如果有檔案，使用正確的索引生成檔案鍵
       if (data.files && Object.keys(data.files).length > 0) {
-        Object.entries(data.files).forEach(([key, file], index) => {
-          if (file instanceof File) {
-            formData.append('files', file);
-            formData.append('fileKeys', key);
+        Object.entries(data.files).forEach(([itemId, fileArray]) => {
+          // 獲取該項目在數組中的實際索引
+          const actualIndex = itemIndexMap[itemId];
+          if (actualIndex !== undefined) {
+            if (Array.isArray(fileArray)) {
+              // 處理檔案數組格式：{ itemId: [File, File, ...] }
+              fileArray.forEach((file, fileIndex) => {
+                if (file instanceof File) {
+                  // 使用實際的數組索引生成檔案鍵
+                  const fileKey = `g${actualIndex + 1}_${fileIndex}`;
+                  formData.append('files', file);
+                  formData.append('fileKeys', fileKey);
+                  console.log(`添加檔案: ${file.name}, 原始ID: ${itemId}, 實際索引: ${actualIndex}, 檔案鍵: ${fileKey}`);
+                }
+              });
+            } else if (fileArray instanceof File) {
+              // 處理單個檔案格式：{ key: File }
+              const fileKey = `g${actualIndex + 1}_0`;
+              formData.append('files', fileArray);
+              formData.append('fileKeys', fileKey);
+              console.log(`添加檔案: ${fileArray.name}, 原始ID: ${itemId}, 實際索引: ${actualIndex}, 檔案鍵: ${fileKey}`);
+            }
+          } else {
+            console.warn(`項目 ${itemId} 有檔案但未在提交項目中找到，跳過檔案上傳`);
           }
         });
       }
@@ -173,6 +224,34 @@ export const pointsAPI = {
       return await response.json();
     } catch (error) {
       console.error('拒絕積分記錄錯誤:', error);
+      throw error;
+    }
+  },
+
+  // 下載檔案（添加到pointsAPI中以支持主管審核頁面）
+  async downloadFile(fileId) {
+    try {
+      // 確保檔案ID是整數
+      const intFileId = parseInt(fileId);
+      if (isNaN(intFileId)) {
+        throw new Error(`無效的檔案ID: ${fileId}`);
+      }
+
+      console.log('下載檔案ID:', intFileId);
+
+      const response = await fetch(getApiUrl(`/fileupload/download/${intFileId}`), {
+        method: 'GET'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('下載失敗響應:', errorText);
+        throw new Error(`下載檔案失敗: ${response.status} ${response.statusText}`);
+      }
+
+      return response.blob();
+    } catch (error) {
+      console.error('下載檔案錯誤:', error);
       throw error;
     }
   }

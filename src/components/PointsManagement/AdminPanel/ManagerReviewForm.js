@@ -4,6 +4,22 @@ import NotificationToast from '../shared/NotificationToast';
 import ImagePreviewModal from '../shared/ImagePreviewModal';
 import { pointsAPI } from '../../../services/pointsAPI';
 
+/**
+ * 主管審核表單組件 - 主管審核員工積分提交的核心組件
+ * 功能：
+ * - 顯示所有待審核的積分提交項目
+ * - 支援多項目提交的展開/收合檢視
+ * - 檔案預覽功能（圖片、PDF、Word等）
+ * - 檔案下載功能
+ * - 積分審核（通過/拒絕）
+ * - 審核說明備註
+ * 
+ * 使用位置：AdminPanel > 主管審核頁面
+ * API對接：
+ * - pointsAPI.getPendingEntries() - 獲取待審核項目
+ * - pointsAPI.downloadFile() - 檔案下載
+ * 檔案支援：自動識別圖片格式並提供預覽，其他格式提供下載
+ */
 const ManagerReviewForm = ({ currentUser }) => {
   const [submissions, setSubmissions] = useState([]);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -95,6 +111,7 @@ const ManagerReviewForm = ({ currentUser }) => {
         basePoints: entry.basePoints || 0,
         bonusPoints: entry.bonusPoints || 0,
         evidenceFiles: entry.evidenceFiles || null,
+        evidenceFileDetails: entry.evidenceFileDetails || [], // 修復：保留完整檔案信息
         status: entry.status || 'pending'
       });
 
@@ -399,11 +416,11 @@ const ManagerReviewForm = ({ currentUser }) => {
     console.log('生成檔案預覽URL:', file);
 
     if (file.id && !file.isNew) {
-      // 現有檔案：通過API端點
+      // 現有檔案：通過API端點，使用完整URL
       const intFileId = parseInt(file.id);
       if (!isNaN(intFileId)) {
-        // 使用與工作日誌相同的API端點格式
-        const url = `/api/fileupload/download/${intFileId}`;
+        // 使用完整的API URL而不是相對路徑
+        const url = `http://localhost:5001/api/fileupload/download/${intFileId}`;
         console.log('生成API下載URL:', url);
         return url;
       }

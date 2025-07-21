@@ -4,17 +4,35 @@ using PointsManagementAPI.Services;
 
 namespace PointsManagementAPI.Controllers
 {
+    /// <summary>
+    /// 工作日誌控制器 - 處理員工工作日誌的CRUD操作
+    /// 主要功能：工作日誌創建、查詢、更新、刪除、審核
+    /// API路由前綴：/api/worklog
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class WorkLogController : ControllerBase
     {
         private readonly IWorkLogService _workLogService;
 
+        /// <summary>
+        /// 工作日誌控制器建構函數
+        /// </summary>
+        /// <param name="workLogService">工作日誌業務邏輯服務</param>
         public WorkLogController(IWorkLogService workLogService)
         {
             _workLogService = workLogService;
         }
 
+        /// <summary>
+        /// 【GET】 /api/worklog/employee/{employeeId} - 獲取指定員工的工作日誌
+        /// 功能：查詢員工的工作日誌記錄，支援日期範圍篩選
+        /// 前端使用：WorkLogEntry組件載入員工的工作日誌列表
+        /// </summary>
+        /// <param name="employeeId">員工ID</param>
+        /// <param name="startDate">開始日期（可選）</param>
+        /// <param name="endDate">結束日期（可選）</param>
+        /// <returns>工作日誌列表</returns>
         [HttpGet("employee/{employeeId}")]
         public async Task<ActionResult<List<WorkLog>>> GetEmployeeWorkLogs(
             int employeeId, 

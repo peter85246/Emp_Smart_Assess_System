@@ -8,6 +8,28 @@ import NotificationToast from '../shared/NotificationToast';
 import ConfirmDialog from '../shared/ConfirmDialog';
 import ImagePreviewModal from '../shared/ImagePreviewModal';
 
+/**
+ * 工作日誌記錄組件 - 員工記錄日常工作的核心組件
+ * 功能：
+ * - 新增/編輯/刪除工作日誌
+ * - 支援檔案附件上傳（圖片、PDF、Word等）
+ * - 工作日誌分類管理
+ * - 標籤系統
+ * - 搜尋和篩選功能
+ * - 檔案預覽和下載
+ * 
+ * 使用位置：EmployeePanel > 工作日誌頁面
+ * API對接：
+ * - workLogAPI.getEmployeeWorkLogs() - 獲取工作日誌
+ * - workLogAPI.createWorkLog() - 創建工作日誌
+ * - workLogAPI.updateWorkLog() - 更新工作日誌
+ * - fileUploadAPI.uploadFile() - 檔案上傳
+ * 
+ * 特色功能：
+ * - 智能日期處理（修復時區問題）
+ * - 拖拽式檔案上傳
+ * - 即時搜尋與分類篩選
+ */
 const WorkLogEntry = () => {
   const [workLogs, setWorkLogs] = useState([]);
   const [formData, setFormData] = useState({
@@ -463,18 +485,25 @@ const WorkLogEntry = () => {
         }
       }
 
+      // ===== 重要：日期處理邏輯 =====
       // 確保數據格式正確，匹配數據庫表結構
+      // 【修復】使用本地時間日期，避免時區問題
+      // 問題：直接使用 new Date().toISOString() 會產生UTC時間，導致日期顯示錯誤
+      // 解決：計算時區偏移量，調整為本地時間後再轉ISO格式
+      const now = new Date();
+      const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+      
       const workLogData = {
         EmployeeId: parseInt(employeeId), // 確保是整數
         Title: formData.title?.toString() || '', // 確保是字符串
         Content: formData.content?.toString() || '', // 確保是字符串
         CategoryId: parseInt(categoryId), // 確保是整數
         Tags: formData.tags?.toString() || '', // 確保是字符串
-        LogDate: new Date().toISOString(),
+        LogDate: localDate.toISOString(), // 使用調整後的本地時間
         Status: 'submitted',
         PointsClaimed: 0,
         Attachments: finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null,
-        UpdatedAt: new Date().toISOString() // 添加更新時間
+        UpdatedAt: localDate.toISOString() // 添加更新時間
       };
 
       // 如果是編輯模式，不要發送某些只讀字段
@@ -1007,7 +1036,23 @@ const WorkLogEntry = () => {
                   <div className="flex items-center gap-4 text-sm text-slate-400">
                     <span className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      {new Date(log.logDate).toLocaleDateString()}
+                      {(() => {
+                        try {
+                          const date = new Date(log.logDate);
+                          // 檢查日期是否有效
+                          if (isNaN(date.getTime())) {
+                            return '日期無效';
+                          }
+                          return date.toLocaleDateString('zh-TW', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          });
+                        } catch (error) {
+                          console.error('日期解析錯誤:', error, 'logDate:', log.logDate);
+                          return '日期解析失敗';
+                        }
+                      })()}
                     </span>
                     {log.category && (
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-600/20 text-blue-300 border border-blue-500/30">

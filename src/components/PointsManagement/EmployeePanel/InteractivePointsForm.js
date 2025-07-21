@@ -4,6 +4,18 @@ import { pointsUtils } from '../../../config/pointsConfig';
 import { pointsAPI } from '../../../services/pointsAPI';
 import NotificationToast from '../shared/NotificationToast';
 
+/**
+ * 互動式積分表單組件 - 員工積分提交的核心組件
+ * 功能：
+ * - 支援多項目同時提交（最多選擇多個積分項目）
+ * - 檔案上傳與項目精確關聯
+ * - 即時積分計算和預覽
+ * - 批量提交到後端 /api/points/batch/submit
+ * 
+ * 使用位置：EmployeePanel > 積分提交頁面
+ * API對接：pointsAPI.submitBatchPoints()
+ * 檔案處理：支援每個項目關聯多個檔案證明
+ */
 const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
   const [formData, setFormData] = useState({});
   const [uploadedFiles, setUploadedFiles] = useState({});
