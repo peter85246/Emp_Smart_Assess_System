@@ -158,8 +158,8 @@ export const pointsAPI = {
   async getEmployeePointsSummary(employeeId, month) {
     try {
       const url = month
-        ? `/points/summary/${employeeId}?month=${month}`
-        : `/points/summary/${employeeId}`;
+        ? `/points/employee/${employeeId}/summary?month=${month}`
+        : `/points/employee/${employeeId}/summary`;
 
       const response = await fetch(getApiUrl(url), {
         method: 'GET',

@@ -25,6 +25,129 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>員工智慧考核系統</title>
+    
+    <!-- 最早期的ResizeObserver錯誤攔截 - 在所有其他腳本之前執行 -->
+    <script>
+      (function() {
+        'use strict';
+        
+        console.log('🛡️ 啟動全域ResizeObserver錯誤攔截');
+        
+        // 1. 最高優先級：攔截console.error
+        const originalConsoleError = console.error;
+        console.error = function() {
+          const args = Array.prototype.slice.call(arguments);
+          const message = args.join(' ');
+          if (message.indexOf('ResizeObserver') !== -1) {
+            return; // 直接忽略
+          }
+          return originalConsoleError.apply(console, args);
+        };
+        
+        // 2. 攔截console.warn (某些情況下ResizeObserver錯誤會以warning形式出現)
+        const originalConsoleWarn = console.warn;
+        console.warn = function() {
+          const args = Array.prototype.slice.call(arguments);
+          const message = args.join(' ');
+          if (message.indexOf('ResizeObserver') !== -1) {
+            return; // 直接忽略
+          }
+          return originalConsoleWarn.apply(console, args);
+        };
+        
+        // 3. 覆蓋window.onerror
+        window.onerror = function(message, source, lineno, colno, error) {
+          if (typeof message === 'string' && message.indexOf('ResizeObserver') !== -1) {
+            return true; // 阻止錯誤顯示
+          }
+          return false;
+        };
+        
+        // 4. 監聽全域錯誤事件 (capture = true 確保最早攔截)
+        window.addEventListener('error', function(event) {
+          if (event.error && event.error.message && event.error.message.indexOf('ResizeObserver') !== -1) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return false;
+          }
+          if (event.message && event.message.indexOf('ResizeObserver') !== -1) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return false;
+          }
+        }, true);
+        
+        // 5. 監聽未捕獲的Promise錯誤
+        window.addEventListener('unhandledrejection', function(event) {
+          const reason = event.reason;
+          if (reason && typeof reason === 'object' && reason.message && reason.message.indexOf('ResizeObserver') !== -1) {
+            event.preventDefault();
+            return false;
+          }
+          if (typeof reason === 'string' && reason.indexOf('ResizeObserver') !== -1) {
+            event.preventDefault();
+            return false;
+          }
+        }, true);
+        
+        // 6. 修改ResizeObserver構造函數 (如果存在)
+        if (typeof ResizeObserver !== 'undefined') {
+          const OriginalResizeObserver = ResizeObserver;
+          window.ResizeObserver = function(callback) {
+            const safecallback = function(entries, observer) {
+              try {
+                return callback(entries, observer);
+              } catch (error) {
+                if (error && error.message && error.message.indexOf('ResizeObserver') !== -1) {
+                  // 靜默忽略ResizeObserver錯誤
+                  return;
+                }
+                throw error;
+              }
+            };
+            return new OriginalResizeObserver(safecallback);
+          };
+          
+          // 保持原型鏈
+          window.ResizeObserver.prototype = OriginalResizeObserver.prototype;
+        }
+        
+        // 7. 監聽DOMContentLoaded後再次確保攔截
+        document.addEventListener('DOMContentLoaded', function() {
+          if (typeof ResizeObserver !== 'undefined' && window.ResizeObserver.name !== 'ResizeObserver') {
+            // 如果ResizeObserver已經被其他程式修改，再次包裝
+            const CurrentResizeObserver = window.ResizeObserver;
+            window.ResizeObserver = function(callback) {
+              const wrappedCallback = function(entries, observer) {
+                try {
+                  return callback(entries, observer);
+                } catch (error) {
+                  if (error && error.message && error.message.indexOf('ResizeObserver') !== -1) {
+                    return; // 忽略錯誤
+                  }
+                  throw error;
+                }
+              };
+              return new CurrentResizeObserver(wrappedCallback);
+            };
+          }
+        });
+        
+        // 8. 定期檢查並清理可能累積的錯誤
+        setInterval(function() {
+          // 清理任何可能累積的錯誤處理
+          if (window.__REACT_ERROR_OVERLAY_GLOBAL_HOOK__) {
+            try {
+              window.__REACT_ERROR_OVERLAY_GLOBAL_HOOK__.dismissBuildError();
+            } catch (e) {
+              // 忽略清理錯誤
+            }
+          }
+        }, 1000);
+        
+        console.log('✅ ResizeObserver錯誤攔截設置完成');
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

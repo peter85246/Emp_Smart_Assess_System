@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Calendar, TrendingUp, Award, Target, AlertCircle, CheckCircle, XCircle, Search, Filter, Eye, EyeOff, Download, Image, FileText } from 'lucide-react';
+import { Calendar, TrendingUp, Award, Target, AlertCircle, CheckCircle, XCircle, Search, Filter, Eye, EyeOff, Download, Image, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { pointsConfig, pointsUtils } from '../../../config/pointsConfig';
 import { pointsAPI } from '../../../services/pointsAPI';
 import ImagePreviewModal from '../shared/ImagePreviewModal';
@@ -30,9 +30,18 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
   const [downloadLoading, setDownloadLoading] = useState({});
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  // 分頁相關狀態
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // 每頁顯示10個項目
+
   useEffect(() => {
     loadPersonalData();
   }, [currentUser.id, selectedMonth, refreshTrigger]);
+
+  // 當篩選條件改變時，重置到第一頁
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchTerm, selectedMonth]);
 
   const loadPersonalData = async () => {
     setLoading(true);
@@ -422,6 +431,68 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
 
     return matchesMonth && matchesSearch && matchesCategory;
   });
+
+  // 分頁邏輯
+  const totalItems = filteredPointsData.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageData = filteredPointsData.slice(startIndex, endIndex);
+
+  // 分頁控制函數
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // 生成頁碼範圍
+  const getPageNumbers = () => {
+    const delta = 2; // 當前頁前後顯示的頁數
+    const range = [];
+    const rangeWithDots = [];
+
+    // 計算顯示範圍
+    const start = Math.max(1, currentPage - delta);
+    const end = Math.min(totalPages, currentPage + delta);
+
+    for (let i = start; i <= end; i++) {
+      range.push(i);
+    }
+
+    // 添加首頁和...
+    if (start > 1) {
+      rangeWithDots.push(1);
+      if (start > 2) {
+        rangeWithDots.push('...');
+      }
+    }
+
+    // 添加主要範圍
+    rangeWithDots.push(...range);
+
+    // 添加末頁和...
+    if (end < totalPages) {
+      if (end < totalPages - 1) {
+        rangeWithDots.push('...');
+      }
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
 
   // 切換審核說明展開狀態
   const toggleCommentExpansion = (itemId) => {
@@ -862,6 +933,75 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
     );
   };
 
+  // 渲染分頁控制組件
+  const renderPaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="px-6 py-4 border-t border-slate-600/50 bg-slate-700/20">
+        {/* 記錄範圍信息 */}
+        <div className="text-center text-sm text-slate-400 mb-4">
+          顯示第 {startIndex + 1} - {Math.min(endIndex, totalItems)} 項，共 {totalItems} 項記錄
+        </div>
+        
+        {/* 分頁控制按鈕 - 居中顯示 */}
+        <div className="flex items-center justify-center space-x-2">
+          {/* 上一頁按鈕 */}
+          <button
+            onClick={goToPreviousPage}
+            disabled={currentPage === 1}
+            className={`flex items-center px-3 py-2 text-sm rounded-md border transition-colors ${
+              currentPage === 1
+                ? 'bg-slate-600/50 text-slate-500 border-slate-600/50 cursor-not-allowed'
+                : 'bg-slate-700 text-slate-300 border-slate-500 hover:bg-slate-600 hover:text-white'
+            }`}
+            title="上一頁"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            上一頁
+          </button>
+
+          {/* 頁碼按鈕 */}
+          <div className="flex items-center space-x-1">
+            {getPageNumbers().map((pageNum, index) => (
+              <React.Fragment key={index}>
+                {pageNum === '...' ? (
+                  <span className="px-3 py-2 text-slate-500">...</span>
+                ) : (
+                  <button
+                    onClick={() => goToPage(pageNum)}
+                    className={`px-3 py-2 text-sm rounded-md border transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white border-blue-500'
+                        : 'bg-slate-700 text-slate-300 border-slate-500 hover:bg-slate-600 hover:text-white'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* 下一頁按鈕 */}
+          <button
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages}
+            className={`flex items-center px-3 py-2 text-sm rounded-md border transition-colors ${
+              currentPage === totalPages
+                ? 'bg-slate-600/50 text-slate-500 border-slate-600/50 cursor-not-allowed'
+                : 'bg-slate-700 text-slate-300 border-slate-500 hover:bg-slate-600 hover:text-white'
+            }`}
+            title="下一頁"
+          >
+            下一頁
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // 調試信息 - 月份和分類篩選 (增強版)
   console.log('=== 個人積分查看篩選調試 ===');
   console.log('篩選前積分數據總數:', pointsData.length);
@@ -870,6 +1010,9 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
   console.log('選擇的分類名稱:', selectedCategory ? pointsConfig.pointsTypes[selectedCategory]?.name : '所有分類');
   console.log('搜尋關鍵字:', searchTerm);
   console.log('篩選後積分數據總數:', filteredPointsData.length);
+  console.log('當前頁碼:', currentPage);
+  console.log('總頁數:', totalPages);
+  console.log('當前頁顯示項目數:', currentPageData.length);
   
   // 顯示月份篩選詳情
   if (pointsData.length > 0) {
@@ -1226,28 +1369,28 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
           <table className="min-w-full divide-y divide-slate-600/50">
             <thead className="bg-slate-600/30">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-16">
+                  項目
+                </th>
+                <th className="px-6 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-40">
                   項目名稱
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-32">
                   類型
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-24">
                   獲得積分
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-20">
                   狀態
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-48">
                   申請說明
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                  證明檔案
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-48">
                   審核說明
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-sm font-medium text-slate-300 uppercase tracking-wider w-28">
                   日期
                 </th>
               </tr>
@@ -1289,12 +1432,15 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
                   </td>
                 </tr>
               ) : (
-                filteredPointsData.map((item) => (
+                currentPageData.map((item, index) => (
                   <tr key={item.id} className="hover:bg-slate-600/30">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-300 text-center font-medium">
+                      {startIndex + index + 1}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white text-center">
                       {item.standardName}
                     </td>
-                                          <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                         {(() => {
                          // 使用統一的類型映射邏輯，包含項目名稱映射
                          const mappedType = mapPointsType(item.pointsType, item.standardName);
@@ -1320,7 +1466,7 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-white text-center">
                       {pointsUtils.formatPoints(item.pointsEarned)}
                       {item.bonusPoints > 0 && (
                         <span className="text-green-400 ml-1">
@@ -1328,8 +1474,8 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center">
                         {item.status === 'approved' ? (
                           <CheckCircle className="h-4 w-4 text-green-400 mr-1" />
                         ) : item.status === 'rejected' ? (
@@ -1352,15 +1498,10 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <div className="max-w-xs">
-                        {renderEvidenceFiles(item)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="max-w-xs">
                         {renderReviewComment(item)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-300 text-center">
                       {new Date(item.entryDate).toLocaleDateString('zh-TW')}
                     </td>
                   </tr>
@@ -1369,6 +1510,9 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
             </tbody>
           </table>
         </div>
+        
+        {/* 分頁控制組件 */}
+        {renderPaginationControls()}
       </div>
 
       {/* 圖片預覽模態框 */}

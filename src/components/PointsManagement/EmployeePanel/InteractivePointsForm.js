@@ -11,6 +11,7 @@ import NotificationToast from '../shared/NotificationToast';
  * - 檔案上傳與項目精確關聯
  * - 即時積分計算和預覽
  * - 批量提交到後端 /api/points/batch/submit
+ * - 標籤式UI切換，優化用戶體驗
  * 
  * 使用位置：EmployeePanel > 積分提交頁面
  * API對接：pointsAPI.submitBatchPoints()
@@ -22,6 +23,58 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(false);
   const [totalPoints, setTotalPoints] = useState(0);
+  
+  // 新增：當前選中的積分類別
+  const [activeCategory, setActiveCategory] = useState('general');
+
+  // 積分類別配置
+  const categoryConfig = {
+    general: {
+      id: 'general',
+      name: '一般積分項目',
+      color: 'green',
+      bgColor: 'bg-green-400',
+      borderColor: 'border-green-400',
+      textColor: 'text-green-300',
+      icon: '🔧'
+    },
+    quality: {
+      id: 'quality',
+      name: '品質工程積分項目',
+      color: 'blue',
+      bgColor: 'bg-blue-400',
+      borderColor: 'border-blue-400',
+      textColor: 'text-blue-300',
+      icon: '🎯'
+    },
+    professional: {
+      id: 'professional',
+      name: '專業積分項目',
+      color: 'purple',
+      bgColor: 'bg-purple-400',
+      borderColor: 'border-purple-400',
+      textColor: 'text-purple-300',
+      icon: '⚡'
+    },
+    management: {
+      id: 'management',
+      name: '管理積分項目',
+      color: 'orange',
+      bgColor: 'bg-orange-400',
+      borderColor: 'border-orange-400',
+      textColor: 'text-orange-300',
+      icon: '👨‍💼'
+    },
+    core: {
+      id: 'core',
+      name: '核心職能積分項目',
+      color: 'red',
+      bgColor: 'bg-red-400',
+      borderColor: 'border-red-400',
+      textColor: 'text-red-300',
+      icon: '⭐'
+    }
+  };
 
   // 完整的積分項目列表（基於PDF文件 - 完全對應33個項目）
   const pointsItems = {
@@ -261,6 +314,23 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
     }
   };
 
+  // 獲取當前類別已填寫的項目數和積分
+  const getCategoryStats = (categoryKey) => {
+    const items = pointsItems[categoryKey] || [];
+    let filledItems = 0;
+    let categoryPoints = 0;
+
+    items.forEach(item => {
+      const itemData = formData[item.id];
+      if (itemData && (itemData.checked || itemData.value > 0 || itemData.selectedValue > 0)) {
+        filledItems++;
+        categoryPoints += itemData.calculatedPoints || 0;
+      }
+    });
+
+    return { filledItems, totalItems: items.length, categoryPoints };
+  };
+
   // 渲染表單項目
   const renderFormItem = (item) => {
     const itemData = formData[item.id] || {};
@@ -374,6 +444,7 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
     );
   };
 
+  // 主要渲染函數
   return (
     <div className="p-6 space-y-6 bg-transparent">
       <div className="flex items-center justify-between">
@@ -390,6 +461,7 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
       <div className="bg-slate-700/50 backdrop-blur-sm border border-blue-400/50 rounded-lg p-4">
         <h3 className="font-semibold text-blue-300 mb-2">📝 填寫說明</h3>
         <ul className="text-sm text-blue-200 space-y-1">
+          <li>• 選擇下方的積分類別標籤來切換不同的積分項目</li>
           <li>• 勾選或填寫您已完成的工作項目</li>
           <li>• 填寫具體的數量或選擇對應的類型</li>
           <li>• 詳細描述工作內容和完成情況</li>
@@ -398,60 +470,67 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
         </ul>
       </div>
 
-      {/* 積分項目表單 */}
-      <div className="space-y-6">
-        {/* 一般積分 */}
-        <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <div className="w-4 h-4 bg-green-400 rounded-full mr-2"></div>
-            一般積分項目
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pointsItems.general.map(renderFormItem)}
-          </div>
+      {/* 積分類別標籤切換 */}
+      <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
+        <h3 className="text-lg font-semibold text-white mb-4">📂 積分類別選擇</h3>
+        
+        {/* 標籤按鈕列表 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+          {Object.entries(categoryConfig).map(([key, config]) => {
+            const stats = getCategoryStats(key);
+            const isActive = activeCategory === key;
+            
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveCategory(key)}
+                className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                  isActive
+                    ? `${config.borderColor} bg-${config.color}-600/20`
+                    : 'border-slate-500/50 bg-slate-600/30 hover:bg-slate-600/50'
+                }`}
+              >
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-lg">{config.icon}</span>
+                  <div className={`w-3 h-3 ${config.bgColor} rounded-full`}></div>
+                </div>
+                <div className={`font-medium ${isActive ? config.textColor : 'text-white'} text-sm mb-1`}>
+                  {config.name}
+                </div>
+                <div className="text-xs text-slate-400">
+                  {stats.filledItems}/{stats.totalItems} 項目
+                </div>
+                {stats.categoryPoints > 0 && (
+                  <div className={`text-xs font-medium ${config.textColor}`}>
+                    {stats.categoryPoints.toFixed(1)} 積分
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* 品質工程積分 */}
-        <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <div className="w-4 h-4 bg-blue-400 rounded-full mr-2"></div>
-            品質工程積分項目
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pointsItems.quality.map(renderFormItem)}
+        {/* 當前選中類別的項目展示 */}
+        <div className="bg-slate-600/20 backdrop-blur-sm rounded-lg p-4 border border-slate-500/30">
+          <div className="flex items-center space-x-3 mb-4">
+            <span className="text-2xl">{categoryConfig[activeCategory].icon}</span>
+            <div>
+              <h4 className={`text-lg font-semibold ${categoryConfig[activeCategory].textColor}`}>
+                {categoryConfig[activeCategory].name}
+              </h4>
+              <p className="text-sm text-slate-400">
+                {pointsItems[activeCategory]?.length || 0} 個可選積分項目
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* 專業積分 */}
-        <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <div className="w-4 h-4 bg-purple-400 rounded-full mr-2"></div>
-            專業積分項目
-          </h3>
+          {/* 當前類別的積分項目 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pointsItems.professional.map(renderFormItem)}
-          </div>
-        </div>
-
-        {/* 管理積分 */}
-        <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <div className="w-4 h-4 bg-orange-400 rounded-full mr-2"></div>
-            管理積分項目
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pointsItems.management.map(renderFormItem)}
-          </div>
-        </div>
-
-        {/* 核心職能積分 */}
-        <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <div className="w-4 h-4 bg-red-400 rounded-full mr-2"></div>
-            核心職能積分項目
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pointsItems.core.map(renderFormItem)}
+            {pointsItems[activeCategory]?.map(renderFormItem) || (
+              <div className="col-span-2 text-center text-slate-400 py-8">
+                此類別暫無可選積分項目
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -461,7 +540,9 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-xl font-bold text-white">📊 積分總計</h3>
-            {/* 推廣期倍數顯示已移除 - 避免顯示虛假數據 */}
+            <div className="text-sm text-slate-400 mt-1">
+              已填寫 {Object.values(formData).filter(item => item.checked || item.value > 0 || item.selectedValue > 0).length} 個積分項目
+            </div>
           </div>
           <div className="text-right">
             <div className="text-3xl font-bold text-blue-300">{totalPoints.toFixed(1)}</div>
