@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authAPI } from '../services/authAPI';
 import { toastConfig } from './Login';
+import { pointsConfig } from '../config/pointsConfig';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -11,31 +12,30 @@ export default function Register() {
     email: '',
     departmentId: '',
     position: '',
-    customPosition: '',
-    role: 'employee',
+    role: 'employee', // 將根據職位自動設定
     password: '',
     confirmPassword: ''
   });
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showCustomPosition, setShowCustomPosition] = useState(false);
-
-  // 預設職位選項
-  const positionOptions = [
-    '技術士',
-    '技術員',
-    '品檢員',
-    '作業員',
-    '組長',
-    '領班',
-    '副理',
-    '經理',
-    '副課長',
-    '課長',
-    '廠長',
-    '自訂...'
-  ];
+  const [autoAssignedRole, setAutoAssignedRole] = useState('employee');
   const navigate = useNavigate();
+
+  // 根據職位自動分配角色
+  const getAutoAssignedRole = (position) => {
+    return pointsConfig.positionRoleMapping[position] || 'employee';
+  };
+
+  // 獲取角色描述
+  const getRoleDescription = (role) => {
+    const descriptions = {
+      employee: '基層作業人員 - 可提交積分、查看個人資料',
+      manager: '基層管理人員 - 可審核部門員工積分',
+      admin: '中高層管理 - 可審核所有部門積分、系統設定',
+      boss: '最高管理層 - 擁有全系統權限'
+    };
+    return descriptions[role] || '';
+  };
 
   useEffect(() => {
     loadDepartments();
@@ -68,21 +68,13 @@ export default function Register() {
     
     // 處理職位選擇
     if (name === 'position') {
-      if (value === '自訂...') {
-        setShowCustomPosition(true);
-        setFormData(prev => ({
-          ...prev,
-          position: '',
-          customPosition: ''
-        }));
-      } else {
-        setShowCustomPosition(false);
-        setFormData(prev => ({
-          ...prev,
-          position: value,
-          customPosition: ''
-        }));
-      }
+      const assignedRole = getAutoAssignedRole(value);
+      setFormData(prev => ({
+        ...prev,
+        position: value,
+        role: assignedRole
+      }));
+      setAutoAssignedRole(assignedRole);
     } else {
       setFormData(prev => ({
         ...prev,
@@ -111,9 +103,8 @@ export default function Register() {
     }
 
     // 驗證職位
-    const finalPosition = showCustomPosition ? formData.customPosition : formData.position;
-    if (!finalPosition.trim()) {
-      toast.error('請選擇或輸入職位！', toastConfig.error);
+    if (!formData.position.trim()) {
+      toast.error('請選擇職位！', toastConfig.error);
       return;
     }
 
@@ -122,12 +113,9 @@ export default function Register() {
     try {
       const submitData = {
         ...formData,
-        position: finalPosition,
         email: formData.email || null // Email為可選
       };
       
-      // 移除不需要的欄位
-      delete submitData.customPosition;
       // 注意：保留 confirmPassword 字段給後端驗證
 
       await authAPI.register(submitData);
@@ -182,6 +170,39 @@ export default function Register() {
               創建您的積分管理系統帳號
             </p>
           </div>
+
+          {/* 職位與角色對應說明 */}
+          {/* <div className="bg-blue-600/10 border border-blue-400/30 rounded-xl p-4 mb-6">
+            <h4 className="text-blue-300 font-medium mb-3 flex items-center">
+              <span className="mr-2">ℹ️</span>
+              職位與系統權限說明
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <span className="w-16 text-blue-300 font-medium">員工：</span>
+                  <span className="text-slate-300">技術士、技術員、品檢員、作業員</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-16 text-orange-300 font-medium">主管：</span>
+                  <span className="text-slate-300">組長、領班、副理、副課長、廠長、課長</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <span className="w-16 text-green-300 font-medium">管理員：</span>
+                  <span className="text-slate-300">經理、協理、副總經理、執行長</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-16 text-purple-300 font-medium">老闆：</span>
+                  <span className="text-slate-300">總經理、董事長、負責人</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-slate-400">
+              系統將根據您選擇的職位自動分配相應的系統權限，無需手動選擇角色。
+            </div>
+          </div> */}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 姓名 */}
@@ -259,49 +280,48 @@ export default function Register() {
                 </label>
                 <select
                   name="position"
-                  value={showCustomPosition ? '自訂...' : formData.position}
+                  value={formData.position}
                   onChange={handleChange}
                   required
                   className="w-full px-4 py-3 bg-slate-600/50 border border-slate-500/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 >
                   <option value="" className="bg-slate-700">請選擇職位</option>
-                  {positionOptions.map(position => (
+                  {pointsConfig.positionOptions.map(position => (
                     <option key={position} value={position} className="bg-slate-700">
                       {position}
                     </option>
                   ))}
                 </select>
-
-                {/* 自訂職位輸入框 */}
-                {showCustomPosition && (
-                  <input
-                    type="text"
-                    name="customPosition"
-                    value={formData.customPosition}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 mt-2 bg-slate-600/50 border border-slate-500/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="請輸入職位名稱"
-                  />
-                )}
               </div>
             </div>
 
-            {/* 角色 */}
+            {/* 自動分配的角色顯示 */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                身分角色 *
+                系統自動分配角色
               </label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 bg-slate-600/50 border border-slate-500/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              >
-                <option value="employee" className="bg-slate-700">員工</option>
-                <option value="manager" className="bg-slate-700">主管</option>
-              </select>
+              <div className="w-full px-4 py-3 bg-slate-600/30 border border-slate-500/50 rounded-xl text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-blue-300">
+                      {pointsConfig.userRoles[autoAssignedRole] || '員工'}
+                    </span>
+                    {formData.position && (
+                      <span className="text-slate-400 text-sm ml-2">
+                        (根據職位「{formData.position}」自動分配)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    🔒 自動分配
+                  </div>
+                </div>
+                {autoAssignedRole && (
+                  <div className="mt-2 text-sm text-slate-300">
+                    {getRoleDescription(autoAssignedRole)}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 密碼 */}

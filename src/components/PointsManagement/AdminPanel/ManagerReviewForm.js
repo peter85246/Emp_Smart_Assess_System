@@ -52,10 +52,20 @@ const ManagerReviewForm = ({ currentUser }) => {
 
   const loadSubmissions = async () => {
     try {
-      console.log('載入待審核的積分提交記錄');
+      console.log('載入待審核的積分提交記錄, 當前用戶:', currentUser);
 
-      // 使用真實API獲取待審核記錄
-      const response = await pointsAPI.getPendingEntries();
+      let response;
+      // 根據用戶角色選擇API端點
+      if (currentUser.role === 'boss' || currentUser.role === 'admin') {
+        // 老闆和管理員可以查看所有部門
+        console.log('使用全部門API（老闆/管理員權限）');
+        response = await pointsAPI.getPendingEntries();
+      } else {
+        // 主管只能查看自己部門
+        console.log('使用部門權限API（主管權限）, 審核者ID:', currentUser.id);
+        response = await pointsAPI.getPendingEntriesByDepartment(currentUser.id);
+      }
+
       console.log('獲取待審核記錄成功:', response);
 
       // 檢查響應格式並獲取數據
@@ -620,6 +630,22 @@ const ManagerReviewForm = ({ currentUser }) => {
   return (
     <div className="min-h-screen p-6 space-y-6 bg-transparent">
       <h2 className="text-2xl font-bold text-white">👨‍💼 主管審核與評分</h2>
+
+      {/* 權限說明卡片 */}
+      <div className="bg-blue-600/10 border border-blue-400/30 rounded-lg p-4">
+        <h4 className="text-blue-300 font-medium mb-2 flex items-center">
+          <span className="mr-2">📋</span>
+          審核權限說明
+        </h4>
+        <p className="text-blue-200 text-sm">
+          {currentUser.role === 'boss' 
+            ? '您是老闆，可以審核所有部門的員工積分提交記錄'
+            : currentUser.role === 'admin'
+            ? '您是管理員，可以審核所有部門的員工積分提交記錄'
+            : `您是主管，只能審核 ${currentUser.departmentName || currentUser.department || '所屬部門'} 的員工積分提交記錄`
+          }
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[calc(100vh-8rem)]">
         {/* 左側：待審核列表 */}

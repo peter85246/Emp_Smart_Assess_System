@@ -20,6 +20,7 @@ namespace PointsManagementAPI.Controllers
         private readonly IPointsCalculationService _calculationService;
         private readonly ILogger<PointsController> _logger;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IReviewPermissionService _reviewPermissionService;
 
         /// <summary>
         /// 積分控制器建構函數 - 注入必要的服務依賴
@@ -28,12 +29,14 @@ namespace PointsManagementAPI.Controllers
         /// <param name="calculationService">積分計算服務</param>
         /// <param name="logger">日誌記錄器</param>
         /// <param name="fileStorageService">檔案存儲服務</param>
-        public PointsController(PointsDbContext context, IPointsCalculationService calculationService, ILogger<PointsController> logger, IFileStorageService fileStorageService)
+        /// <param name="reviewPermissionService">審核權限檢查服務</param>
+        public PointsController(PointsDbContext context, IPointsCalculationService calculationService, ILogger<PointsController> logger, IFileStorageService fileStorageService, IReviewPermissionService reviewPermissionService)
         {
             _context = context;
             _calculationService = calculationService;
             _logger = logger;
             _fileStorageService = fileStorageService;
+            _reviewPermissionService = reviewPermissionService;
         }
 
         /// <summary>
@@ -267,6 +270,14 @@ namespace PointsManagementAPI.Controllers
             try
             {
                 _logger.LogInformation("核准積分記錄: {Id}, 核准人: {ApproverId}", id, request.ApproverId);
+
+                // 新增：權限檢查
+                var hasPermission = await _reviewPermissionService.CanReviewEntryAsync(request.ApproverId, id);
+                if (!hasPermission)
+                {
+                    _logger.LogWarning("審核者 {ApproverId} 沒有權限審核積分記錄 {EntryId}", request.ApproverId, id);
+                    return Forbid(new { message = "您沒有權限審核此積分記錄" }.ToString());
+                }
 
                 var entry = await _context.PointsEntries.FindAsync(id);
                 if (entry == null)
@@ -742,6 +753,135 @@ namespace PointsManagementAPI.Controllers
         }
 
         /// <summary>
+        /// 【GET】 /api/points/pending/department - 根據審核者權限獲取待審核的積分記錄
+        /// 功能：支援部門權限控制的待審核記錄查詢
+        /// 權限：老闆/管理員可查看所有部門，主管只能查看同部門員工
+        /// 前端使用：新版ManagerReviewForm組件的權限控制功能
+        /// </summary>
+        /// <param name="reviewerId">審核者員工ID</param>
+        /// <returns>根據權限過濾後的待審核積分記錄列表</returns>
+        [HttpGet("pending/department")]
+        public async Task<ActionResult<List<object>>> GetPendingEntriesByDepartment([FromQuery] int reviewerId)
+        {
+            try
+            {
+                _logger.LogInformation("獲取部門權限過濾的待審核積分記錄, 審核者ID: {ReviewerId}", reviewerId);
+
+                // 獲取審核者可以審核的部門列表
+                var reviewableDepartments = await _reviewPermissionService.GetReviewableDepartmentsAsync(reviewerId);
+                
+                // 如果返回空列表，表示無權限
+                if (reviewableDepartments != null && reviewableDepartments.Count == 0)
+                {
+                    _logger.LogWarning("審核者 {ReviewerId} 無審核權限", reviewerId);
+                    return Ok(new List<object>());
+                }
+
+                // 建構查詢
+                var query = _context.PointsEntries
+                    .Include(p => p.Employee)
+                    .ThenInclude(e => e.Department)
+                    .Include(p => p.Standard)
+                    .Where(p => p.Status == "pending");
+
+                // 如果 reviewableDepartments 為 null，表示可以審核所有部門（老闆/管理員）
+                // 如果不為 null，則按部門過濾（主管）
+                if (reviewableDepartments != null)
+                {
+                    query = query.Where(p => reviewableDepartments.Contains(p.Employee.DepartmentId));
+                    _logger.LogInformation("按部門過濾: 可審核部門 {Departments}", string.Join(",", reviewableDepartments));
+                }
+                else
+                {
+                    _logger.LogInformation("老闆/管理員權限: 可審核所有部門");
+                }
+
+                var pendingQuery = await query
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Select(p => new
+                    {
+                        id = p.Id,
+                        employeeId = p.EmployeeId,
+                        employeeName = p.Employee.Name,
+                        employeeNumber = p.Employee.EmployeeNumber,
+                        department = p.Employee.Department!.Name,
+                        departmentId = p.Employee.DepartmentId,
+                        standardName = p.Standard.CategoryName,
+                        description = p.Description,
+                        pointsCalculated = p.PointsEarned,
+                        evidenceFiles = p.EvidenceFiles,
+                        submittedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                        status = p.Status,
+                        basePoints = p.BasePoints,
+                        bonusPoints = p.BonusPoints,
+                        promotionMultiplier = p.PromotionMultiplier
+                    })
+                    .ToListAsync();
+
+                // 擴展檔案信息（與原有方法保持一致）
+                var pendingEntries = new List<object>();
+                foreach (var entry in pendingQuery)
+                {
+                    var fileDetails = new List<object>();
+                    
+                    // 解析檔案ID並獲取檔案詳細信息
+                    if (!string.IsNullOrEmpty(entry.evidenceFiles))
+                    {
+                        try
+                        {
+                            var fileIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(entry.evidenceFiles);
+                            var fileAttachments = await _context.FileAttachments
+                                .Where(f => fileIds.Contains(f.Id) && f.IsActive)
+                                .Select(f => new
+                                {
+                                    id = f.Id,
+                                    fileName = f.FileName,
+                                    fileSize = f.FileSize,
+                                    contentType = f.ContentType,
+                                    uploadedAt = f.UploadedAt
+                                })
+                                .ToListAsync();
+                            
+                            fileDetails.AddRange(fileAttachments);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "解析檔案信息時出錯: {EvidenceFiles}", entry.evidenceFiles);
+                        }
+                    }
+
+                    pendingEntries.Add(new
+                    {
+                        id = entry.id,
+                        employeeId = entry.employeeId,
+                        employeeName = entry.employeeName,
+                        employeeNumber = entry.employeeNumber,
+                        department = entry.department,
+                        departmentId = entry.departmentId,
+                        standardName = entry.standardName,
+                        description = entry.description,
+                        pointsCalculated = entry.pointsCalculated,
+                        evidenceFiles = entry.evidenceFiles, // 保留原始JSON字符串（向後兼容）
+                        evidenceFileDetails = fileDetails, // 新增：檔案詳細信息列表
+                        submittedAt = entry.submittedAt,
+                        status = entry.status,
+                        basePoints = entry.basePoints,
+                        bonusPoints = entry.bonusPoints,
+                        promotionMultiplier = entry.promotionMultiplier
+                    });
+                }
+
+                _logger.LogInformation("根據部門權限找到 {Count} 筆待審核記錄", pendingEntries.Count);
+                return Ok(pendingEntries);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "獲取部門權限過濾的待審核記錄時發生錯誤: ReviewerId={ReviewerId}", reviewerId);
+                return StatusCode(500, new { message = "獲取待審核記錄時發生錯誤" });
+            }
+        }
+
+        /// <summary>
         /// 【POST】 /api/points/{id}/reject - 審核拒絕積分記錄
         /// 功能：主管審核員工積分提交，標記為拒絕狀態並記錄拒絕原因
         /// 前端使用：ManagerReviewForm組件的審核拒絕功能
@@ -756,6 +896,14 @@ namespace PointsManagementAPI.Controllers
             try
             {
                 _logger.LogInformation("拒絕積分記錄: {Id}, 拒絕人: {RejectedBy}", id, request.RejectedBy);
+
+                // 新增：權限檢查
+                var hasPermission = await _reviewPermissionService.CanReviewEntryAsync(request.RejectedBy, id);
+                if (!hasPermission)
+                {
+                    _logger.LogWarning("審核者 {RejectedBy} 沒有權限審核積分記錄 {EntryId}", request.RejectedBy, id);
+                    return Forbid(new { message = "您沒有權限審核此積分記錄" }.ToString());
+                }
 
                 var entry = await _context.PointsEntries.FindAsync(id);
                 if (entry == null)

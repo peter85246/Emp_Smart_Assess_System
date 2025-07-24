@@ -154,6 +154,27 @@ export const pointsAPI = {
     }
   },
 
+  // 根據部門權限獲取待審核記錄
+  async getPendingEntriesByDepartment(reviewerId) {
+    try {
+      const response = await fetch(getApiUrl(`/points/pending/department?reviewerId=${reviewerId}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`獲取部門待審核記錄失敗: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('獲取部門待審核記錄錯誤:', error);
+      throw error;
+    }
+  },
+
   // 獲取積分摘要
   async getEmployeePointsSummary(employeeId, month) {
     try {

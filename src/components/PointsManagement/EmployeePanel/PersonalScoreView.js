@@ -80,8 +80,15 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
         // 審核說明相關信息
         reviewComments: entry.reviewComments || entry.comments || null,
         reviewedBy: entry.reviewedBy || entry.approverId || null,
-        reviewedAt: entry.reviewedAt || entry.approvedAt || entry.rejectedAt || null
-      })) : [];
+        reviewedAt: entry.reviewedAt || entry.approvedAt || entry.rejectedAt || null,
+        // 保留原始時間戳用於排序
+        originalTimestamp: entry.entryDate || entry.submittedAt || entry.createdAt
+      })).sort((a, b) => {
+        // 按照創建/提交時間排序：早的在前，晚的在後
+        const timeA = new Date(a.originalTimestamp).getTime();
+        const timeB = new Date(b.originalTimestamp).getTime();
+        return timeA - timeB;
+      }) : [];
 
       // 獲取積分摘要
       try {

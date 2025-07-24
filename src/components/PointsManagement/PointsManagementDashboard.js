@@ -108,7 +108,7 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
     }
   };
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager' || currentUser?.role === 'boss';
 
   // 整頁模式的渲染
   if (isFullPage) {
@@ -134,7 +134,8 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
                     <p className="text-blue-100 text-sm">
                       歡迎回來，{currentUser?.name || '未知用戶'} • {currentUser?.departmentName || currentUser?.department || '未知部門'} •
                       {currentUser?.role === 'admin' ? ' ⚙️ 系統管理員' :
-                       currentUser?.role === 'manager' ? ' 👨‍💼 部門主管' : ' 👤 一般員工'}
+                       currentUser?.role === 'manager' ? ' 👨‍💼 部門主管' :
+                       currentUser?.role === 'boss' ? ' 👑 老闆' : ' 👤 一般員工'}
                     </p>
                   </div>
                 </div>

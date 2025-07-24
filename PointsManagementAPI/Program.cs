@@ -111,6 +111,7 @@ builder.Services.AddScoped<IPointsCalculationService, PointsCalculationService>(
 builder.Services.AddScoped<IStandardsService, StandardsService>();
 builder.Services.AddScoped<IWorkLogService, WorkLogService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<IReviewPermissionService, ReviewPermissionService>();
 
 // Add health checks
 builder.Services.AddHealthChecks()
