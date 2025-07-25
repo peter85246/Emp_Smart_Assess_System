@@ -105,7 +105,7 @@ const AdminPanel = ({ currentUser }) => {
     <div className="min-h-screen flex bg-gradient-to-br from-slate-800 to-slate-900">
       {/* 左側導航 */}
       <div className="w-80 bg-gradient-to-b from-slate-700/50 to-slate-800/50 border-r border-slate-600/50 p-6 shadow-sm flex-shrink-0">
-        <div className="mb-6">
+        <div className="mb-4">
           <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
             <Settings className="h-5 w-5 text-blue-400 mr-2" />
             管理功能
@@ -116,7 +116,7 @@ const AdminPanel = ({ currentUser }) => {
         </div>
 
         {/* 管理員統計卡片 */}
-        <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 mb-6 shadow-md border border-slate-600/50">
+        <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 mb-4 shadow-md border border-slate-600/50">
           <h4 className="text-sm font-medium text-slate-200 mb-3">系統統計</h4>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -140,7 +140,7 @@ const AdminPanel = ({ currentUser }) => {
 
         {/* 功能選單 */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-slate-200 mb-3 flex items-center">
+          <h4 className="text-sm font-medium text-slate-200 mb-2 flex items-center">
             <BarChart3 className="h-4 w-4 text-blue-400 mr-2" />
             管理選單
           </h4>

@@ -457,6 +457,29 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
         </div>
       </div>
 
+      {/* Boss專用提示 */}
+      {currentUser?.role === 'boss' && (
+        <div className="bg-gradient-to-r from-purple-600/20 to-yellow-500/20 border-2 border-purple-400/50 rounded-lg p-4 shadow-lg">
+          <div className="flex items-center space-x-3 mb-2">
+            <span className="text-2xl">👑</span>
+            <div>
+              <h3 className="font-semibold text-purple-300 text-lg">董事長特權通知</h3>
+              <p className="text-purple-200 text-sm">您的積分提交將享有自動審核通過特權</p>
+            </div>
+          </div>
+          <div className="bg-purple-500/20 rounded-lg p-3 mt-3">
+            <div className="flex items-center space-x-2 text-purple-100 text-sm">
+              <span className="text-green-400">✨</span>
+              <span>提交後積分立即生效，無需等待其他人審核</span>
+            </div>
+            <div className="flex items-center space-x-2 text-purple-100 text-sm mt-1">
+              <span className="text-yellow-400">⚡</span>
+              <span>系統將自動標記為「董事長層級自動審核通過」</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 使用說明 */}
       <div className="bg-slate-700/50 backdrop-blur-sm border border-blue-400/50 rounded-lg p-4">
         <h3 className="font-semibold text-blue-300 mb-2">📝 填寫說明</h3>

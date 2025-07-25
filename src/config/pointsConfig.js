@@ -89,7 +89,8 @@ export const pointsConfig = {
     employee: '員工',
     manager: '主管',
     admin: '管理員',
-    boss: '老闆'
+    president: '總經理',
+    boss: '董事長'
   },
 
   // 職位與角色對應表
@@ -114,8 +115,10 @@ export const pointsConfig = {
     '副總經理': 'admin',
     '執行長': 'admin',
     
-    // 老闆層級 - 最高管理層
-    '總經理': 'boss',
+    // 總經理層級 - 公司經營層
+    '總經理': 'president',
+    
+    // 董事長層級 - 最高決策層
     '董事長': 'boss',
     '負責人': 'boss'
   },

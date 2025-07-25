@@ -25,19 +25,24 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
   // 使用傳入的 currentUser 或預設的 user
   const currentUser = propCurrentUser || user;
   
+  // 輔助函數：判斷是否為管理級別角色
+  const isManagerLevel = (role) => {
+    return role === 'manager' || role === 'admin' || role === 'president' || role === 'boss';
+  };
+  
   const [activeTab, setActiveTab] = useState(() => {
     const currentUserRole = (propCurrentUser || user)?.role;
-    return (currentUserRole === 'manager' || currentUserRole === 'admin') ? 'admin' : 'employee';
+    return isManagerLevel(currentUserRole) ? 'admin' : 'employee';
   });
 
   useEffect(() => {
     loadDashboardStats();
   }, []);
 
-  // 監聽用戶數據變化，確保主管能正確顯示管理介面
+  // 監聽用戶數據變化，確保管理級別用戶正確顯示管理介面
   useEffect(() => {
     const currentUserRole = currentUser?.role;
-    if (currentUserRole === 'manager' || currentUserRole === 'admin') {
+    if (isManagerLevel(currentUserRole)) {
       setActiveTab('admin');
     } else if (currentUserRole === 'employee') {
       setActiveTab('employee');
@@ -108,7 +113,7 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
     }
   };
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager' || currentUser?.role === 'boss';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager' || currentUser?.role === 'president' || currentUser?.role === 'boss';
 
   // 整頁模式的渲染
   if (isFullPage) {
@@ -133,9 +138,10 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
                     <h1 className="text-xl font-bold text-white">積分管理系統</h1>
                     <p className="text-blue-100 text-sm">
                       歡迎回來，{currentUser?.name || '未知用戶'} • {currentUser?.departmentName || currentUser?.department || '未知部門'} •
-                      {currentUser?.role === 'admin' ? ' ⚙️ 系統管理員' :
-                       currentUser?.role === 'manager' ? ' 👨‍💼 部門主管' :
-                       currentUser?.role === 'boss' ? ' 👑 老闆' : ' 👤 一般員工'}
+                      {currentUser?.role === 'admin' ? ' ⚙️ 管理員' :
+                       currentUser?.role === 'manager' ? ' 👨‍💼 主管' :
+                       currentUser?.role === 'president' ? ' 🎖️ 總經理' :
+                       currentUser?.role === 'boss' ? ' 👑 董事長' : ' 👤 員工'}
                     </p>
                   </div>
                 </div>
@@ -150,7 +156,7 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
           {/* 標籤導航 */}
           <div className="bg-slate-700/50 backdrop-blur-sm border-b border-slate-600/50">
             <div className="w-full px-6">
-              <div className="flex space-x-8">
+              <div className="flex space-x-0">
                 {isAdmin && (
                   <button
                     onClick={() => setActiveTab('admin')}
@@ -212,7 +218,9 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
               <p className="text-blue-100">
                 {currentUser?.name || '未知用戶'} • {currentUser?.departmentName || currentUser?.department || '未知部門'} •
                 {currentUser?.role === 'admin' ? ' ⚙️ 管理員' :
-                 currentUser?.role === 'manager' ? ' 👨‍💼 主管' : ' 👤 員工'}
+                 currentUser?.role === 'manager' ? ' 👨‍💼 主管' :
+                 currentUser?.role === 'president' ? ' 🎖️ 總經理' :
+                 currentUser?.role === 'boss' ? ' 👑 董事長' : ' 👤 員工'}
               </p>
             </div>
           </div>
@@ -281,7 +289,7 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
         </div>
 
         {/* 功能切換標籤 */}
-        <div className="flex border-b border-slate-600/50">
+        <div className="flex space-x-0 border-b border-slate-600/50">
           {isAdmin && (
             <button
               onClick={() => setActiveTab('admin')}

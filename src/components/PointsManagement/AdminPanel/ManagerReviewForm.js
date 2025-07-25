@@ -4,6 +4,18 @@ import NotificationToast from '../shared/NotificationToast';
 import ImagePreviewModal from '../shared/ImagePreviewModal';
 import { pointsAPI } from '../../../services/pointsAPI';
 
+// 角色映射函數 - 將系統角色轉換為顯示信息
+const getRoleDisplay = (role) => {
+  switch(role) {
+    case 'boss': return { icon: '👑', name: '董事長', color: 'text-purple-400', bgColor: 'bg-purple-500/20' };
+    case 'president': return { icon: '🎖️', name: '總經理', color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' };
+    case 'admin': return { icon: '⚙️', name: '管理員', color: 'text-blue-400', bgColor: 'bg-blue-500/20' };
+    case 'manager': return { icon: '👨‍💼', name: '主管', color: 'text-green-400', bgColor: 'bg-green-500/20' };
+    case 'employee': return { icon: '👤', name: '員工', color: 'text-gray-400', bgColor: 'bg-gray-500/20' };
+    default: return { icon: '❓', name: '未知', color: 'text-gray-500', bgColor: 'bg-gray-500/10' };
+  }
+};
+
 /**
  * 主管審核表單組件 - 主管審核員工積分提交的核心組件
  * 功能：
@@ -29,6 +41,9 @@ const ManagerReviewForm = ({ currentUser }) => {
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
+  
+  // 新增：員工分組展開狀態管理
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
   
   // 新增：單項審核相關狀態
   const [itemComments, setItemComments] = useState({}); // 每個項目的單獨說明
@@ -56,13 +71,13 @@ const ManagerReviewForm = ({ currentUser }) => {
 
       let response;
       // 根據用戶角色選擇API端點
-      if (currentUser.role === 'boss' || currentUser.role === 'admin') {
-        // 老闆和管理員可以查看所有部門
-        console.log('使用全部門API（老闆/管理員權限）');
+      if (currentUser.role === 'boss' || currentUser.role === 'president') {
+        // 董事長和總經理可以查看所有部門
+        console.log('使用全部門API（董事長/總經理權限）');
         response = await pointsAPI.getPendingEntries();
       } else {
-        // 主管只能查看自己部門
-        console.log('使用部門權限API（主管權限）, 審核者ID:', currentUser.id);
+        // 管理員和主管使用部門權限API（含層級過濾）
+        console.log('使用部門權限API（管理員/主管權限）, 審核者ID:', currentUser.id);
         response = await pointsAPI.getPendingEntriesByDepartment(currentUser.id);
       }
 
@@ -89,31 +104,32 @@ const ManagerReviewForm = ({ currentUser }) => {
     }
   };
 
-  // 按員工和提交時間分組的邏輯
+  // 按員工分組的邏輯 - 手風琴式顯示
   const groupSubmissionsByEmployee = (entries) => {
     const groups = {};
 
     entries.forEach(entry => {
-      // 生成分組鍵：員工ID + 提交日期（精確到分鐘）
-      const submissionTime = new Date(entry.submittedAt || entry.createdAt);
-      const groupKey = `${entry.employeeId}_${submissionTime.getFullYear()}_${submissionTime.getMonth()}_${submissionTime.getDate()}_${submissionTime.getHours()}_${submissionTime.getMinutes()}`;
+      // 按員工ID分組
+      const employeeKey = `employee_${entry.employeeId}`;
 
-      if (!groups[groupKey]) {
-        groups[groupKey] = {
-          id: `group_${groupKey}`,
+      if (!groups[employeeKey]) {
+        groups[employeeKey] = {
+          id: employeeKey,
           employeeId: entry.employeeId,
           employeeName: entry.employeeName || '未知員工',
+          employeeRole: entry.employeeRole || 'employee',
+          employeePosition: entry.employeePosition || '未知職位',
           department: entry.department || '未知部門',
-          submissionDate: entry.submittedAt || entry.createdAt,
-          status: 'pending',
-          items: [],
+          departmentId: entry.departmentId,
+          submissions: [], // 該員工的所有提交記錄
+          totalSubmissions: 0,
           totalPoints: 0,
-          totalItems: 0
+          isExpanded: false // 展開狀態
         };
       }
 
-      // 添加項目到分組
-      groups[groupKey].items.push({
+      // 將每個entry作為獨立的提交記錄
+      groups[employeeKey].submissions.push({
         id: entry.id,
         standardName: entry.standardName || '未知項目',
         description: entry.description || '',
@@ -121,24 +137,53 @@ const ManagerReviewForm = ({ currentUser }) => {
         basePoints: entry.basePoints || 0,
         bonusPoints: entry.bonusPoints || 0,
         evidenceFiles: entry.evidenceFiles || null,
-        evidenceFileDetails: entry.evidenceFileDetails || [], // 修復：保留完整檔案信息
-        status: entry.status || 'pending'
+        evidenceFileDetails: entry.evidenceFileDetails || [],
+        submittedAt: entry.submittedAt || entry.createdAt,
+        status: entry.status || 'pending',
+        // 為了向後兼容，保持原有的數據結構
+        items: [{
+          id: entry.id,
+          standardName: entry.standardName || '未知項目',
+          description: entry.description || '',
+          pointsCalculated: entry.pointsCalculated || 0,
+          basePoints: entry.basePoints || 0,
+          bonusPoints: entry.bonusPoints || 0,
+          evidenceFiles: entry.evidenceFiles || null,
+          evidenceFileDetails: entry.evidenceFileDetails || [],
+          status: entry.status || 'pending'
+        }],
+        totalPoints: entry.pointsCalculated || 0,
+        totalItems: 1,
+        submissionDate: entry.submittedAt || entry.createdAt
       });
 
-      // 累計積分和項目數量
-      groups[groupKey].totalPoints += (entry.pointsCalculated || 0);
-      groups[groupKey].totalItems = groups[groupKey].items.length;
+      // 更新統計信息
+      groups[employeeKey].totalSubmissions = groups[employeeKey].submissions.length;
+      groups[employeeKey].totalPoints = groups[employeeKey].submissions.reduce(
+        (sum, submission) => sum + (submission.pointsCalculated || 0), 0
+      );
     });
 
-    // 轉換為數組並按提交時間排序
-    return Object.values(groups).sort((a, b) => 
-      new Date(b.submissionDate) - new Date(a.submissionDate)
-    );
+    // 轉換為數組並按員工姓名排序
+    return Object.values(groups).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
   };
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  // 新增：切換員工分組展開狀態
+  const toggleGroupExpansion = (groupId) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
   };
 
   const handleSelectSubmission = (submission) => {
@@ -639,10 +684,12 @@ const ManagerReviewForm = ({ currentUser }) => {
         </h4>
         <p className="text-blue-200 text-sm">
           {currentUser.role === 'boss' 
-            ? '您是老闆，可以審核所有部門的員工積分提交記錄'
+            ? '您是董事長，可以審核所有員工、主管、管理員、總經理的積分提交'
+            : currentUser.role === 'president'
+            ? '您是總經理，可以審核全公司員工、主管、管理員的積分提交'
             : currentUser.role === 'admin'
-            ? '您是管理員，可以審核所有部門的員工積分提交記錄'
-            : `您是主管，只能審核 ${currentUser.departmentName || currentUser.department || '所屬部門'} 的員工積分提交記錄`
+            ? `您是管理員，可以審核 ${currentUser.departmentName || currentUser.department || '所屬部門'} 的員工、主管積分提交`
+            : `您是主管，只能審核 ${currentUser.departmentName || currentUser.department || '所屬部門'} 的員工積分提交`
           }
         </p>
       </div>
@@ -661,27 +708,78 @@ const ManagerReviewForm = ({ currentUser }) => {
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto space-y-3">
-                {submissions.map((submission) => (
-                  <div
-                    key={submission.id}
-                    onClick={() => handleSelectSubmission(submission)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedSubmission?.id === submission.id
-                        ? 'border-blue-400 bg-slate-600/50'
-                        : 'border-slate-500/50 bg-slate-700/30 hover:bg-slate-600/30'
-                    }`}
-                  >
-                    <div className="font-medium text-white">{submission.employeeName}</div>
-                    <div className="text-sm text-slate-300">{submission.department}</div>
-                    <div className="text-sm text-blue-300 font-medium mt-1">
-                      {submission.totalPoints.toFixed(1)} 積分 • {submission.totalItems} 個項目
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {submissions.map((employeeGroup) => {
+                  const roleDisplay = getRoleDisplay(employeeGroup.employeeRole || 'employee');
+                  const isExpanded = expandedGroups.has(employeeGroup.id);
+                  
+                  return (
+                    <div key={employeeGroup.id} className="border border-slate-500/50 rounded-lg">
+                      {/* 員工分組標題 - 可點擊展開/收合 */}
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleGroupExpansion(employeeGroup.id);
+                        }}
+                        className="p-3 cursor-pointer hover:bg-slate-600/30 transition-all rounded-t-lg"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-slate-400 text-sm">
+                              {isExpanded ? '▼' : '▶'}
+                            </span>
+                            <span className={`text-lg ${roleDisplay.color}`}>{roleDisplay.icon}</span>
+                            <span className="font-medium text-white">{employeeGroup.employeeName}</span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${roleDisplay.color} ${roleDisplay.bgColor} border border-current border-opacity-30`}>
+                              {roleDisplay.name}
+                            </span>
+                            <span className="text-slate-400 text-sm">({employeeGroup.totalSubmissions})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 text-sm text-slate-300 mt-1">
+                          <span className="text-blue-400">🏢</span>
+                          <span className="font-medium">{employeeGroup.department}</span>
+                          <span>•</span>
+                          <span className="text-blue-300 font-medium">
+                            {employeeGroup.totalPoints.toFixed(1)} 總積分
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* 展開的提交列表 */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-600/50 p-2 space-y-2">
+                          {employeeGroup.submissions.map((submission, index) => (
+                            <div 
+                              key={submission.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectSubmission(submission);
+                              }}
+                              className={`p-2 rounded cursor-pointer transition-all ${
+                                selectedSubmission?.id === submission.id 
+                                  ? 'bg-blue-600/50 border border-blue-400/50' 
+                                  : 'bg-slate-700/30 hover:bg-slate-600/30 border border-slate-600/30'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm text-white font-medium">
+                                  📝 {submission.standardName}
+                                </div>
+                                <div className="text-xs text-blue-300 font-medium">
+                                  {submission.pointsCalculated.toFixed(1)} 積分
+                                </div>
+                              </div>
+                              <div className="text-xs text-slate-300 mt-1">
+                                📅 {new Date(submission.submittedAt).toLocaleDateString('zh-TW')} {new Date(submission.submittedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-xs text-slate-400">
-                      {new Date(submission.submissionDate).toLocaleDateString('zh-TW')}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -693,12 +791,25 @@ const ManagerReviewForm = ({ currentUser }) => {
             <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 p-6 space-y-6 h-full flex flex-col">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-white">
-                    {selectedSubmission.employeeName} 的積分提交
-                  </h3>
-                  <p className="text-slate-300">
-                    {selectedSubmission.department} • 
-                    {new Date(selectedSubmission.submissionDate).toLocaleString('zh-TW')}
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h3 className="text-xl font-bold text-white">
+                      {selectedSubmission.employeeName} 的積分提交
+                    </h3>
+                    {(() => {
+                      const roleDisplay = getRoleDisplay(selectedSubmission.employeeRole || 'employee');
+                      return (
+                        <span className={`inline-flex items-center space-x-1 text-sm px-3 py-1 rounded-full ${roleDisplay.color} ${roleDisplay.bgColor} border border-current border-opacity-30`}>
+                          <span>{roleDisplay.icon}</span>
+                          <span>{roleDisplay.name}</span>
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-slate-300 flex items-center space-x-2">
+                    <span className="text-blue-400">🏢</span>
+                    <span>{selectedSubmission.department}</span>
+                    <span>•</span>
+                    <span>{new Date(selectedSubmission.submissionDate).toLocaleString('zh-TW')}</span>
                   </p>
                 </div>
                 <div className="text-right">

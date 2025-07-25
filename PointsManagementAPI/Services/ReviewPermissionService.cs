@@ -1,14 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using PointsManagementAPI.Data;
+using PointsManagementAPI.Models.UserModels;
 
 namespace PointsManagementAPI.Services
 {
     /// <summary>
     /// 審核權限檢查服務實現
-    /// 實現部門權限控制邏輯：
-    /// - 老闆(boss)：可審核所有部門
-    /// - 管理員(admin)：可審核所有部門  
-    /// - 主管(manager)：只能審核同部門員工
+    /// 實現五級角色層級審核邏輯：
+    /// - 董事長(boss)：可審核所有人（employee/manager/admin/president）
+    /// - 總經理(president)：可審核除董事長外的所有人（employee/manager/admin）
+    /// - 管理員(admin)：可審核同部門的員工和主管（employee/manager）
+    /// - 主管(manager)：只能審核同部門員工（employee）
     /// - 員工(employee)：無審核權限
     /// </summary>
     public class ReviewPermissionService : IReviewPermissionService
@@ -48,41 +50,55 @@ namespace PointsManagementAPI.Services
                     return false;
                 }
 
-                // 老闆和管理員可以審核所有記錄
-                if (reviewer.Role == "boss" || reviewer.Role == "admin")
+                // 獲取積分記錄和提交者信息
+                var entry = await _context.PointsEntries
+                    .Include(pe => pe.Employee)
+                    .FirstOrDefaultAsync(pe => pe.Id == entryId);
+
+                if (entry == null)
                 {
-                    _logger.LogInformation("老闆/管理員有全部審核權限: {ReviewerId}, Role={Role}", reviewerId, reviewer.Role);
-                    return true;
+                    _logger.LogWarning("找不到積分記錄: {EntryId}", entryId);
+                    return false;
                 }
 
-                // 主管只能審核同部門員工的記錄
-                if (reviewer.Role == "manager")
-                {
-                    var entry = await _context.PointsEntries
-                        .Include(pe => pe.Employee)
-                        .FirstOrDefaultAsync(pe => pe.Id == entryId);
-
-                    if (entry == null)
-                    {
-                        _logger.LogWarning("找不到積分記錄: {EntryId}", entryId);
-                        return false;
-                    }
-
-                    var canReview = entry.Employee.DepartmentId == reviewer.DepartmentId;
-                    _logger.LogInformation("主管部門權限檢查: 審核者部門={ReviewerDept}, 員工部門={EmployeeDept}, 結果={CanReview}", 
-                        reviewer.DepartmentId, entry.Employee.DepartmentId, canReview);
-                    
-                    return canReview;
-                }
-
-                _logger.LogWarning("未知角色: {ReviewerId}, Role={Role}", reviewerId, reviewer.Role);
-                return false;
+                // 使用新的層級審核邏輯
+                var canReview = CanReviewByHierarchy(reviewer, entry.Employee);
+                _logger.LogInformation("層級權限檢查: 審核者={ReviewerId}({ReviewerRole}), 提交者={EmployeeId}({EmployeeRole}), 結果={CanReview}", 
+                    reviewerId, reviewer.Role, entry.Employee.Id, entry.Employee.Role, canReview);
+                
+                return canReview;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "檢查審核權限時發生錯誤: ReviewerId={ReviewerId}, EntryId={EntryId}", reviewerId, entryId);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 層級審核邏輯檢查
+        /// </summary>
+        private bool CanReviewByHierarchy(Employee reviewer, Employee entryOwner)
+        {
+            // 董事長可以審核所有人
+            if (reviewer.Role == "boss") 
+                return true;
+            
+            // 總經理可以審核除董事長外的所有人  
+            if (reviewer.Role == "president")
+                return entryOwner.Role != "boss";
+            
+            // 管理員可以審核同部門的員工和主管
+            if (reviewer.Role == "admin")
+                return (entryOwner.Role == "employee" || entryOwner.Role == "manager") &&
+                       entryOwner.DepartmentId == reviewer.DepartmentId;
+            
+            // 主管可以審核同部門的員工 (保持原邏輯)
+            if (reviewer.Role == "manager")
+                return entryOwner.Role == "employee" &&
+                       entryOwner.DepartmentId == reviewer.DepartmentId;
+            
+            return false;
         }
 
         /// <summary>
@@ -100,14 +116,14 @@ namespace PointsManagementAPI.Services
                     return new List<int>(); // 無權限
                 }
 
-                // 老闆和管理員可以審核所有部門
-                if (reviewer.Role == "boss" || reviewer.Role == "admin")
+                // 董事長和總經理可以審核所有部門
+                if (reviewer.Role == "boss" || reviewer.Role == "president")
                 {
                     return null; // null 表示所有部門
                 }
-
-                // 主管只能審核自己的部門
-                if (reviewer.Role == "manager")
+                
+                // 管理員和主管審核自己部門
+                if (reviewer.Role == "admin" || reviewer.Role == "manager")
                 {
                     return new List<int> { reviewer.DepartmentId };
                 }

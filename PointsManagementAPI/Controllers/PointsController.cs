@@ -385,6 +385,47 @@ namespace PointsManagementAPI.Controllers
             {
                 var results = new List<PointsEntry>();
 
+                // 檢查EmployeeId是否為數字，並獲取員工角色信息
+                int empId;
+                if (employeeId.StartsWith("EMP"))
+                {
+                    if (!int.TryParse(employeeId.Replace("EMP", ""), out empId))
+                    {
+                        empId = 1;
+                    }
+                }
+                else
+                {
+                    if (!int.TryParse(employeeId, out empId))
+                    {
+                        empId = 1;
+                    }
+                }
+
+                // 獲取提交者的角色信息（用於boss自動審核邏輯）
+                var submitter = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Id == empId && e.IsActive);
+                
+                if (submitter == null)
+                {
+                    return BadRequest(new { message = "找不到有效的員工記錄" });
+                }
+
+                // Boss角色的積分提交自動審核通過
+                string finalStatus = status;
+                int? approvedBy = null;
+                DateTime? approvedAt = null;
+                string? reviewComments = null;
+
+                if (submitter.Role == "boss")
+                {
+                    finalStatus = "approved";
+                    approvedBy = empId;
+                    approvedAt = DateTime.UtcNow;
+                    reviewComments = "董事長層級自動審核通過";
+                    Console.WriteLine($"董事長 {submitter.Name} 提交的積分將自動審核通過");
+                }
+
                 // 解析積分項目JSON - 配置支持camelCase
                 var jsonOptions = new JsonSerializerOptions
                 {
@@ -452,38 +493,21 @@ namespace PointsManagementAPI.Controllers
                             standardId = standard.Id;
                         }
 
-                        // 檢查EmployeeId是否為數字
-                        int empId;
-                        if (employeeId.StartsWith("EMP"))
-                        {
-                            // 嘗試解析EMP001 -> 1
-                            if (!int.TryParse(employeeId.Replace("EMP", ""), out empId))
-                            {
-                                // 如果無法解析，使用默認值1
-                                empId = 1;
-                            }
-                        }
-                        else
-                        {
-                            // 嘗試直接解析
-                            if (!int.TryParse(employeeId, out empId))
-                            {
-                                empId = 1;
-                            }
-                        }
-
                         var entry = new PointsEntry
                         {
                             EmployeeId = empId,
                             StandardId = standardId,
                             EntryDate = submissionDate,
                             Description = item.Description,
-                            Status = status,
+                            Status = finalStatus, // 使用處理過的狀態（boss自動審核）
                             PointsEarned = item.CalculatedPoints,
                             BasePoints = item.CalculatedPoints,
                             BonusPoints = 0,
                             PenaltyPoints = 0,
-                            PromotionMultiplier = 1.0m
+                            PromotionMultiplier = 1.0m,
+                            ApprovedBy = approvedBy, // boss自動審核時設置審核者
+                            ApprovedAt = approvedAt, // boss自動審核時設置審核時間
+                            ReviewComments = reviewComments // boss自動審核時設置審核備註
                         };
 
                         _context.PointsEntries.Add(entry);
@@ -677,7 +701,10 @@ namespace PointsManagementAPI.Controllers
                         employeeId = p.EmployeeId,
                         employeeName = p.Employee.Name,
                         employeeNumber = p.Employee.EmployeeNumber,
+                        employeeRole = p.Employee.Role, // 新增：員工角色信息
+                        employeePosition = p.Employee.Position, // 新增：員工職位信息
                         department = p.Employee.Department!.Name,
+                        departmentId = p.Employee.DepartmentId, // 新增：部門ID
                         standardName = p.Standard.CategoryName,
                         description = p.Description,
                         pointsCalculated = p.PointsEarned,
@@ -728,7 +755,10 @@ namespace PointsManagementAPI.Controllers
                         employeeId = entry.employeeId,
                         employeeName = entry.employeeName,
                         employeeNumber = entry.employeeNumber,
+                        employeeRole = entry.employeeRole, // 新增：員工角色信息
+                        employeePosition = entry.employeePosition, // 新增：員工職位信息
                         department = entry.department,
+                        departmentId = entry.departmentId, // 新增：部門ID
                         standardName = entry.standardName,
                         description = entry.description,
                         pointsCalculated = entry.pointsCalculated,
@@ -798,38 +828,35 @@ namespace PointsManagementAPI.Controllers
 
                 var pendingQuery = await query
                     .OrderByDescending(p => p.CreatedAt)
-                    .Select(p => new
-                    {
-                        id = p.Id,
-                        employeeId = p.EmployeeId,
-                        employeeName = p.Employee.Name,
-                        employeeNumber = p.Employee.EmployeeNumber,
-                        department = p.Employee.Department!.Name,
-                        departmentId = p.Employee.DepartmentId,
-                        standardName = p.Standard.CategoryName,
-                        description = p.Description,
-                        pointsCalculated = p.PointsEarned,
-                        evidenceFiles = p.EvidenceFiles,
-                        submittedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
-                        status = p.Status,
-                        basePoints = p.BasePoints,
-                        bonusPoints = p.BonusPoints,
-                        promotionMultiplier = p.PromotionMultiplier
-                    })
                     .ToListAsync();
+
+                // 根據層級權限進一步過濾記錄
+                var filteredQuery = new List<PointsEntry>();
+                foreach (var entry in pendingQuery)
+                {
+                    // 檢查層級審核權限
+                    var canReview = await _reviewPermissionService.CanReviewEntryAsync(reviewerId, entry.Id);
+                    if (canReview)
+                    {
+                        filteredQuery.Add(entry);
+                    }
+                }
+
+                _logger.LogInformation("層級權限過濾：原始記錄 {OriginalCount} 筆，過濾後 {FilteredCount} 筆", 
+                    pendingQuery.Count, filteredQuery.Count);
 
                 // 擴展檔案信息（與原有方法保持一致）
                 var pendingEntries = new List<object>();
-                foreach (var entry in pendingQuery)
+                foreach (var entry in filteredQuery)
                 {
                     var fileDetails = new List<object>();
                     
                     // 解析檔案ID並獲取檔案詳細信息
-                    if (!string.IsNullOrEmpty(entry.evidenceFiles))
+                    if (!string.IsNullOrEmpty(entry.EvidenceFiles))
                     {
                         try
                         {
-                            var fileIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(entry.evidenceFiles);
+                            var fileIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(entry.EvidenceFiles);
                             var fileAttachments = await _context.FileAttachments
                                 .Where(f => fileIds.Contains(f.Id) && f.IsActive)
                                 .Select(f => new
@@ -846,28 +873,30 @@ namespace PointsManagementAPI.Controllers
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "解析檔案信息時出錯: {EvidenceFiles}", entry.evidenceFiles);
+                            _logger.LogWarning(ex, "解析檔案信息時出錯: {EvidenceFiles}", entry.EvidenceFiles);
                         }
                     }
 
                     pendingEntries.Add(new
                     {
-                        id = entry.id,
-                        employeeId = entry.employeeId,
-                        employeeName = entry.employeeName,
-                        employeeNumber = entry.employeeNumber,
-                        department = entry.department,
-                        departmentId = entry.departmentId,
-                        standardName = entry.standardName,
-                        description = entry.description,
-                        pointsCalculated = entry.pointsCalculated,
-                        evidenceFiles = entry.evidenceFiles, // 保留原始JSON字符串（向後兼容）
+                        id = entry.Id,
+                        employeeId = entry.EmployeeId,
+                        employeeName = entry.Employee.Name,
+                        employeeNumber = entry.Employee.EmployeeNumber,
+                        employeeRole = entry.Employee.Role, // 新增：員工角色信息
+                        employeePosition = entry.Employee.Position, // 新增：員工職位信息
+                        department = entry.Employee.Department!.Name,
+                        departmentId = entry.Employee.DepartmentId,
+                        standardName = entry.Standard.CategoryName,
+                        description = entry.Description,
+                        pointsCalculated = entry.PointsEarned,
+                        evidenceFiles = entry.EvidenceFiles, // 保留原始JSON字符串（向後兼容）
                         evidenceFileDetails = fileDetails, // 新增：檔案詳細信息列表
-                        submittedAt = entry.submittedAt,
-                        status = entry.status,
-                        basePoints = entry.basePoints,
-                        bonusPoints = entry.bonusPoints,
-                        promotionMultiplier = entry.promotionMultiplier
+                        submittedAt = entry.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                        status = entry.Status,
+                        basePoints = entry.BasePoints,
+                        bonusPoints = entry.BonusPoints,
+                        promotionMultiplier = entry.PromotionMultiplier
                     });
                 }
 
