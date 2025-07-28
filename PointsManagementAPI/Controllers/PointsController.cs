@@ -1068,6 +1068,144 @@ namespace PointsManagementAPI.Controllers
                 return StatusCode(500, new { message = "獲取部門排名列表失敗" });
             }
         }
+
+        /// <summary>
+        /// 【GET】 /api/points/all-entries-count - 獲取全公司積分項目統計
+        /// 功能：統計所有積分項目的審核狀態
+        /// 權限：董事長專用
+        /// </summary>
+        /// <returns>包含 approved, rejected, pending 數量的統計結果</returns>
+        [HttpGet("all-entries-count")]
+        public async Task<ActionResult<object>> GetAllEntriesCount()
+        {
+            try
+            {
+                var totalEntries = await _context.PointsEntries.CountAsync();
+                var approvedEntries = await _context.PointsEntries
+                    .CountAsync(p => p.Status == "approved");
+                var rejectedEntries = await _context.PointsEntries
+                    .CountAsync(p => p.Status == "rejected");
+                var pendingEntries = await _context.PointsEntries
+                    .CountAsync(p => p.Status == "pending");
+
+                return Ok(new
+                {
+                    total = totalEntries,
+                    approved = approvedEntries,
+                    rejected = rejectedEntries,
+                    pending = pendingEntries
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "獲取全公司項目統計失敗");
+                return StatusCode(500, new { message = "獲取統計數據時發生錯誤" });
+            }
+        }
+
+        /// <summary>
+        /// 【GET】 /api/points/executive-entries-count - 獲取總經理權限範圍積分項目統計
+        /// 功能：統計除董事長外所有積分項目的審核狀態
+        /// 權限：總經理專用
+        /// </summary>
+        /// <returns>包含 approved, rejected, pending 數量的統計結果</returns>
+        [HttpGet("executive-entries-count")]
+        public async Task<ActionResult<object>> GetExecutiveEntriesCount()
+        {
+            try
+            {
+                // 排除董事長的項目統計
+                var query = _context.PointsEntries
+                    .Include(p => p.Employee)
+                    .Where(p => p.Employee.Position != "董事長" && 
+                               !p.Employee.Name.Contains("董事長"));
+
+                var totalEntries = await query.CountAsync();
+                var approvedEntries = await query
+                    .CountAsync(p => p.Status == "approved");
+                var rejectedEntries = await query
+                    .CountAsync(p => p.Status == "rejected");
+                var pendingEntries = await query
+                    .CountAsync(p => p.Status == "pending");
+
+                return Ok(new
+                {
+                    total = totalEntries,
+                    approved = approvedEntries,
+                    rejected = rejectedEntries,
+                    pending = pendingEntries
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "獲取總經理權限項目統計失敗");
+                return StatusCode(500, new { message = "獲取統計數據時發生錯誤" });
+            }
+        }
+
+        /// <summary>
+        /// 【GET】 /api/points/department-entries-count/{departmentId} - 獲取指定部門積分項目統計
+        /// 功能：統計指定部門積分項目的審核狀態
+        /// 權限：部門主管、管理員
+        /// </summary>
+        /// <param name="departmentId">部門ID</param>
+        /// <returns>包含 approved, rejected, pending 數量的統計結果</returns>
+        [HttpGet("department-entries-count/{departmentId}")]
+        public async Task<ActionResult<object>> GetDepartmentEntriesCount(int departmentId)
+        {
+            try
+            {
+                var query = _context.PointsEntries
+                    .Include(p => p.Employee)
+                    .Where(p => p.Employee.DepartmentId == departmentId);
+
+                var totalEntries = await query.CountAsync();
+                var approvedEntries = await query
+                    .CountAsync(p => p.Status == "approved");
+                var rejectedEntries = await query
+                    .CountAsync(p => p.Status == "rejected");
+                var pendingEntries = await query
+                    .CountAsync(p => p.Status == "pending");
+
+                return Ok(new
+                {
+                    total = totalEntries,
+                    approved = approvedEntries,
+                    rejected = rejectedEntries,
+                    pending = pendingEntries
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "獲取部門 {DepartmentId} 項目統計失敗", departmentId);
+                return StatusCode(500, new { message = "獲取統計數據時發生錯誤" });
+            }
+        }
+
+        /// <summary>
+        /// 【GET】 /api/points/departments - 獲取所有部門列表
+        /// 功能：動態獲取系統中所有部門的ID和名稱
+        /// 權限：所有管理級別用戶
+        /// </summary>
+        /// <returns>包含 id, name 的部門列表</returns>
+        [HttpGet("departments")]
+        public async Task<ActionResult<object>> GetDepartments()
+        {
+            try
+            {
+                var departments = await _context.Departments
+                    .Select(d => new { id = d.Id, name = d.Name })
+                    .OrderBy(d => d.id)
+                    .ToListAsync();
+
+                return Ok(departments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "獲取部門列表失敗");
+                return StatusCode(500, new { message = "獲取部門列表時發生錯誤" });
+            }
+        }
     }
 
     public class ApprovalRequest

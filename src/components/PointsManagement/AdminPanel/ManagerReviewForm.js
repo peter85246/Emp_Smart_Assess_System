@@ -116,7 +116,7 @@ const ManagerReviewForm = ({ currentUser }) => {
         groups[employeeKey] = {
           id: employeeKey,
           employeeId: entry.employeeId,
-          employeeName: entry.employeeName || '未知員工',
+          employeeName: (entry.employeeName && entry.employeeName.trim()) || '未知員工',
           employeeRole: entry.employeeRole || 'employee',
           employeePosition: entry.employeePosition || '未知職位',
           department: entry.department || '未知部門',
@@ -131,6 +131,13 @@ const ManagerReviewForm = ({ currentUser }) => {
       // 將每個entry作為獨立的提交記錄
       groups[employeeKey].submissions.push({
         id: entry.id,
+        // 添加員工信息到每個 submission 對象
+        employeeId: entry.employeeId,
+        employeeName: (entry.employeeName && entry.employeeName.trim()) || '未知員工',
+        employeeRole: entry.employeeRole || 'employee',
+        employeePosition: entry.employeePosition || '未知職位',
+        department: entry.department || '未知部門',
+        departmentId: entry.departmentId,
         standardName: entry.standardName || '未知項目',
         description: entry.description || '',
         pointsCalculated: entry.pointsCalculated || 0,
