@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PointsManagementAPI.Models.PointsModels;
 using PointsManagementAPI.Models.WorkLogModels;
 using PointsManagementAPI.Models.UserModels;
+using PointsManagementAPI.Models.NotificationModels;
 using PointsManagementAPI.Models;
 
 namespace PointsManagementAPI.Data
@@ -29,6 +30,9 @@ namespace PointsManagementAPI.Data
 
         // File Management Tables
         public DbSet<FileAttachment> FileAttachments { get; set; }
+
+        // Notification Tables
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

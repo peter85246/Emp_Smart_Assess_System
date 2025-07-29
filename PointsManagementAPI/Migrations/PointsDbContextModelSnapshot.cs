@@ -66,7 +66,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FileAttachments");
+                    b.ToTable("FileAttachments", (string)null);
                 });
 
             modelBuilder.Entity("PointsManagementAPI.Models.PointsModels.CalculationRule", b =>
@@ -109,7 +109,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CalculationRules");
+                    b.ToTable("CalculationRules", (string)null);
                 });
 
             modelBuilder.Entity("PointsManagementAPI.Models.PointsModels.PointsCategory", b =>
@@ -150,7 +150,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PointsCategories");
+                    b.ToTable("PointsCategories", (string)null);
 
                     b.HasData(
                         new
@@ -262,7 +262,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasIndex("StandardId");
 
-                    b.ToTable("PointsEntries");
+                    b.ToTable("PointsEntries", (string)null);
                 });
 
             modelBuilder.Entity("PointsManagementAPI.Models.PointsModels.StandardSetting", b =>
@@ -316,7 +316,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasIndex("ParentId");
 
-                    b.ToTable("StandardSettings");
+                    b.ToTable("StandardSettings", (string)null);
                 });
 
             modelBuilder.Entity("PointsManagementAPI.Models.UserModels.Department", b =>
@@ -344,7 +344,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Departments");
+                    b.ToTable("Departments", (string)null);
 
                     b.HasData(
                         new
@@ -440,7 +440,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasIndex("DepartmentId");
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", (string)null);
                 });
 
             modelBuilder.Entity("PointsManagementAPI.Models.UserModels.TargetSetting", b =>
@@ -480,7 +480,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.ToTable("TargetSettings");
+                    b.ToTable("TargetSettings", (string)null);
                 });
 
             modelBuilder.Entity("PointsManagementAPI.Models.WorkLogModels.LogCategory", b =>
@@ -513,7 +513,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LogCategories");
+                    b.ToTable("LogCategories", (string)null);
 
                     b.HasData(
                         new
@@ -627,7 +627,7 @@ namespace PointsManagementAPI.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.ToTable("WorkLogs");
+                    b.ToTable("WorkLogs", (string)null);
                 });
 
             modelBuilder.Entity("PointsManagementAPI.Models.PointsModels.PointsEntry", b =>

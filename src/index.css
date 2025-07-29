@@ -46,6 +46,29 @@
   animation: fade-in 0.2s ease-out;
 }
 
+/* 通知跳轉高亮動畫 */
+.highlight-submission {
+  animation: highlight-pulse 2s ease-in-out;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.3) 0%, rgba(59, 130, 246, 0.1) 50%, rgba(59, 130, 246, 0.3) 100%) !important;
+  border: 2px solid rgb(59, 130, 246) !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    background: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.7);
+  }
+  100% {
+    background: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+}
+
 body {
   margin: 0;
   font-family:

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PointsManagementAPI.Data;
 using PointsManagementAPI.Models.PointsModels;
+using PointsManagementAPI.Models.AuthModels;
 using PointsManagementAPI.Services;
 using System.Text.Json;
 
@@ -21,6 +22,7 @@ namespace PointsManagementAPI.Controllers
         private readonly ILogger<PointsController> _logger;
         private readonly IFileStorageService _fileStorageService;
         private readonly IReviewPermissionService _reviewPermissionService;
+        private readonly INotificationService _notificationService;
 
         /// <summary>
         /// 積分控制器建構函數 - 注入必要的服務依賴
@@ -30,13 +32,15 @@ namespace PointsManagementAPI.Controllers
         /// <param name="logger">日誌記錄器</param>
         /// <param name="fileStorageService">檔案存儲服務</param>
         /// <param name="reviewPermissionService">審核權限檢查服務</param>
-        public PointsController(PointsDbContext context, IPointsCalculationService calculationService, ILogger<PointsController> logger, IFileStorageService fileStorageService, IReviewPermissionService reviewPermissionService)
+        /// <param name="notificationService">通知服務</param>
+        public PointsController(PointsDbContext context, IPointsCalculationService calculationService, ILogger<PointsController> logger, IFileStorageService fileStorageService, IReviewPermissionService reviewPermissionService, INotificationService notificationService)
         {
             _context = context;
             _calculationService = calculationService;
             _logger = logger;
             _fileStorageService = fileStorageService;
             _reviewPermissionService = reviewPermissionService;
+            _notificationService = notificationService;
         }
 
         /// <summary>
@@ -279,7 +283,9 @@ namespace PointsManagementAPI.Controllers
                     return Forbid(new { message = "您沒有權限審核此積分記錄" }.ToString());
                 }
 
-                var entry = await _context.PointsEntries.FindAsync(id);
+                var entry = await _context.PointsEntries
+                    .Include(p => p.Standard)
+                    .FirstOrDefaultAsync(p => p.Id == id);
                 if (entry == null)
                 {
                     return NotFound(new { message = "找不到指定的積分記錄" });
@@ -297,6 +303,30 @@ namespace PointsManagementAPI.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // 獲取審核者信息以用於通知
+                var approver = await _context.Employees.FindAsync(request.ApproverId);
+                var approverName = approver?.Name ?? "系統管理員";
+
+                // 創建通知給相關員工
+                try
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        entry.EmployeeId,
+                        "積分審核通過",
+                        $"您的積分項目「{entry.Standard.CategoryName}」已被 {approverName} 審核通過，獲得 {entry.PointsEarned} 分",
+                        "points_approved",
+                        entry.Id,
+                        "PointsEntry",
+                        "normal"
+                    );
+                    _logger.LogInformation("已為員工 {EmployeeId} 創建積分核准通知，積分項目: {StandardName}，審核者: {ApproverName}", 
+                        entry.EmployeeId, entry.Standard.CategoryName, approverName);
+                }
+                catch (Exception notificationEx)
+                {
+                    _logger.LogError(notificationEx, "為員工 {EmployeeId} 創建積分核准通知失敗", entry.EmployeeId);
+                }
+
                 _logger.LogInformation("積分記錄已核准: {Id}", id);
                 return Ok(new { message = "積分記錄已核准" });
             }
@@ -307,6 +337,231 @@ namespace PointsManagementAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// 【POST】 /api/points/batch/approve - 批量審核通過積分記錄
+        /// 功能：主管批量審核通過多個積分項目
+        /// 前端使用：ManagerReviewForm組件的批量審核通過功能
+        /// 權限：僅限主管角色使用
+        /// </summary>
+        /// <param name="request">批量審核請求，包含審核人ID和積分記錄ID列表</param>
+        /// <returns>批量審核結果</returns>
+        [HttpPost("batch/approve")]
+        public async Task<ActionResult> BatchApprovePointsEntries([FromBody] BatchApprovalRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("批量核准積分記錄: 審核人 {ApproverId}, 積分記錄 ID 數量: {EntryIdsCount}", request.ApproverId, request.EntryIds.Count);
+                _logger.LogInformation("積分記錄 ID 列表: [{EntryIds}]", string.Join(", ", request.EntryIds));
+
+                var entries = await _context.PointsEntries
+                    .Include(p => p.Standard)
+                    .Where(p => request.EntryIds.Contains(p.Id))
+                    .ToListAsync();
+
+                _logger.LogInformation("從數據庫找到 {FoundCount} 個積分記錄", entries.Count);
+
+                if (entries.Count == 0)
+                {
+                    return NotFound(new { message = "找不到指定的積分記錄" });
+                }
+
+                // 檢查找到的記錄數量是否與請求的數量一致
+                if (entries.Count != request.EntryIds.Count)
+                {
+                    var foundIds = entries.Select(e => e.Id).ToList();
+                    var missingIds = request.EntryIds.Except(foundIds).ToList();
+                    _logger.LogWarning("部分積分記錄未找到: [{MissingIds}]", string.Join(", ", missingIds));
+                }
+
+                // 為每個項目進行權限檢查
+                var unauthorizedEntries = new List<int>();
+                var processedEntries = new List<PointsEntry>();
+
+                foreach (var entry in entries)
+                {
+                    // 檢查權限
+                    var hasPermission = await _reviewPermissionService.CanReviewEntryAsync(request.ApproverId, entry.Id);
+                    if (!hasPermission)
+                    {
+                        _logger.LogWarning("審核者 {ApproverId} 沒有權限核准積分記錄 {EntryId}", request.ApproverId, entry.Id);
+                        unauthorizedEntries.Add(entry.Id);
+                        continue;
+                    }
+
+                    // 檢查狀態
+                    if (entry.Status != "pending")
+                    {
+                        _logger.LogWarning("積分記錄 {EntryId} 狀態不是 pending，當前狀態: {Status}，跳過核准", entry.Id, entry.Status);
+                        continue;
+                    }
+
+                    // 執行核准
+                    entry.Status = "approved";
+                    entry.ApprovedBy = request.ApproverId;
+                    entry.ApprovedAt = DateTime.UtcNow;
+                    entry.ReviewComments = request.Comments ?? "批量核准";
+                    
+                    processedEntries.Add(entry);
+                    _logger.LogInformation("已核准積分記錄 {EntryId}, 員工: {EmployeeId}", entry.Id, entry.EmployeeId);
+                }
+
+                if (unauthorizedEntries.Any())
+                {
+                    _logger.LogWarning("部分積分記錄因權限不足被跳過: [{UnauthorizedIds}]", string.Join(", ", unauthorizedEntries));
+                }
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("批量核准完成，成功處理 {ProcessedCount} 個積分記錄", processedEntries.Count);
+
+                // 獲取審核者信息以用於通知
+                var approver = await _context.Employees.FindAsync(request.ApproverId);
+                var approverName = approver?.Name ?? "系統管理員";
+
+                // 創建通知給相關員工
+                foreach (var entry in processedEntries.Where(e => e.Status == "approved"))
+                {
+                    try
+                    {
+                        await _notificationService.CreateNotificationAsync(
+                            entry.EmployeeId,
+                            "積分審核通過",
+                            $"您的積分項目「{entry.Standard.CategoryName}」已被 {approverName} 審核通過，獲得 {entry.PointsEarned} 分",
+                            "points_approved",
+                            entry.Id,
+                            "PointsEntry",
+                            "normal"
+                        );
+                        _logger.LogInformation("已為員工 {EmployeeId} 創建積分核准通知，積分項目: {StandardName}，審核者: {ApproverName}", 
+                            entry.EmployeeId, entry.Standard.CategoryName, approverName);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "為員工 {EmployeeId} 創建積分核准通知失敗", entry.EmployeeId);
+                    }
+                }
+
+                _logger.LogInformation("批量積分記錄已核准: {Count} 筆", processedEntries.Count);
+                return Ok(new { message = $"批量核准成功！共處理 {processedEntries.Count} 筆積分記錄" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "批量核准積分記錄時發生錯誤: {ApproverId}", request.ApproverId);
+                return StatusCode(500, new { message = "批量核准積分記錄時發生錯誤" });
+            }
+        }
+
+        /// <summary>
+        /// 【POST】 /api/points/batch/reject - 批量審核拒絕積分記錄
+        /// 功能：主管批量審核拒絕多個積分項目
+        /// 前端使用：ManagerReviewForm組件的批量審核拒絕功能
+        /// 權限：僅限主管角色使用
+        /// </summary>
+        /// <param name="request">批量拒絕請求，包含拒絕人ID和積分記錄ID列表</param>
+        /// <returns>批量拒絕結果</returns>
+        [HttpPost("batch/reject")]
+        public async Task<ActionResult> BatchRejectPointsEntries([FromBody] BatchRejectRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("批量拒絕積分記錄: 拒絕人 {RejectedBy}, 積分記錄 ID 數量: {EntryIdsCount}", request.RejectedBy, request.EntryIds.Count);
+                _logger.LogInformation("積分記錄 ID 列表: [{EntryIds}]", string.Join(", ", request.EntryIds));
+
+                var entries = await _context.PointsEntries
+                    .Include(p => p.Standard)
+                    .Where(p => request.EntryIds.Contains(p.Id))
+                    .ToListAsync();
+
+                _logger.LogInformation("從數據庫找到 {FoundCount} 個積分記錄", entries.Count);
+
+                if (entries.Count == 0)
+                {
+                    return NotFound(new { message = "找不到指定的積分記錄" });
+                }
+
+                // 檢查找到的記錄數量是否與請求的數量一致
+                if (entries.Count != request.EntryIds.Count)
+                {
+                    var foundIds = entries.Select(e => e.Id).ToList();
+                    var missingIds = request.EntryIds.Except(foundIds).ToList();
+                    _logger.LogWarning("部分積分記錄未找到: [{MissingIds}]", string.Join(", ", missingIds));
+                }
+
+                // 為每個項目進行權限檢查
+                var unauthorizedEntries = new List<int>();
+                var processedEntries = new List<PointsEntry>();
+
+                foreach (var entry in entries)
+                {
+                    // 檢查權限
+                    var hasPermission = await _reviewPermissionService.CanReviewEntryAsync(request.RejectedBy, entry.Id);
+                    if (!hasPermission)
+                    {
+                        _logger.LogWarning("審核者 {RejectedBy} 沒有權限拒絕積分記錄 {EntryId}", request.RejectedBy, entry.Id);
+                        unauthorizedEntries.Add(entry.Id);
+                        continue;
+                    }
+
+                    // 檢查狀態
+                    if (entry.Status != "pending")
+                    {
+                        _logger.LogWarning("積分記錄 {EntryId} 狀態不是 pending，當前狀態: {Status}，跳過拒絕", entry.Id, entry.Status);
+                        continue;
+                    }
+
+                    // 執行拒絕
+                    entry.Status = "rejected";
+                    entry.ApprovedBy = request.RejectedBy;
+                    entry.ApprovedAt = DateTime.UtcNow;
+                    entry.ReviewComments = request.Reason ?? "批量拒絕";
+                    
+                    processedEntries.Add(entry);
+                    _logger.LogInformation("已拒絕積分記錄 {EntryId}, 員工: {EmployeeId}", entry.Id, entry.EmployeeId);
+                }
+
+                if (unauthorizedEntries.Any())
+                {
+                    _logger.LogWarning("部分積分記錄因權限不足被跳過: [{UnauthorizedIds}]", string.Join(", ", unauthorizedEntries));
+                }
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("批量拒絕完成，成功處理 {ProcessedCount} 個積分記錄", processedEntries.Count);
+
+                // 獲取拒絕者信息以用於通知
+                var rejector = await _context.Employees.FindAsync(request.RejectedBy);
+                var rejectorName = rejector?.Name ?? "系統管理員";
+
+                // 創建通知給相關員工
+                foreach (var entry in processedEntries.Where(e => e.Status == "rejected"))
+                {
+                    try
+                    {
+                        await _notificationService.CreateNotificationAsync(
+                            entry.EmployeeId,
+                            "積分審核未通過",
+                            $"您的積分項目「{entry.Standard.CategoryName}」被 {rejectorName} 拒絕。原因：{entry.ReviewComments}",
+                            "points_rejected",
+                            entry.Id,
+                            "PointsEntry",
+                            "high"
+                        );
+                        _logger.LogInformation("已為員工 {EmployeeId} 創建積分拒絕通知，積分項目: {StandardName}，拒絕者: {RejectorName}", 
+                            entry.EmployeeId, entry.Standard.CategoryName, rejectorName);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "為員工 {EmployeeId} 創建積分拒絕通知失敗", entry.EmployeeId);
+                    }
+                }
+
+                _logger.LogInformation("批量積分記錄已拒絕: {Count} 筆", processedEntries.Count);
+                return Ok(new { message = $"批量拒絕成功！共處理 {processedEntries.Count} 筆積分記錄" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "批量拒絕積分記錄時發生錯誤: {RejectedBy}", request.RejectedBy);
+                return StatusCode(500, new { message = "批量拒絕積分記錄時發生錯誤" });
+            }
+        }
 
 
         [HttpPost("calculate")]
@@ -411,7 +666,8 @@ namespace PointsManagementAPI.Controllers
                     return BadRequest(new { message = "找不到有效的員工記錄" });
                 }
 
-                // Boss角色的積分提交自動審核通過
+                // 董事長級別的積分提交自動審核通過（董事長可以自審）
+                // 其他角色都需要經過正常審核流程
                 string finalStatus = status;
                 int? approvedBy = null;
                 DateTime? approvedAt = null;
@@ -423,7 +679,12 @@ namespace PointsManagementAPI.Controllers
                     approvedBy = empId;
                     approvedAt = DateTime.UtcNow;
                     reviewComments = "董事長層級自動審核通過";
-                    Console.WriteLine($"董事長 {submitter.Name} 提交的積分將自動審核通過");
+                    _logger.LogInformation("董事長 {SubmitterName} 提交的積分自動審核通過", submitter.Name);
+                }
+                else
+                {
+                    _logger.LogInformation("積分提交: 提交者={SubmitterName}({SubmitterRole}), 狀態={Status}", 
+                        submitter.Name, submitter.Role, finalStatus);
                 }
 
                 // 解析積分項目JSON - 配置支持camelCase
@@ -627,6 +888,141 @@ namespace PointsManagementAPI.Controllers
 
                         var successMessage = $"積分提交成功！創建了 {results.Count} 個積分記錄，總積分: {results.Sum(r => r.PointsEarned):F1}";
                         Console.WriteLine(successMessage);
+
+                        // 新增：如果不是董事長且積分需要審核，創建通知給相關主管
+                        Console.WriteLine($"檢查通知條件: 提交者角色={submitter.Role}, 狀態={finalStatus}");
+                        if (submitter.Role != "boss" && finalStatus == "pending")
+                        {
+                            Console.WriteLine("滿足通知條件，開始創建通知...");
+                            try
+                            {
+                                // 根據員工部門找到需要通知的主管們
+                                var managersToNotify = new List<int>();
+                                Console.WriteLine($"提交者資訊: ID={submitter.Id}, 姓名={submitter.Name}, 部門ID={submitter.DepartmentId}");
+                                
+                                // 獲取部門主管 (manager)
+                                var departmentManagersDebug = await _context.Employees
+                                    .Where(e => e.DepartmentId == submitter.DepartmentId && 
+                                               e.Role == "manager" && 
+                                               e.IsActive && 
+                                               e.Id != submitter.Id)
+                                    .Select(e => new { e.Id, e.Name, e.Role, e.DepartmentId })
+                                    .ToListAsync();
+                                
+                                Console.WriteLine($"部門主管查詢調試: 部門ID={submitter.DepartmentId}, 找到 {departmentManagersDebug.Count} 位主管");
+                                foreach (var m in departmentManagersDebug)
+                                {
+                                    Console.WriteLine($"  - ID:{m.Id}, 姓名:{m.Name}, 角色:{m.Role}, 部門:{m.DepartmentId}");
+                                }
+                                
+                                var departmentManagers = departmentManagersDebug.Select(m => m.Id).ToList();
+                                
+                                // 獲取部門管理員 (admin)
+                                var departmentAdminsDebug = await _context.Employees
+                                    .Where(e => e.DepartmentId == submitter.DepartmentId && 
+                                               e.Role == "admin" && 
+                                               e.IsActive && 
+                                               e.Id != submitter.Id)
+                                    .Select(e => new { e.Id, e.Name, e.Role, e.DepartmentId })
+                                    .ToListAsync();
+                                
+                                Console.WriteLine($"部門管理員查詢調試: 部門ID={submitter.DepartmentId}, 找到 {departmentAdminsDebug.Count} 位管理員");
+                                foreach (var a in departmentAdminsDebug)
+                                {
+                                    Console.WriteLine($"  - ID:{a.Id}, 姓名:{a.Name}, 角色:{a.Role}, 部門:{a.DepartmentId}");
+                                }
+                                
+                                var departmentAdmins = departmentAdminsDebug.Select(a => a.Id).ToList();
+                                
+                                // 獲取總經理 (president) - 排除提交者自己
+                                var presidentsQuery = _context.Employees
+                                    .Where(e => e.Role == "president" && 
+                                               e.IsActive && 
+                                               e.Id != submitter.Id);
+                                
+                                var presidentsDebug = await presidentsQuery
+                                    .Select(e => new { e.Id, e.Name, e.Role, e.IsActive })
+                                    .ToListAsync();
+                                
+                                Console.WriteLine($"總經理查詢調試: 找到 {presidentsDebug.Count} 位總經理");
+                                foreach (var p in presidentsDebug)
+                                {
+                                    Console.WriteLine($"  - ID:{p.Id}, 姓名:{p.Name}, 角色:{p.Role}, 啟用:{p.IsActive}");
+                                }
+                                
+                                var presidents = presidentsDebug.Select(p => p.Id).ToList();
+                                
+                                // 獲取董事長 (boss) - 排除提交者自己
+                                var bossesQuery = _context.Employees
+                                    .Where(e => e.Role == "boss" && 
+                                               e.IsActive && 
+                                               e.Id != submitter.Id);
+                                
+                                var bossesDebug = await bossesQuery
+                                    .Select(e => new { e.Id, e.Name, e.Role, e.IsActive })
+                                    .ToListAsync();
+                                
+                                Console.WriteLine($"董事長查詢調試: 找到 {bossesDebug.Count} 位董事長");
+                                foreach (var b in bossesDebug)
+                                {
+                                    Console.WriteLine($"  - ID:{b.Id}, 姓名:{b.Name}, 角色:{b.Role}, 啟用:{b.IsActive}");
+                                }
+                                
+                                var bosses = bossesDebug.Select(b => b.Id).ToList();
+
+                                Console.WriteLine($"查詢結果: 部門主管={departmentManagers.Count}個, 管理員={departmentAdmins.Count}個, 總經理={presidents.Count}個, 董事長={bosses.Count}個");
+                                
+                                managersToNotify.AddRange(departmentManagers);
+                                managersToNotify.AddRange(departmentAdmins);
+                                managersToNotify.AddRange(presidents);
+                                managersToNotify.AddRange(bosses);
+
+                                var distinctManagerIds = managersToNotify.Distinct().ToList();
+                                Console.WriteLine($"需要通知的主管總數: {distinctManagerIds.Count}個, ID列表: [{string.Join(", ", distinctManagerIds)}]");
+
+                                // 創建通知
+                                var successCount = 0;
+                                var failureCount = 0;
+                                
+                                foreach (var managerId in distinctManagerIds)
+                                {
+                                    try
+                                    {
+                                        Console.WriteLine($"正在為主管ID={managerId}創建通知...");
+                                        
+                                        var notification = await _notificationService.CreateNotificationAsync(
+                                            managerId,
+                                            "新積分提交待審核",
+                                            $"{submitter.Name} 提交了 {results.Count} 個積分項目等待審核，總積分: {results.Sum(r => r.PointsEarned):F1}",
+                                            "points_submitted",
+                                            results.First().Id, // 關聯第一個積分記錄ID
+                                            "PointsEntry",
+                                            "normal"
+                                        );
+                                        
+                                        Console.WriteLine($"✅ 成功為主管ID={managerId}創建通知，通知ID={notification.Id}");
+                                        successCount++;
+                                    }
+                                    catch (Exception notifEx)
+                                    {
+                                        Console.WriteLine($"❌ 為主管ID={managerId}創建通知失敗: {notifEx.Message}");
+                                        Console.WriteLine($"詳細錯誤: {notifEx.StackTrace}");
+                                        failureCount++;
+                                    }
+                                }
+                                
+                                Console.WriteLine($"📊 通知創建完成: 成功={successCount}個, 失敗={failureCount}個, 總計={distinctManagerIds.Count}個");
+                            }
+                            catch (Exception notificationEx)
+                            {
+                                // 通知創建失敗不應該影響積分提交的成功
+                                Console.WriteLine($"創建通知時發生錯誤: {notificationEx.Message}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"不滿足通知條件，跳過通知創建。提交者角色={submitter.Role}, 狀態={finalStatus}");
+                        }
 
                         return Ok(new {
                             message = "積分提交成功",
@@ -934,7 +1330,9 @@ namespace PointsManagementAPI.Controllers
                     return Forbid(new { message = "您沒有權限審核此積分記錄" }.ToString());
                 }
 
-                var entry = await _context.PointsEntries.FindAsync(id);
+                var entry = await _context.PointsEntries
+                    .Include(p => p.Standard)
+                    .FirstOrDefaultAsync(p => p.Id == id);
                 if (entry == null)
                 {
                     return NotFound(new { message = "找不到指定的積分記錄" });
@@ -951,6 +1349,30 @@ namespace PointsManagementAPI.Controllers
                 entry.ReviewComments = request.Reason;
 
                 await _context.SaveChangesAsync();
+
+                // 獲取拒絕者信息以用於通知
+                var rejector = await _context.Employees.FindAsync(request.RejectedBy);
+                var rejectorName = rejector?.Name ?? "系統管理員";
+
+                // 創建通知給相關員工
+                try
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        entry.EmployeeId,
+                        "積分審核未通過",
+                        $"您的積分項目「{entry.Standard.CategoryName}」被 {rejectorName} 拒絕。原因：{entry.ReviewComments}",
+                        "points_rejected",
+                        entry.Id,
+                        "PointsEntry",
+                        "high"
+                    );
+                    _logger.LogInformation("已為員工 {EmployeeId} 創建積分拒絕通知，積分項目: {StandardName}，拒絕者: {RejectorName}", 
+                        entry.EmployeeId, entry.Standard.CategoryName, rejectorName);
+                }
+                catch (Exception notificationEx)
+                {
+                    _logger.LogError(notificationEx, "為員工 {EmployeeId} 創建積分拒絕通知失敗", entry.EmployeeId);
+                }
 
                 _logger.LogInformation("積分記錄已拒絕: {Id}", id);
                 return Ok(new { message = "積分記錄已拒絕" });
@@ -1228,4 +1650,5 @@ namespace PointsManagementAPI.Controllers
     {
         public string Message { get; set; } = string.Empty;
     }
+
 }

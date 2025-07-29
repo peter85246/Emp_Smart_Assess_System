@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit, CheckCircle, XCircle, Star, FileText, Download, ChevronDown, ChevronUp, Check, X, Eye, Image } from 'lucide-react';
 import NotificationToast from '../shared/NotificationToast';
 import ImagePreviewModal from '../shared/ImagePreviewModal';
+import BatchOperationToolbar from './BatchOperationToolbar';
 import { pointsAPI } from '../../../services/pointsAPI';
 
 // 角色映射函數 - 將系統角色轉換為顯示信息
@@ -58,6 +59,18 @@ const ManagerReviewForm = ({ currentUser }) => {
     file: null,
     type: 'image'
   });
+
+  // 新增：批量操作相關狀態
+  const [selectedItems, setSelectedItems] = useState([]); // 選中的項目ID列表
+  const [batchProcessing, setBatchProcessing] = useState(false); // 批量處理中狀態
+  
+  // 新增：篩選狀態
+  const [appliedFilters, setAppliedFilters] = useState({
+    employee: '',
+    dateRange: '',
+    standard: '',
+    pointsRange: ''
+  });
   const [downloadLoading, setDownloadLoading] = useState({});
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -71,13 +84,13 @@ const ManagerReviewForm = ({ currentUser }) => {
 
       let response;
       // 根據用戶角色選擇API端點
-      if (currentUser.role === 'boss' || currentUser.role === 'president') {
-        // 董事長和總經理可以查看所有部門
-        console.log('使用全部門API（董事長/總經理權限）');
+      if (currentUser.role === 'boss') {
+        // 董事長可以查看所有部門（包括自審權限）
+        console.log('使用全部門API（董事長權限）');
         response = await pointsAPI.getPendingEntries();
       } else {
-        // 管理員和主管使用部門權限API（含層級過濾）
-        console.log('使用部門權限API（管理員/主管權限）, 審核者ID:', currentUser.id);
+        // 總經理、管理員和主管使用部門權限API（含層級過濾和自審限制）
+        console.log('使用部門權限API（總經理/管理員/主管權限）, 審核者ID:', currentUser.id);
         response = await pointsAPI.getPendingEntriesByDepartment(currentUser.id);
       }
 
@@ -173,6 +186,106 @@ const ManagerReviewForm = ({ currentUser }) => {
 
     // 轉換為數組並按員工姓名排序
     return Object.values(groups).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+  };
+
+  // 新增：處理篩選條件變化，同時檢查並清除不符合條件的選中項目
+  const handleFiltersChange = (newFilters) => {
+    console.log('篩選條件變化:', newFilters);
+    
+    // 首先更新篩選條件
+    setAppliedFilters(newFilters);
+    
+    // 如果有選中的項目，檢查它是否還符合新的篩選條件
+    if (selectedSubmission) {
+      let shouldClearSelection = false;
+      
+      // 檢查員工篩選
+      if (newFilters.employee && selectedSubmission.employeeName !== newFilters.employee) {
+        shouldClearSelection = true;
+      }
+      
+      // 檢查項目類型篩選
+      if (newFilters.standard) {
+        // 使用 getItemCategory 函數來判斷項目類型
+        const itemCategoryMap = {
+          '誠信正直': 'core', '創新效率': 'core', '卓越品質': 'core', '專業服務': 'core', 
+          '團隊合作': 'core', '學習成長': 'core', '客戶滿意度': 'core',
+          '刀具五金準備': 'general', '定時巡機檢驗': 'general', '生產損耗率': 'general',
+          '工具回收歸位': 'general', '清理機台': 'general', '機台運作正常': 'general',
+          '製程巡檢單': 'general', '提出改善方案': 'general', '完成改善方案': 'general',
+          '工作日誌': 'general', '學習型組織': 'general', '基本區域打掃': 'general',
+          '安全檢查': 'general', '設備保養': 'general', 'ISO外部稽核': 'general',
+          '抽檢驗收': 'general', '進料檢驗': 'general', '包裝出貨': 'general',
+          '外觀產品全檢': 'general', '庫存盤點': 'general', '客戶投訴處理': 'general',
+          '品質改善提案': 'general',
+          '下屬工作日誌': 'management', '下屬積分達標': 'management', '稽核SOP': 'management',
+          '教育訓練': 'management', '幹部會議': 'management', '績效面談': 'management',
+          '團隊建設': 'management', '跨部門協調': 'management',
+          '凸輪改機': 'professional', 'CNC改機': 'professional', 'CNC編碼': 'professional',
+          '零件2D製圖': 'professional', '零件3D製圖': 'professional', '首件檢驗': 'professional',
+          '治具設計': 'professional', '工藝改善': 'professional', '技術文件編寫': 'professional'
+        };
+        
+        const selectedItemCategory = itemCategoryMap[selectedSubmission.standardName] || 'general';
+        if (selectedItemCategory !== newFilters.standard) {
+          shouldClearSelection = true;
+        }
+      }
+      
+      // 檢查時間篩選
+      if (newFilters.dateRange && selectedSubmission.submittedAt) {
+        const now = new Date();
+        const submittedDate = new Date(selectedSubmission.submittedAt);
+        
+        switch (newFilters.dateRange) {
+          case 'today':
+            if (submittedDate.toDateString() !== now.toDateString()) {
+              shouldClearSelection = true;
+            }
+            break;
+          case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (submittedDate < weekAgo) {
+              shouldClearSelection = true;
+            }
+            break;
+          case 'month':
+            if (submittedDate.getMonth() !== now.getMonth() || 
+                submittedDate.getFullYear() !== now.getFullYear()) {
+              shouldClearSelection = true;
+            }
+            break;
+        }
+      }
+      
+      // 檢查積分範圍篩選
+      if (newFilters.pointsRange && selectedSubmission.pointsCalculated !== undefined) {
+        const points = selectedSubmission.pointsCalculated || 0;
+        switch (newFilters.pointsRange) {
+          case 'low':
+            if (points < 1 || points > 5) {
+              shouldClearSelection = true;
+            }
+            break;
+          case 'medium':
+            if (points <= 5 || points > 10) {
+              shouldClearSelection = true;
+            }
+            break;
+          case 'high':
+            if (points <= 10) {
+              shouldClearSelection = true;
+            }
+            break;
+        }
+      }
+      
+      // 如果需要清除選中狀態
+      if (shouldClearSelection) {
+        console.log('篩選條件變化，清除不符合條件的選中項目:', selectedSubmission.id, selectedSubmission.standardName);
+        setSelectedSubmission(null);
+      }
+    }
   };
 
   const showNotification = (message, type = 'success') => {
@@ -465,6 +578,93 @@ const ManagerReviewForm = ({ currentUser }) => {
     }
   };
 
+  // 新增：批量審核通過處理
+  const handleBatchApprove = async (entryIds) => {
+    setBatchProcessing(true);
+    try {
+      console.log('=== 批量審核通過開始 ===');
+      console.log('接收到的entryIds:', entryIds);
+      console.log('entryIds類型:', typeof entryIds, 'entryIds是否為數組:', Array.isArray(entryIds));
+      console.log('entryIds長度:', entryIds?.length);
+      console.log('當前選中的項目狀態 selectedItems:', selectedItems);
+      
+      // 檢查當前提交記錄中是否包含這些ID
+      const allSubmissionIds = [];
+      filteredSubmissions.forEach(group => {
+        group.submissions.forEach(submission => {
+          allSubmissionIds.push(submission.id);
+        });
+      });
+      console.log('當前所有可用的提交ID:', allSubmissionIds);
+      
+      const response = await pointsAPI.batchApprovePoints(entryIds, currentUser.id, '批量審核通過');
+      console.log('批量審核API響應:', response);
+      
+      showNotification(`已批量通過 ${entryIds.length} 個積分項目`, 'success');
+      
+      // 觸發全局事件
+      window.dispatchEvent(new CustomEvent('pointsApproved', {
+        detail: {
+          entryIds: entryIds,
+          approvedBy: currentUser.id,
+          itemsCount: entryIds.length
+        }
+      }));
+      
+      // 重新載入列表並清空選擇
+      await loadSubmissions();
+      setSelectedItems([]);
+      console.log('=== 批量審核通過完成 ===');
+    } catch (error) {
+      console.error('批量審核通過失敗:', error);
+      console.error('錯誤詳情:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
+      showNotification('批量審核通過失敗：' + (error.message || '未知錯誤'), 'error');
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
+
+  // 新增：批量審核拒絕處理
+  const handleBatchReject = async (entryIds) => {
+    const reason = prompt('請輸入拒絕原因：', '不符合積分標準');
+    if (!reason || !reason.trim()) {
+      showNotification('請輸入拒絕原因', 'error');
+      return;
+    }
+
+    setBatchProcessing(true);
+    try {
+      console.log('批量審核拒絕:', entryIds);
+      
+      await pointsAPI.batchRejectPoints(entryIds, currentUser.id, reason);
+      
+      showNotification(`已批量拒絕 ${entryIds.length} 個積分項目`, 'info');
+      
+      // 觸發全局事件
+      window.dispatchEvent(new CustomEvent('pointsRejected', {
+        detail: {
+          entryIds: entryIds,
+          rejectedBy: currentUser.id,
+          reason: reason,
+          itemsCount: entryIds.length
+        }
+      }));
+      
+      // 重新載入列表並清空選擇
+      await loadSubmissions();
+      setSelectedItems([]);
+    } catch (error) {
+      console.error('批量審核拒絕失敗:', error);
+      showNotification('批量審核拒絕失敗：' + (error.message || '未知錯誤'), 'error');
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
+
   // 檢查是否為圖片檔案
   const isImageFile = (fileName) => {
     if (!fileName) return false;
@@ -679,6 +879,108 @@ const ManagerReviewForm = ({ currentUser }) => {
     );
   };
 
+  // 新增：根據篩選條件過濾submissions的函數
+  const getItemCategory = (itemName) => {
+    const itemCategoryMap = {
+      // 一般積分項目
+      '刀具五金準備': 'general', '定時巡機檢驗': 'general', '生產損耗率': 'general',
+      '工具回收歸位': 'general', '清理機台': 'general', '機台運作正常': 'general',
+      '製程巡檢單': 'general', '提出改善方案': 'general', '完成改善方案': 'general',
+      '工作日誌': 'general', '學習型組織': 'general', '基本區域打掃': 'general',
+      '安全檢查': 'general', '設備保養': 'general',
+      
+      // 品質工程積分項目  
+      'ISO外部稽核': 'quality', '抽檢驗收': 'quality', '進料檢驗': 'quality',
+      '包裝出貨': 'quality', '外觀產品全檢': 'quality', '庫存盤點': 'quality',
+      '客戶投訴處理': 'quality', '品質改善提案': 'quality',
+      
+      // 專業積分項目
+      '凸輪改機': 'professional', 'CNC改機': 'professional', 'CNC編碼': 'professional',
+      '零件2D製圖': 'professional', '零件3D製圖': 'professional', '首件檢驗': 'professional',
+      '治具設計': 'professional', '工藝改善': 'professional', '技術文件編寫': 'professional',
+      
+      // 管理積分項目
+      '下屬工作日誌': 'management', '下屬積分達標': 'management', '稽核SOP': 'management',
+      '教育訓練': 'management', '幹部會議': 'management', '績效面談': 'management',
+      '團隊建設': 'management', '跨部門協調': 'management',
+      
+      // 核心職能積分項目
+      '誠信正直': 'core', '創新效率': 'core', '卓越品質': 'core',
+      '專業服務': 'core', '團隊合作': 'core', '學習成長': 'core', '客戶滿意度': 'core'
+    };
+    return itemCategoryMap[itemName] || 'general';
+  };
+
+  // 新增：過濾submissions的函數
+  const getFilteredSubmissions = (submissionGroups, filters) => {
+    if (!filters.employee && !filters.dateRange && !filters.standard && !filters.pointsRange) {
+      return submissionGroups; // 沒有篩選條件時返回全部
+    }
+
+    return submissionGroups.map(group => {
+      // 員工篩選
+      if (filters.employee && group.employeeName !== filters.employee) {
+        return { ...group, submissions: [] }; // 不匹配的員工顯示空列表
+      }
+
+      // 過濾該員工的提交項目
+      const filteredSubmissions = group.submissions.filter(submission => {
+        // 項目類型篩選
+        if (filters.standard) {
+          const category = getItemCategory(submission.standardName);
+          if (category !== filters.standard) return false;
+        }
+
+        // 時間篩選
+        if (filters.dateRange) {
+          const now = new Date();
+          const submittedDate = new Date(submission.submittedAt);
+          switch (filters.dateRange) {
+            case 'today':
+              if (submittedDate.toDateString() !== now.toDateString()) return false;
+              break;
+            case 'week':
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              if (submittedDate < weekAgo) return false;
+              break;
+            case 'month':
+              if (submittedDate.getMonth() !== now.getMonth() || 
+                  submittedDate.getFullYear() !== now.getFullYear()) return false;
+              break;
+          }
+        }
+
+        // 積分範圍篩選
+        if (filters.pointsRange) {
+          const points = submission.pointsCalculated || 0;
+          switch (filters.pointsRange) {
+            case 'low':
+              if (points < 1 || points > 5) return false;
+              break;
+            case 'medium':
+              if (points <= 5 || points > 10) return false;
+              break;
+            case 'high':
+              if (points <= 10) return false;
+              break;
+          }
+        }
+
+        return true;
+      });
+
+      return {
+        ...group,
+        submissions: filteredSubmissions,
+        totalSubmissions: filteredSubmissions.length,
+        totalPoints: filteredSubmissions.reduce((sum, sub) => sum + (sub.pointsCalculated || 0), 0)
+      };
+    }).filter(group => group.submissions.length > 0); // 只顯示有項目的員工組
+  };
+
+  // 使用篩選後的submissions
+  const filteredSubmissions = getFilteredSubmissions(submissions, appliedFilters);
+
   return (
     <div className="min-h-screen p-6 space-y-6 bg-transparent">
       <h2 className="text-2xl font-bold text-white">👨‍💼 主管審核與評分</h2>
@@ -701,27 +1003,40 @@ const ManagerReviewForm = ({ currentUser }) => {
         </p>
       </div>
 
+      {/* 新增：批量操作工具列 */}
+      <BatchOperationToolbar
+        submissions={filteredSubmissions}
+        selectedItems={selectedItems}
+        onSelectionChange={setSelectedItems}
+        onBatchApprove={handleBatchApprove}
+        onBatchReject={handleBatchReject}
+        onFiltersChange={handleFiltersChange}
+        currentUser={currentUser}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[calc(100vh-8rem)]">
         {/* 左側：待審核列表 */}
         <div className="lg:col-span-1 h-full">
           <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 p-4 h-full flex flex-col">
             <h3 className="text-lg font-semibold text-white mb-4">📋 待審核提交</h3>
             
-            {submissions.length === 0 ? (
+            {filteredSubmissions.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-slate-400">
                 <div className="text-center">
                   <FileText className="h-12 w-12 mx-auto mb-4 text-slate-500" />
-                  <p>目前沒有待審核的提交</p>
+                  <p>{appliedFilters.employee || appliedFilters.dateRange || appliedFilters.standard || appliedFilters.pointsRange 
+                    ? '沒有符合篩選條件的提交' 
+                    : '目前沒有待審核的提交'}</p>
                 </div>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2">
-                {submissions.map((employeeGroup) => {
+                {filteredSubmissions.map((employeeGroup) => {
                   const roleDisplay = getRoleDisplay(employeeGroup.employeeRole || 'employee');
                   const isExpanded = expandedGroups.has(employeeGroup.id);
                   
                   return (
-                    <div key={employeeGroup.id} className="border border-slate-500/50 rounded-lg">
+                    <div key={employeeGroup.id} className="border border-slate-500/50 rounded-lg" data-employee-group={employeeGroup.id}>
                       {/* 員工分組標題 - 可點擊展開/收合 */}
                       <div 
                         onClick={(e) => {
@@ -759,19 +1074,37 @@ const ManagerReviewForm = ({ currentUser }) => {
                           {employeeGroup.submissions.map((submission, index) => (
                             <div 
                               key={submission.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectSubmission(submission);
-                              }}
-                              className={`p-2 rounded cursor-pointer transition-all ${
+                              id={`submission-${submission.id}`}
+                              className={`p-2 rounded transition-all ${
                                 selectedSubmission?.id === submission.id 
                                   ? 'bg-blue-600/50 border border-blue-400/50' 
                                   : 'bg-slate-700/30 hover:bg-slate-600/30 border border-slate-600/30'
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <div className="text-sm text-white font-medium">
-                                  📝 {submission.standardName}
+                                <div className="flex items-center space-x-2">
+                                  {/* 新增：選擇框 */}
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedItems.includes(submission.id)}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      const newSelectedItems = selectedItems.includes(submission.id)
+                                        ? selectedItems.filter(id => id !== submission.id)
+                                        : [...selectedItems, submission.id];
+                                      setSelectedItems(newSelectedItems);
+                                    }}
+                                    className="w-4 h-4 text-blue-600 bg-slate-600 border-slate-400 rounded focus:ring-blue-500 focus:ring-2"
+                                  />
+                                  <div 
+                                    className="text-sm text-white font-medium cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSelectSubmission(submission);
+                                    }}
+                                  >
+                                    📝 {submission.standardName}
+                                  </div>
                                 </div>
                                 <div className="text-xs text-blue-300 font-medium">
                                   {submission.pointsCalculated.toFixed(1)} 積分
@@ -1207,48 +1540,9 @@ const ManagerReviewForm = ({ currentUser }) => {
                 </div>
               </div>
 
-              {/* 批量審核意見 */}
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-2">
-                  批量審核意見:
-                </label>
-                <textarea
-                  value={reviewComments}
-                  onChange={(e) => setReviewComments(e.target.value)}
-                  placeholder="請填寫批量審核意見、建議或拒絕原因..."
-                  rows={4}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-              </div>
 
-              {/* 審核按鈕 */}
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={handleReject}
-                  disabled={loading}
-                  className="px-4 py-2 border border-red-400/50 text-red-300 rounded-md hover:bg-red-600/20 disabled:opacity-50 flex items-center space-x-2"
-                >
-                  <XCircle className="h-4 w-4" />
-                  <span>批量拒絕</span>
-                </button>
-                <button
-                  onClick={handleApprove}
-                  disabled={loading}
-                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>處理中...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4" />
-                      <span>批量核准</span>
-                    </>
-                  )}
-                </button>
-              </div>
+
+
             </div>
           ) : (
             <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg shadow-sm border border-slate-600/50 h-full flex items-center justify-center">

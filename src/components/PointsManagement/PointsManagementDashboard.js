@@ -10,6 +10,8 @@ import { pointsAPI } from '../../services/pointsAPI';
 import AdminPanel from './AdminPanel/AdminPanel';
 // 員工面板組件
 import EmployeePanel from './EmployeePanel/EmployeePanel';
+// 通知鈴鐺組件
+import NotificationBell from './shared/NotificationBell';
 
 const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFullPage = true }) => {
   const { user, logout } = useAuth();
@@ -147,6 +149,9 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
                 </div>
                 {/* 積分管理系統中不提供登出功能 */}
                 <div className="flex items-center space-x-2 px-4 py-2 text-blue-100">
+                  {/* 新增：通知鈴鐺 */}
+                  <NotificationBell currentUser={currentUser} />
+                  
                   {/* <span className="text-sm">請使用主選單進行系統操作</span> */}
                 </div>
               </div>

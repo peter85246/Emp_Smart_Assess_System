@@ -1,4 +1,4 @@
--- 積分管理系統資料庫初始化腳本
+-- 積分管理系統資料庫初始化腳本 (包含通知系統)
 -- 在PostgreSQL Query Tool中執行此腳本
 
 -- 創建資料庫（如果尚未創建）
@@ -281,17 +281,22 @@ CREATE TABLE IF NOT EXISTS "CalculationRules" (
     "UpdatedAt" TIMESTAMP
 );
 
--- 插入初始資料
+-- *** 11. 創建通知系統表 (新增) ***
+CREATE TABLE IF NOT EXISTS "Notifications" (
+    "Id" SERIAL PRIMARY KEY,
+    "UserId" INTEGER NOT NULL REFERENCES "Employees"("Id"),
+    "Title" VARCHAR(200) NOT NULL,
+    "Content" VARCHAR(1000) NOT NULL,
+    "Type" VARCHAR(50) NOT NULL,
+    "RelatedEntityId" INTEGER NULL,
+    "RelatedEntityType" VARCHAR(50) NULL,
+    "IsRead" BOOLEAN NOT NULL DEFAULT FALSE,
+    "CreatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "ReadAt" TIMESTAMPTZ NULL,
+    "Priority" VARCHAR(20) NOT NULL DEFAULT 'normal'
+);
 
--- 插入部門資料
-INSERT INTO "Departments" ("Id", "Name", "Description") VALUES
-(1, '製造部', '生產製造部門'),
-(2, '品質工程部', '品質控制與工程部門'),
-(3, '管理部', '行政管理部門'),
-(4, '業務部', '業務銷售部門')
-ON CONFLICT ("Id") DO NOTHING;
-
--- 檢查並添加認證相關欄位到Employees表
+-- 檢查並添加Employees表的認證相關欄位
 DO $$
 BEGIN
     -- 添加PasswordHash欄位
@@ -319,6 +324,16 @@ BEGIN
     END IF;
 END $$;
 
+-- 插入初始資料
+
+-- 插入部門資料
+INSERT INTO "Departments" ("Id", "Name", "Description") VALUES
+(1, '製造部', '生產製造部門'),
+(2, '品質工程部', '品質控制與工程部門'),
+(3, '管理部', '行政管理部門'),
+(4, '業務部', '業務銷售部門')
+ON CONFLICT ("Id") DO NOTHING;
+
 -- 清除現有員工數據（每次執行時重置為乾淨狀態）
 -- 依照外鍵約束順序，先清除相關資料表的數據
 DO $$
@@ -327,6 +342,7 @@ BEGIN
     DELETE FROM "PointsEntries";
     DELETE FROM "WorkLogs";
     DELETE FROM "TargetSettings";
+    DELETE FROM "Notifications";  -- 新增：清除通知數據
     DELETE FROM "FileAttachments" WHERE "EntityType" = 'Employee';
     
     -- 清除員工數據
@@ -337,9 +353,10 @@ BEGIN
     ALTER SEQUENCE "PointsEntries_Id_seq" RESTART WITH 1;
     ALTER SEQUENCE "WorkLogs_Id_seq" RESTART WITH 1;
     ALTER SEQUENCE "TargetSettings_Id_seq" RESTART WITH 1;
+    ALTER SEQUENCE "Notifications_Id_seq" RESTART WITH 1;  -- 新增：重置通知序列
     ALTER SEQUENCE "FileAttachments_Id_seq" RESTART WITH 1;
     
-    RAISE NOTICE '已清除所有員工相關數據，系統重置為乾淨狀態';
+    RAISE NOTICE '已清除所有員工相關數據（包含通知），系統重置為乾淨狀態';
 END $$;
 
 -- 插入員工資料（預設帳號已移除，請手動創建測試帳號）
@@ -352,6 +369,8 @@ END $$;
 --   'employee' (員工)
 --   'manager' (主管)
 --   'admin' (管理員)
+--   'president' (總經理)
+--   'boss' (董事長)
 --
 -- 部門ID：
 --   1 = 製造部
@@ -361,14 +380,6 @@ END $$;
 --
 -- 注意：密碼哈希需要使用 BCrypt 加密
 -- 建議使用系統的註冊功能來創建帳號，系統會自動處理密碼加密
---
--- 如需手動插入測試帳號，請取消以下註解並修改相關資訊：
--- INSERT INTO "Employees" ("Name", "EmployeeNumber", "Email", "DepartmentId", "Position", "Role", "HireDate", "PasswordHash") VALUES
--- ('測試員工', 'TEST001', 'test@company.com', 1, '測試職位', 'employee', CURRENT_TIMESTAMP, '$2a$11$密碼哈希值'),
--- ('測試主管', 'TEST002', 'manager@company.com', 1, '測試主管', 'manager', CURRENT_TIMESTAMP, '$2a$11$密碼哈希值')
--- ON CONFLICT ("EmployeeNumber") DO UPDATE SET
---     "PasswordHash" = EXCLUDED."PasswordHash",
---     "IsFirstLogin" = EXCLUDED."IsFirstLogin";
 
 -- 工作日誌分類數據遷移：將舊分類更新為積分項目分類
 -- 如果存在舊的工作日誌記錄，先進行數據遷移
@@ -689,6 +700,11 @@ BEGIN
     IF EXISTS (SELECT 1 FROM "CalculationRules") THEN
         PERFORM setval('"CalculationRules_Id_seq"', (SELECT MAX("Id") FROM "CalculationRules"));
     END IF;
+
+    -- *** 重置Notifications序列 (新增) ***
+    IF EXISTS (SELECT 1 FROM "Notifications") THEN
+        PERFORM setval('"Notifications_Id_seq"', (SELECT MAX("Id") FROM "Notifications"));
+    END IF;
 END $$;
 
 -- 創建索引以提升查詢效能
@@ -700,12 +716,37 @@ CREATE INDEX IF NOT EXISTS "IX_WorkLogs_EmployeeId" ON "WorkLogs" ("EmployeeId")
 CREATE INDEX IF NOT EXISTS "IX_WorkLogs_LogDate" ON "WorkLogs" ("LogDate");
 CREATE INDEX IF NOT EXISTS "IX_FileAttachments_EntityType_EntityId" ON "FileAttachments" ("EntityType", "EntityId");
 
+-- *** 通知系統相關索引 (新增) ***
+CREATE INDEX IF NOT EXISTS "IX_Notifications_UserId" ON "Notifications" ("UserId");
+CREATE INDEX IF NOT EXISTS "IX_Notifications_IsRead" ON "Notifications" ("IsRead");
+CREATE INDEX IF NOT EXISTS "IX_Notifications_CreatedAt" ON "Notifications" ("CreatedAt");
+CREATE INDEX IF NOT EXISTS "IX_Notifications_Type" ON "Notifications" ("Type");
+CREATE INDEX IF NOT EXISTS "IX_Notifications_Priority" ON "Notifications" ("Priority");
+
+-- 插入通知系統測試數據 (可選)
+DO $$
+BEGIN
+    -- 如果有員工數據，插入測試通知
+    IF EXISTS (SELECT 1 FROM "Employees" WHERE "Role" IN ('manager', 'admin', 'president', 'boss')) THEN
+        INSERT INTO "Notifications" ("UserId", "Title", "Content", "Type", "Priority") 
+        SELECT e."Id", '系統初始化完成', '積分管理系統已成功初始化並整合通知功能', 'system_notice', 'normal'
+        FROM "Employees" e 
+        WHERE e."Role" IN ('manager', 'admin', 'president', 'boss') AND e."IsActive" = true
+        LIMIT 5;  -- 限制測試數據數量
+        
+        RAISE NOTICE '已為管理層帳號創建測試通知';
+    ELSE
+        RAISE NOTICE '暫無管理層帳號，跳過測試通知創建';
+    END IF;
+END $$;
+
 -- 驗證資料庫結構和數據
 DO $$
 DECLARE
     table_count INTEGER;
     standard_count INTEGER;
     employee_count INTEGER;
+    notification_count INTEGER;
 BEGIN
     -- 檢查表數量
     SELECT COUNT(*) INTO table_count
@@ -718,17 +759,22 @@ BEGIN
     -- 檢查員工數量
     SELECT COUNT(*) INTO employee_count FROM "Employees";
 
-    RAISE NOTICE '=== 資料庫初始化完成 ===';
+    -- 檢查通知數量
+    SELECT COUNT(*) INTO notification_count FROM "Notifications";
+
+    RAISE NOTICE '=== 資料庫初始化完成 (包含通知系統) ===';
     RAISE NOTICE '表格數量: %', table_count;
     RAISE NOTICE '標準設定數量: %', standard_count;
     RAISE NOTICE '員工數量: % (已清除所有員工數據)', employee_count;
+    RAISE NOTICE '通知數量: %', notification_count;
     RAISE NOTICE '=== 系統已重置為乾淨狀態，可使用註冊功能創建新帳號 ===';
+    RAISE NOTICE '=== 通知系統已整合完成，支援完整功能 ===';
     RAISE NOTICE '=== 可以安全重複執行此腳本 ===';
 END $$;
 
 -- 顯示創建結果
-SELECT 'Database initialization completed successfully!' as status;
-SELECT 'Tables created:' as info;
+SELECT 'Database initialization with notification system completed successfully!' as status;
+SELECT 'Tables created (including Notifications):' as info;
 SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
 
 -- 顯示標準設定數量
@@ -743,9 +789,19 @@ SELECT 'WorkLogs count:' as info, COUNT(*) as count FROM "WorkLogs";
 -- 顯示檔案附件數量
 SELECT 'FileAttachments count:' as info, COUNT(*) as count FROM "FileAttachments";
 
+-- *** 顯示通知數量 (新增) ***
+SELECT 'Notifications count:' as info, COUNT(*) as count FROM "Notifications";
+
+-- 檢查通知表結構
+SELECT 'Notifications table structure:' as info;
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_name = 'Notifications'
+ORDER BY ordinal_position;
+
 -- 檢查WorkLogs表結構
 SELECT 'WorkLogs table structure:' as info;
 SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns
 WHERE table_name = 'WorkLogs'
-ORDER BY ordinal_position;
+ORDER BY ordinal_position; 

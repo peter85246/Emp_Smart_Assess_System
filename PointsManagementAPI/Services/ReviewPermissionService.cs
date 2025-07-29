@@ -6,12 +6,14 @@ namespace PointsManagementAPI.Services
 {
     /// <summary>
     /// 審核權限檢查服務實現
-    /// 實現五級角色層級審核邏輯：
-    /// - 董事長(boss)：可審核所有人（employee/manager/admin/president）
-    /// - 總經理(president)：可審核除董事長外的所有人（employee/manager/admin）
-    /// - 管理員(admin)：可審核同部門的員工和主管（employee/manager）
-    /// - 主管(manager)：只能審核同部門員工（employee）
+    /// 實現五級角色層級審核邏輯（董事長特權）：
+    /// - 董事長(boss)：可審核所有人（employee/manager/admin/president），包括可以審核自己
+    /// - 總經理(president)：可審核員工、主管、管理員（employee/manager/admin），但不能審核總經理級別及以上，不能自審
+    /// - 管理員(admin)：可審核同部門的員工和主管（employee/manager），不能自審
+    /// - 主管(manager)：只能審核同部門員工（employee），不能自審
     /// - 員工(employee)：無審核權限
+    /// 
+    /// 重要原則：只有董事長可以審核自己提交的積分，其他角色都不能自審
     /// </summary>
     public class ReviewPermissionService : IReviewPermissionService
     {
@@ -80,13 +82,28 @@ namespace PointsManagementAPI.Services
         /// </summary>
         private bool CanReviewByHierarchy(Employee reviewer, Employee entryOwner)
         {
+            // 自審檢查：只有董事長可以審核自己提交的積分
+            if (reviewer.Id == entryOwner.Id)
+            {
+                if (reviewer.Role == "boss")
+                {
+                    _logger.LogInformation("董事長自審: ID={UserId}, 角色={Role}", reviewer.Id, reviewer.Role);
+                    return true; // 董事長可以自審
+                }
+                else
+                {
+                    _logger.LogWarning("禁止自審: 審核者和提交者為同一人，ID={UserId}, 角色={Role}", reviewer.Id, reviewer.Role);
+                    return false; // 其他角色不能自審
+                }
+            }
+            
             // 董事長可以審核所有人
             if (reviewer.Role == "boss") 
                 return true;
             
-            // 總經理可以審核除董事長外的所有人  
+            // 總經理可以審核除董事長和總經理外的所有人（總經理只能由董事長審核）
             if (reviewer.Role == "president")
-                return entryOwner.Role != "boss";
+                return entryOwner.Role != "boss" && entryOwner.Role != "president";
             
             // 管理員可以審核同部門的員工和主管
             if (reviewer.Role == "admin")

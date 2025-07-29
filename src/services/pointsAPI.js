@@ -250,6 +250,58 @@ export const pointsAPI = {
     }
   },
 
+  // 批量審核通過
+  async batchApprovePoints(entryIds, approverId, comments) {
+    try {
+      const response = await fetch(getApiUrl('/points/batch/approve'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          entryIds: entryIds,
+          approverId: approverId,
+          comments: comments || '批量審核通過'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`批量審核通過失敗: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('批量審核通過錯誤:', error);
+      throw error;
+    }
+  },
+
+  // 批量審核拒絕
+  async batchRejectPoints(entryIds, rejectedBy, reason) {
+    try {
+      const response = await fetch(getApiUrl('/points/batch/reject'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          entryIds: entryIds,
+          rejectedBy: rejectedBy,
+          reason: reason || '批量審核拒絕'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`批量審核拒絕失敗: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('批量審核拒絕錯誤:', error);
+      throw error;
+    }
+  },
+
   // 下載檔案（添加到pointsAPI中以支持主管審核頁面）
   async downloadFile(fileId) {
     try {

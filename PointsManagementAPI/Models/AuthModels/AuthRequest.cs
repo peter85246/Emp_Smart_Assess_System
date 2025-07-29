@@ -77,4 +77,35 @@ namespace PointsManagementAPI.Models.AuthModels
         public string EmployeeNumber { get; set; } = string.Empty;
         public string? NewPassword { get; set; } // 可選，默認為123456
     }
+
+    /// <summary>
+    /// 批量審核通過請求模型
+    /// </summary>
+    public class BatchApprovalRequest
+    {
+        public int ApproverId { get; set; }
+        public List<int> EntryIds { get; set; } = new List<int>();
+        public string? Comments { get; set; }
+    }
+
+    /// <summary>
+    /// 批量審核拒絕請求模型
+    /// </summary>
+    public class BatchRejectRequest
+    {
+        public int RejectedBy { get; set; }
+        public List<int> EntryIds { get; set; } = new List<int>();
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 批量審核結果返回模型
+    /// </summary>
+    public class BatchReviewResult
+    {
+        public int SuccessCount { get; set; }
+        public int FailureCount { get; set; }
+        public List<string> FailureMessages { get; set; } = new List<string>();
+        public List<int> ProcessedEntryIds { get; set; } = new List<int>();
+    }
 } 
