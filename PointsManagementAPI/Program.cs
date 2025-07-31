@@ -94,11 +94,6 @@ builder.Services.AddSwaggerGen(c =>
 - **資料庫**: PostgreSQL
 - **檔案存儲**: 本地檔案系統
         ",
-        Contact = new OpenApiContact
-        {
-            Name = "潤股科技開發團隊",
-            Email = "dev@润股.com"
-        },
         License = new OpenApiLicense
         {
             Name = "內部使用授權",
