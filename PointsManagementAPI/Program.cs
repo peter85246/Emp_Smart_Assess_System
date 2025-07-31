@@ -19,10 +19,6 @@ if (builder.Environment.IsDevelopment())
         // 自動選擇可用端口
         var (httpPort, httpsPort) = PortHelper.FindAvailablePortPair(5000);
         urls = $"http://localhost:{httpPort};https://localhost:{httpsPort}";
-        
-        Console.WriteLine($"🔧 自動選擇可用端口:");
-        Console.WriteLine($"   HTTP:  http://localhost:{httpPort}");
-        Console.WriteLine($"   HTTPS: https://localhost:{httpsPort}");
     }
     else
     {
@@ -40,13 +36,9 @@ if (builder.Environment.IsDevelopment())
                 }
                 else
                 {
-                    Console.WriteLine($"⚠️  端口 {uri.Port} 已被占用，正在尋找替代端口...");
-                    
                     var newPort = PortHelper.FindAvailablePort(uri.Port + 1, uri.Port + 100);
                     var newUrl = $"{uri.Scheme}://{uri.Host}:{newPort}";
                     availableUrls.Add(newUrl);
-                    
-                    Console.WriteLine($"✅ 使用替代端口: {newUrl}");
                 }
             }
         }
@@ -71,7 +63,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "💼 潤股智慧評估系統 API",
+        Title = "💼 員工智慧考核系統 API",
         Version = "v1.0.0",
         Description = @"
 ## 📋 系統概述
@@ -94,11 +86,11 @@ builder.Services.AddSwaggerGen(c =>
 - **資料庫**: PostgreSQL
 - **檔案存儲**: 本地檔案系統
         ",
-        License = new OpenApiLicense
-        {
-            Name = "內部使用授權",
-            Url = new Uri("https://example.com/license")
-        }
+        //License = new OpenApiLicense
+        //{
+        //    Name = "內部使用授權",
+        //    Url = new Uri("https://example.com/license")
+        //}
     });
 
     // 啟用XML註釋文件以顯示詳細的API說明
@@ -154,7 +146,6 @@ builder.Services.AddDbContext<PointsDbContext>(options =>
 {
     // 開發和生產環境都使用PostgreSQL
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    Console.WriteLine("🔧 使用PostgreSQL數據庫");
 });
 
 // Add CORS - 支持動態端口配置
@@ -248,19 +239,12 @@ catch (Exception ex)
 // 改善的錯誤處理，特別針對端口衝突
 try
 {
-    Console.WriteLine("🚀 正在啟動 PointsManagement API...");
-    Console.WriteLine($"🌍 環境: {app.Environment.EnvironmentName}");
-    
-    // 顯示實際使用的URL
-    var urls = app.Urls.Any() ? string.Join(", ", app.Urls) : "動態選擇端口";
-    Console.WriteLine($"📡 監聽地址: {urls}");
+    Console.WriteLine(">> 積分管理系統 v9 啟動中...");
+    Console.WriteLine(">> PostgreSQL 資料庫連接成功");
     
     if (app.Environment.IsDevelopment())
     {
-        Console.WriteLine("💡 開發環境特性:");
-        Console.WriteLine("   ✅ 支援任何本地端口的CORS請求");
-        Console.WriteLine("   ✅ 自動端口衝突解決");
-        Console.WriteLine("   ✅ Swagger UI 已啟用");
+        Console.WriteLine(">> API文檔: http://localhost:5001/swagger");
     }
     
     app.Run();
@@ -268,9 +252,9 @@ try
 catch (IOException ex) when (ex.Message.Contains("address already in use") || ex.Message.Contains("地址已在使用中"))
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("❌ 錯誤：端口已被占用！");
+    Console.WriteLine("ERROR: 端口已被占用！");
     Console.WriteLine($"詳細錯誤：{ex.Message}");
-    Console.WriteLine("\n🔧 解決方案：");
+    Console.WriteLine("\n解決方案：");
     Console.WriteLine("1. 檢查是否有其他 PointsManagementAPI 實例正在運行");
     Console.WriteLine("2. 使用以下命令檢查端口占用：");
     Console.WriteLine("   netstat -ano | findstr :7001");
@@ -283,7 +267,7 @@ catch (IOException ex) when (ex.Message.Contains("address already in use") || ex
 catch (Exception ex)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("❌ 應用程序啟動失敗！");
+    Console.WriteLine("ERROR: 應用程序啟動失敗！");
     Console.WriteLine($"錯誤類型：{ex.GetType().Name}");
     Console.WriteLine($"錯誤訊息：{ex.Message}");
     if (ex.InnerException != null)
