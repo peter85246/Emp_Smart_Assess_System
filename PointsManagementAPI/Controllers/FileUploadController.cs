@@ -1,16 +1,42 @@
 using Microsoft.AspNetCore.Mvc;
 using PointsManagementAPI.Services;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace PointsManagementAPI.Controllers
 {
     /// <summary>
-    /// 檔案上傳控制器 - 處理檔案上傳、下載、預覽功能
-    /// 主要功能：檔案上傳、檔案下載、檔案預覽
-    /// API路由前綴：/api/fileupload
-    /// 支援格式：圖片、PDF、Word、Excel等
+    /// 📁 檔案上傳管理
     /// </summary>
+    /// <remarks>
+    /// 處理積分系統相關的檔案上傳、下載、預覽等功能：
+    /// 
+    /// **支援檔案格式：**
+    /// - 📷 圖片：JPG, PNG, GIF, BMP（證明照片）
+    /// - 📄 文件：PDF, DOC, DOCX（證明文件）
+    /// - 📊 試算表：XLS, XLSX（數據表格）
+    /// - 📝 文字：TXT, RTF（說明文件）
+    /// 
+    /// **主要功能：**
+    /// - 🔄 單一檔案上傳
+    /// - 📚 批量檔案上傳
+    /// - 💾 檔案下載
+    /// - 👁️ 檔案預覽
+    /// - 🗑️ 檔案刪除管理
+    /// 
+    /// **安全機制：**
+    /// - 檔案類型驗證
+    /// - 檔案大小限制
+    /// - 安全掃描檢查
+    /// - 權限存取控制
+    /// 
+    /// **存儲管理：**
+    /// - 自動分類存放
+    /// - 檔案命名規範
+    /// - 空間使用統計
+    /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
+    [Tags("📁 檔案上傳管理")]
     public class FileUploadController : ControllerBase
     {
         private readonly IFileStorageService _fileStorageService;

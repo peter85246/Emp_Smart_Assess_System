@@ -1,13 +1,45 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PointsManagementAPI.Data;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Reflection;
 using System.Diagnostics;
 
 namespace PointsManagementAPI.Controllers
 {
+    /// <summary>
+    /// 🏥 系統健康監控
+    /// </summary>
+    /// <remarks>
+    /// 提供系統健康狀態檢查和監控功能，確保服務穩定運行：
+    /// 
+    /// **監控項目：**
+    /// - 🗄️ 資料庫連線狀態
+    /// - 💾 檔案系統可用性
+    /// - 🧠 記憶體使用情況
+    /// - ⚡ 系統回應速度
+    /// - 🔗 外部服務連接
+    /// 
+    /// **健康指標：**
+    /// - 服務啟動時間
+    /// - 系統版本資訊
+    /// - 環境配置狀態
+    /// - 資源使用統計
+    /// 
+    /// **監控等級：**
+    /// - ✅ Healthy: 所有服務正常
+    /// - ⚠️ Warning: 部分服務異常
+    /// - ❌ Critical: 核心服務失效
+    /// 
+    /// **運維支援：**
+    /// - 詳細健康報告
+    /// - 錯誤診斷資訊
+    /// - 效能指標監控
+    /// - 自動化檢查機制
+    /// </remarks>
     [ApiController]
     [Route("[controller]")]
+    [Tags("🏥 系統健康監控")]
     public class HealthController : ControllerBase
     {
         private readonly PointsDbContext _context;

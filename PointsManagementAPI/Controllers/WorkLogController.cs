@@ -1,16 +1,44 @@
 using Microsoft.AspNetCore.Mvc;
 using PointsManagementAPI.Models.WorkLogModels;
 using PointsManagementAPI.Services;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace PointsManagementAPI.Controllers
 {
     /// <summary>
-    /// 工作日誌控制器 - 處理員工工作日誌的CRUD操作
-    /// 主要功能：工作日誌創建、查詢、更新、刪除、審核
-    /// API路由前綴：/api/worklog
+    /// 📝 工作日誌記錄
     /// </summary>
+    /// <remarks>
+    /// 管理員工工作日誌的完整生命週期，支援詳細的工作記錄追蹤：
+    /// 
+    /// **核心功能：**
+    /// - ✍️ 工作日誌創建與編輯
+    /// - 🔍 多條件日誌查詢
+    /// - 📊 工作統計分析
+    /// - 👥 團隊日誌管理
+    /// - 📁 附件檔案關聯
+    /// 
+    /// **記錄內容：**
+    /// - 工作項目描述
+    /// - 時間記錄（開始/結束）
+    /// - 工作類別分類
+    /// - 成果產出說明
+    /// - 問題與解決方案
+    /// 
+    /// **管理機制：**
+    /// - 分類標籤管理
+    /// - 審核流程控制
+    /// - 權限存取控制
+    /// - 數據匯出功能
+    /// 
+    /// **整合功能：**
+    /// - 與積分系統連動
+    /// - 績效評估數據源
+    /// - 專案進度追蹤
+    /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
+    [Tags("📝 工作日誌記錄")]
     public class WorkLogController : ControllerBase
     {
         private readonly IWorkLogService _workLogService;

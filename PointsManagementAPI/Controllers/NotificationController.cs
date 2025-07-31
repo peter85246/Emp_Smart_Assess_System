@@ -1,14 +1,44 @@
 using Microsoft.AspNetCore.Mvc;
 using PointsManagementAPI.Services;
 using PointsManagementAPI.Models.NotificationModels;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace PointsManagementAPI.Controllers
 {
     /// <summary>
-    /// 通知管理控制器
+    /// 🔔 通知訊息管理
     /// </summary>
+    /// <remarks>
+    /// 處理系統內各種通知訊息的發送、接收和管理：
+    /// 
+    /// **通知類型：**
+    /// - 📬 積分審核通知（通過/駁回）
+    /// - 🎯 任務指派通知
+    /// - ⏰ 截止日期提醒
+    /// - 🏆 成就達成通知
+    /// - 📊 統計報表通知
+    /// 
+    /// **發送方式：**
+    /// - 系統內即時通知
+    /// - 電子郵件通知
+    /// - 手機推播通知
+    /// - 瀏覽器桌面通知
+    /// 
+    /// **管理功能：**
+    /// - 通知歷史查詢
+    /// - 已讀狀態管理
+    /// - 通知偏好設定
+    /// - 批量操作處理
+    /// 
+    /// **智能特色：**
+    /// - 通知去重機制
+    /// - 優先級排序
+    /// - 自動失效清理
+    /// - 個人化推薦
+    /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
+    [Tags("🔔 通知訊息管理")]
     public class NotificationController : ControllerBase
     {
         private readonly INotificationService _notificationService;

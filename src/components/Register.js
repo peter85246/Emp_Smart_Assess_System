@@ -19,11 +19,66 @@ export default function Register() {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [autoAssignedRole, setAutoAssignedRole] = useState('employee');
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [departmentsLoaded, setDepartmentsLoaded] = useState(false);
+  const [positionCheckResult, setPositionCheckResult] = useState(null);
+  const [isCheckingPosition, setIsCheckingPosition] = useState(false);
   const navigate = useNavigate();
 
   // 根據職位自動分配角色
   const getAutoAssignedRole = (position) => {
     return pointsConfig.positionRoleMapping[position] || 'employee';
+  };
+
+  // 檢查是否為高階管理職位
+  const isExecutivePosition = (position) => {
+    return ['董事長', '負責人', '總經理', '執行長'].includes(position);
+  };
+
+  // 根據職位自動分配部門
+  const getAutoAssignedDepartment = (position) => {
+    const executiveDepartmentMapping = {
+      '董事長': 9,   // 董事會
+      '負責人': 9,   // 董事會
+      '總經理': 10,  // 經營管理層
+      '執行長': 10   // 經營管理層
+    };
+    return executiveDepartmentMapping[position] || '';
+  };
+
+  // 獲取部門名稱
+  const getDepartmentName = (position) => {
+    const executiveDepartmentNames = {
+      '董事長': '董事會',
+      '負責人': '董事會',
+      '總經理': '經營管理層',
+      '執行長': '經營管理層'
+    };
+    return executiveDepartmentNames[position] || '';
+  };
+
+  // 檢查職位可用性
+  const checkPositionAvailability = async (position) => {
+    if (!position || !isExecutivePosition(position)) {
+      setPositionCheckResult(null);
+      return;
+    }
+
+    setIsCheckingPosition(true);
+    try {
+      const response = await authAPI.checkPositionAvailability(position);
+      setPositionCheckResult(response.data);
+    } catch (error) {
+      console.error('職位檢查失敗:', error);
+      // 檢查失敗時假設可用，但提供警告
+      setPositionCheckResult({
+        isAvailable: true,
+        isExclusivePosition: true,
+        message: '無法驗證職位狀態，請確保資料正確'
+      });
+    } finally {
+      setIsCheckingPosition(false);
+    }
   };
 
   // 獲取角色描述
@@ -38,15 +93,23 @@ export default function Register() {
   };
 
   useEffect(() => {
-    loadDepartments();
-  }, []);
+    // 防重複載入機制 - 解決React StrictMode重複執行問題
+    if (!departmentsLoaded) {
+      loadDepartments();
+    }
+  }, [departmentsLoaded]);
 
   const loadDepartments = async () => {
+    // 如果已經載入過，直接返回
+    if (departmentsLoaded) return;
+    
     try {
       const response = await authAPI.getDepartments();
       setDepartments(response.data);
+      setDepartmentsLoaded(true);
+      // 成功載入時重置離線模式
+      setIsOfflineMode(false);
     } catch (error) {
-      console.error('載入部門失敗:', error);
       // 提供預設部門選項作為備用
       const defaultDepartments = [
         { id: 1, name: '製造部' },
@@ -56,25 +119,60 @@ export default function Register() {
         { id: 5, name: '研發部' },
         { id: 6, name: '資訊部' },
         { id: 7, name: '財務部' },
-        { id: 8, name: '採購部' }
+        { id: 8, name: '採購部' },
+        { id: 9, name: '董事會' },
+        { id: 10, name: '經營管理層' }
       ];
       setDepartments(defaultDepartments);
-      toast.error('載入部門資料失敗，使用預設選項', toastConfig.error);
+      setDepartmentsLoaded(true);
+      
+      // 智能錯誤處理 - 區分錯誤類型
+      if (error.message === 'Failed to fetch' || error.code === 'ERR_NETWORK') {
+        // 連接問題 - 靜默處理，只在開發模式輸出（且只輸出一次）
+        if (process.env.NODE_ENV === 'development') {
+          console.info('ℹ️ 後端服務未啟動，使用本地部門資料 (功能正常)');
+        }
+        setIsOfflineMode(true);
+        // 不顯示任何toast
+      } else {
+        // 真正的API錯誤才記錄並提示
+        console.error('部門API錯誤:', error);
+        toast.warn('正在使用標準部門選項，功能正常', {
+          ...toastConfig.error,
+          icon: "ℹ️",
+          style: { ...toastConfig.error.style, backgroundColor: "#f59e0b", color: "#ffffff" }
+        });
+      }
     }
   };
 
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value } = e.target;
     
     // 處理職位選擇
     if (name === 'position') {
       const assignedRole = getAutoAssignedRole(value);
+      const assignedDepartment = getAutoAssignedDepartment(value);
+      
       setFormData(prev => ({
         ...prev,
         position: value,
-        role: assignedRole
+        role: assignedRole,
+        // 如果是高階職位，自動分配部門；否則保持原部門或清空
+        departmentId: assignedDepartment ? assignedDepartment.toString() : (isExecutivePosition(value) ? '' : prev.departmentId)
       }));
       setAutoAssignedRole(assignedRole);
+      
+      // 即時檢查職位可用性
+      await checkPositionAvailability(value);
+    } else if (name === 'departmentId') {
+      // 如果是高階職位，禁止手動修改部門
+      if (!isExecutivePosition(formData.position)) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -108,6 +206,14 @@ export default function Register() {
       return;
     }
 
+    // 檢查高階職位可用性
+    if (isExecutivePosition(formData.position)) {
+      if (positionCheckResult && !positionCheckResult.isAvailable) {
+        toast.error(positionCheckResult.message + (positionCheckResult.suggestion ? `，${positionCheckResult.suggestion}` : ''), toastConfig.error);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -127,7 +233,24 @@ export default function Register() {
       }, 2000);
       
     } catch (error) {
-      const errorMessage = error.response?.data?.message || '註冊失敗，請稍後再試！';
+      let errorMessage = '註冊失敗，請稍後再試！';
+      
+      // 處理具體的錯誤類型
+      if (error.response?.status === 409) {
+        // 職位衝突錯誤
+        const responseData = error.response.data;
+        errorMessage = responseData.message || '職位已被佔用';
+        if (responseData.suggestion) {
+          errorMessage += `，${responseData.suggestion}`;
+        }
+      } else if (error.response?.status === 400) {
+        // 一般驗證錯誤
+        errorMessage = error.response.data?.message || '註冊資料有誤，請檢查後重試';
+      } else if (error.response?.data?.message) {
+        // 其他已知錯誤
+        errorMessage = error.response.data.message;
+      }
+      
       toast.error(errorMessage, toastConfig.error);
     } finally {
       setLoading(false);
@@ -135,16 +258,17 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* 背景裝飾 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 transform rotate-12 blur-3xl"></div>
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-cyan-500/10 to-blue-500/10 transform -rotate-12 blur-3xl"></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      {/* 背景裝飾 - 優化透明度呈現更好看的效果 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 transform rotate-12 blur-3xl"></div>
+        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 transform -rotate-12 blur-3xl"></div>
+        <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 bg-gradient-to-br from-emerald-500/15 to-teal-500/15 transform rotate-45 blur-2xl"></div>
       </div>
 
       {/* 主要註冊卡片 */}
-      <div className="max-w-lg w-full space-y-8">
-        <div className="bg-slate-700/50 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-600/50">
+      <div className="max-w-lg w-full space-y-8 relative z-10">
+        <div className="bg-slate-700/60 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-600/30">
           {/* Logo 區域 */}
           <div className="flex flex-col items-center">
             <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center mb-6 shadow-lg">
@@ -257,13 +381,28 @@ export default function Register() {
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   部門 *
+                  {isExecutivePosition(formData.position) && (
+                    <span className="text-xs text-blue-400 ml-2">
+                      (系統已自動分配適當部門)
+                    </span>
+                  )}
+                  {isOfflineMode && !isExecutivePosition(formData.position) && (
+                    <span className="text-xs text-slate-400 ml-2">
+                      (使用標準選項)
+                    </span>
+                  )}
                 </label>
                 <select
                   name="departmentId"
                   value={formData.departmentId}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-slate-600/50 border border-slate-500/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  disabled={isExecutivePosition(formData.position)}
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none transition-all duration-200 ${
+                    isExecutivePosition(formData.position)
+                      ? 'bg-slate-700/50 border-slate-600/50 opacity-75 cursor-not-allowed text-slate-400'
+                      : 'bg-slate-600/50 border-slate-500/50 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                  }`}
                 >
                   <option value="" className="bg-slate-700">請選擇部門</option>
                   {departments.map(dept => (
@@ -272,6 +411,16 @@ export default function Register() {
                     </option>
                   ))}
                 </select>
+                {isExecutivePosition(formData.position) && (
+                  <div className="mt-2 p-3 bg-amber-500/10 border border-amber-400/30 rounded-lg">
+                    <div className="flex items-center text-amber-300 text-sm">
+                      <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM15.657 6.343a1 1 0 011.414 0A9.972 9.972 0 0119 12a9.972 9.972 0 01-1.929 5.657 1 1 0 11-1.414-1.414A7.971 7.971 0 0017 12a7.971 7.971 0 00-1.343-4.243 1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      <span>👑 高階管理職位已自動分配到「{getDepartmentName(formData.position)}」</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -292,6 +441,48 @@ export default function Register() {
                     </option>
                   ))}
                 </select>
+                
+                {/* 職位檢查狀態顯示 */}
+                {isCheckingPosition && (
+                  <div className="mt-2 p-3 bg-blue-500/10 border border-blue-400/30 rounded-lg">
+                    <div className="flex items-center text-blue-300 text-sm">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-300 mr-2"></div>
+                      <span>正在檢查職位可用性...</span>
+                    </div>
+                  </div>
+                )}
+                
+                {positionCheckResult && !isCheckingPosition && (
+                  <div className={`mt-2 p-3 border rounded-lg ${
+                    positionCheckResult.isAvailable 
+                      ? 'bg-green-500/10 border-green-400/30' 
+                      : 'bg-red-500/10 border-red-400/30'
+                  }`}>
+                    <div className={`flex items-center text-sm ${
+                      positionCheckResult.isAvailable 
+                        ? 'text-green-300' 
+                        : 'text-red-300'
+                    }`}>
+                      {positionCheckResult.isAvailable ? (
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                      <div>
+                        <div>{positionCheckResult.message}</div>
+                        {positionCheckResult.suggestion && !positionCheckResult.isAvailable && (
+                          <div className="text-xs mt-1 text-orange-300">
+                            💡 {positionCheckResult.suggestion}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -361,7 +552,7 @@ export default function Register() {
             {/* 註冊按鈕 */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (positionCheckResult && !positionCheckResult.isAvailable) || isCheckingPosition}
               className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-4 px-6 rounded-xl font-medium hover:from-green-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {loading ? (

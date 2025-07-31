@@ -69,16 +69,17 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* 背景裝飾 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 transform rotate-12 blur-3xl"></div>
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-cyan-500/10 to-blue-500/10 transform -rotate-12 blur-3xl"></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      {/* 背景裝飾 - 與註冊頁面保持一致的優化效果 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 transform rotate-12 blur-3xl"></div>
+        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 transform -rotate-12 blur-3xl"></div>
+        <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 bg-gradient-to-br from-emerald-500/15 to-teal-500/15 transform rotate-45 blur-2xl"></div>
       </div>
 
       {/* 主要登入卡片 */}
-      <div className="max-w-md w-full space-y-8">
-        <div className="bg-slate-700/50 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-600/50">
+      <div className="max-w-md w-full space-y-8 relative z-10">
+        <div className="bg-slate-700/60 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-600/30">
           {/* Logo 區域 */}
           <div className="flex flex-col items-center">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mb-6 shadow-lg">

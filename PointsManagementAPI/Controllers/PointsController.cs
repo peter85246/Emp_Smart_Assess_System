@@ -4,17 +4,33 @@ using PointsManagementAPI.Data;
 using PointsManagementAPI.Models.PointsModels;
 using PointsManagementAPI.Models.AuthModels;
 using PointsManagementAPI.Services;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Text.Json;
 
 namespace PointsManagementAPI.Controllers
 {
     /// <summary>
-    /// 積分管理控制器 - 處理員工積分相關的所有API操作
-    /// 主要功能：積分查詢、提交、審核、統計
-    /// API路由前綴：/api/points
+    /// 📊 積分管理系統
     /// </summary>
+    /// <remarks>
+    /// 處理員工積分相關的所有操作，包含積分提交、審核、查詢、統計分析等核心功能。
+    /// 
+    /// **主要功能模組：**
+    /// - 🎯 積分項目提交與管理
+    /// - 👥 多層級審核流程
+    /// - 📈 積分統計與分析
+    /// - 🔍 積分記錄查詢
+    /// - 📁 附件檔案管理
+    /// - 🏆 排行榜與績效評估
+    /// 
+    /// **權限控制：**
+    /// - 員工：提交積分、查看個人記錄
+    /// - 管理員：審核積分、查看部門統計  
+    /// - 高階主管：全系統數據查看
+    /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
+    [Tags("📊 積分管理系統")]
     public class PointsController : ControllerBase
     {
         private readonly PointsDbContext _context;
@@ -180,7 +196,49 @@ namespace PointsManagementAPI.Controllers
             });
         }
 
+        /// <summary>
+        /// 積分項目提交
+        /// </summary>
+        /// <remarks>
+        /// 員工提交新的積分申請項目：
+        /// 
+        /// **處理流程：**
+        /// 1. ✅ 自動積分計算（根據類別和數值）
+        /// 2. 🔄 工作流程路由（確定審核路徑）
+        /// 3. 📁 附件檔案處理（支援多檔案上傳）
+        /// 4. 🔔 通知機制啟動（通知相關審核人員）
+        /// 5. 📝 完整記錄建立
+        /// 
+        /// **積分計算特色：**
+        /// - 依據標準設定自動計算分數
+        /// - 支援不同積分類別的計算規則
+        /// - 提供計算結果驗證機制
+        /// 
+        /// **審核流程：**
+        /// - 自動判斷審核層級
+        /// - 智能分配審核人員
+        /// - 支援多階段審核流程
+        /// 
+        /// **檔案管理：**
+        /// - 支援證明文件上傳
+        /// - 自動檔案安全檢查
+        /// - 檔案關聯管理
+        /// </remarks>
+        /// <param name="entry">積分申請資料，包含類別、描述、數值等資訊</param>
+        /// <returns>建立的積分項目，包含計算結果和審核狀態</returns>
+        /// <response code="200">提交成功，返回積分項目資訊</response>
+        /// <response code="400">請求資料錯誤</response>
+        /// <response code="500">伺服器內部錯誤</response>
         [HttpPost]
+        [SwaggerOperation(
+            Summary = "積分項目提交",
+            Description = "提交新的積分申請，支援自動計算和工作流程",
+            OperationId = "CreatePointsEntry",
+            Tags = new[] { "📊 積分管理系統" }
+        )]
+        [SwaggerResponse(200, "提交成功", typeof(PointsEntry))]
+        [SwaggerResponse(400, "請求錯誤", typeof(object))]
+        [SwaggerResponse(500, "伺服器錯誤", typeof(object))]
         public async Task<ActionResult<PointsEntry>> CreatePointsEntry([FromBody] PointsEntry entry)
         {
             try
@@ -260,15 +318,54 @@ namespace PointsManagementAPI.Controllers
         }
 
         /// <summary>
-        /// 【POST】 /api/points/{id}/approve - 審核通過積分記錄
-        /// 功能：主管審核員工積分提交，標記為通過狀態
-        /// 前端使用：ManagerReviewForm組件的審核通過功能
-        /// 權限：僅限主管角色使用
+        /// 積分審核通過
         /// </summary>
+        /// <remarks>
+        /// 主管審核員工積分申請並標記為通過狀態：
+        /// 
+        /// **審核流程：**
+        /// 1. 🔍 驗證審核權限（確認審核人有權限）
+        /// 2. 📋 檢查積分狀態（僅能審核待審核項目）
+        /// 3. ✅ 更新審核狀態（設為已通過）
+        /// 4. 📝 記錄審核意見（備註和審核人資訊）
+        /// 5. 🔔 發送通知（通知申請人結果）
+        /// 6. 📊 更新統計資料
+        /// 
+        /// **權限驗證：**
+        /// - 僅限管理員以上層級
+        /// - 檢查部門審核權限
+        /// - 防止重複審核
+        /// 
+        /// **狀態管理：**
+        /// - 從「待審核」→「已通過」
+        /// - 記錄審核時間和人員
+        /// - 保留完整審核軌跡
+        /// 
+        /// **通知機制：**
+        /// - 即時通知申請人
+        /// - 郵件通知（如設定）
+        /// - 系統內訊息推送
+        /// </remarks>
         /// <param name="id">積分記錄ID</param>
         /// <param name="request">審核請求，包含審核人ID和備註</param>
-        /// <returns>審核結果</returns>
+        /// <returns>審核結果和狀態更新</returns>
+        /// <response code="200">審核成功</response>
+        /// <response code="400">審核失敗或狀態錯誤</response>
+        /// <response code="403">權限不足</response>
+        /// <response code="404">積分記錄不存在</response>
+        /// <response code="500">伺服器內部錯誤</response>
         [HttpPost("{id}/approve")]
+        [SwaggerOperation(
+            Summary = "積分審核通過",
+            Description = "主管審核積分申請並標記為通過，包含權限驗證和通知機制",
+            OperationId = "ApprovePointsEntry",
+            Tags = new[] { "📊 積分管理系統" }
+        )]
+        [SwaggerResponse(200, "審核成功", typeof(object))]
+        [SwaggerResponse(400, "審核失敗", typeof(object))]
+        [SwaggerResponse(403, "權限不足", typeof(object))]
+        [SwaggerResponse(404, "記錄不存在", typeof(object))]
+        [SwaggerResponse(500, "伺服器錯誤", typeof(object))]
         public async Task<ActionResult> ApprovePointsEntry(int id, [FromBody] ApprovalRequest request)
         {
             try

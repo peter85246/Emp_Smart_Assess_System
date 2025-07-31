@@ -65,6 +65,19 @@ namespace PointsManagementAPI.Data
                         Name = "採購部",
                         Description = "原料採購與供應商管理部門",
                         IsActive = true
+                    },
+                    // 新增高階管理部門
+                    new Department
+                    {
+                        Name = "董事會",
+                        Description = "公司最高決策管理層",
+                        IsActive = true
+                    },
+                    new Department
+                    {
+                        Name = "經營管理層",
+                        Description = "公司經營管理層級",
+                        IsActive = true
                     }
                 };
 

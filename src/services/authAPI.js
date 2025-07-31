@@ -87,7 +87,45 @@ export const authAPI = {
       const data = await response.json();
       return { data };
     } catch (error) {
-      console.error('獲取部門API錯誤:', error);
+      // 靜默處理網路連接錯誤，由上層組件處理用戶體驗
+      // 只有真正的API錯誤（非連接問題）才記錄
+      if (error.message !== 'Failed to fetch' && !error.name?.includes('TypeError')) {
+        console.error('獲取部門API錯誤:', error);
+      }
+      // 保持原有的錯誤拋出行為，讓上層處理
+      throw error;
+    }
+  },
+
+  // 檢查職位可用性
+  async checkPositionAvailability(position) {
+    try {
+      const response = await fetch(getApiUrl(`/auth/check-position/${encodeURIComponent(position)}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`檢查職位可用性失敗: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      // 連接錯誤時靜默處理，假設職位可用
+      if (error.message === 'Failed to fetch') {
+        console.warn('🔄 無法連接後端，跳過職位檢查');
+        return { 
+          data: { 
+            isAvailable: true, 
+            isExclusivePosition: false, 
+            message: '無法驗證職位，請確保資料正確' 
+          } 
+        };
+      }
+      console.error('檢查職位可用性錯誤:', error);
       throw error;
     }
   },

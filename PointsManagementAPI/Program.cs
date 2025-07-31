@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.OpenApi.Models;
 using PointsManagementAPI.Data;
 using PointsManagementAPI.Services;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,7 +65,94 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// 配置 Swagger UI 中文化
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "💼 潤股智慧評估系統 API",
+        Version = "v1.0.0",
+        Description = @"
+## 📋 系統概述
+員工績效管理與積分評估系統後端API，提供完整的人事管理、積分計算、檔案上傳等功能。
+
+## 🔐 認證說明
+- 使用Bearer Token進行身份驗證
+- 請先透過登入API取得授權令牌
+- 在後續請求中加入 Authorization: Bearer {token}
+
+## 📚 主要功能模組
+- **帳號認證管理**: 註冊、登入、職位驗證
+- **積分管理系統**: 積分提交、審核、統計分析  
+- **檔案上傳處理**: 證明文件上傳與管理
+- **工作日誌記錄**: 工作記錄提交與查詢
+- **系統健康監控**: 服務狀態檢查與監控
+
+## 🌐 環境資訊
+- **開發環境**: 支援動態端口配置與CORS
+- **資料庫**: PostgreSQL
+- **檔案存儲**: 本地檔案系統
+        ",
+        Contact = new OpenApiContact
+        {
+            Name = "潤股科技開發團隊",
+            Email = "dev@润股.com"
+        },
+        License = new OpenApiLicense
+        {
+            Name = "內部使用授權",
+            Url = new Uri("https://example.com/license")
+        }
+    });
+
+    // 啟用XML註釋文件以顯示詳細的API說明
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+
+    // 配置授權UI
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = @"JWT授權標頭使用Bearer格式。
+                      
+請在下方輸入框中輸入 'Bearer' [空格] 接著輸入您的token。
+                      
+範例: 'Bearer 12345abcdef'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+            },
+            new List<string>()
+        }
+    });
+
+    // 啟用支援操作過濾器以美化顯示
+    c.EnableAnnotations();
+    
+    // 自訂排序（將認證相關API置頂）
+    c.OrderActionsBy((apiDesc) => $"{apiDesc.ActionDescriptor.RouteValues["controller"]}_{apiDesc.HttpMethod}");
+});
 
 // Add Entity Framework - 使用PostgreSQL數據庫
 builder.Services.AddDbContext<PointsDbContext>(options =>
