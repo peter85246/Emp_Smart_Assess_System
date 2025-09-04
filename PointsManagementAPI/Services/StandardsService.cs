@@ -18,7 +18,8 @@ namespace PointsManagementAPI.Services
             return await _context.StandardSettings
                 .Include(s => s.Children)
                 .Where(s => s.IsActive)
-                .OrderBy(s => s.CategoryName)
+                .OrderBy(s => s.SortOrder)
+                .ThenBy(s => s.CategoryName)
                 .ToListAsync();
         }
 
@@ -26,8 +27,13 @@ namespace PointsManagementAPI.Services
         {
             return await _context.StandardSettings
                 .Include(s => s.Children)
-                .Where(s => s.IsActive && (s.DepartmentId == departmentId || s.DepartmentId == null))
-                .OrderBy(s => s.CategoryName)
+                .Where(s => s.IsActive && 
+                    (s.DepartmentFilter == null || 
+                     s.DepartmentFilter.Contains(departmentId.ToString()) ||
+                     s.DepartmentId == departmentId || 
+                     s.DepartmentId == null))
+                .OrderBy(s => s.SortOrder)
+                .ThenBy(s => s.CategoryName)
                 .ToListAsync();
         }
 

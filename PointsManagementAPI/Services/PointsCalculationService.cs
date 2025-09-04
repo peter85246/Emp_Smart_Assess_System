@@ -146,8 +146,9 @@ namespace PointsManagementAPI.Services
 
         private decimal CalculateBasePoints(PointsEntry entry, StandardSetting standard)
         {
-            if (standard.PointsValue.HasValue)
-                return standard.PointsValue.Value;
+            // PointsValue 現在是 non-nullable decimal，直接返回值
+            if (standard.PointsValue > 0)
+                return standard.PointsValue;
 
             // 如果有計算公式，在這裡實現
             if (!string.IsNullOrEmpty(standard.CalculationFormula))

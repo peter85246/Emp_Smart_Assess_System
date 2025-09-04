@@ -328,6 +328,80 @@ export const pointsAPI = {
       console.error('下載檔案錯誤:', error);
       throw error;
     }
+  },
+
+  /**
+   * 獲取積分標準項目
+   * API: GET /api/standards
+   * 功能：獲取所有積分標準項目，支援部門過濾
+   * 
+   * @param {number} departmentId - 可選的部門ID，用於過濾
+   * @returns {Promise} 標準項目列表
+   */
+  async getStandards(departmentId = null) {
+    try {
+      console.log('獲取積分標準項目 - 部門ID:', departmentId);
+      
+      // 決定使用哪個API端點
+      let url = '/standards';
+      if (departmentId) {
+        url = `/standards/department/${departmentId}`;
+      }
+
+      const response = await fetch(getApiUrl(url), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('獲取標準項目失敗響應:', errorText);
+        throw new Error(`獲取標準項目失敗: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('獲取標準項目成功:', result);
+      return result;
+    } catch (error) {
+      console.error('獲取積分標準項目錯誤:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 根據部門ID獲取員工部門排名
+   * API: GET /api/points/department-rank/{employeeId}
+   * 功能：獲取員工在部門中的積分排名
+   * 
+   * @param {number} employeeId - 員工ID
+   * @returns {Promise} 部門排名數據
+   */
+  async getEmployeeDepartmentRank(employeeId) {
+    try {
+      console.log('獲取員工部門排名 - 員工ID:', employeeId);
+
+      const response = await fetch(getApiUrl(`/points/department-rank/${employeeId}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('獲取部門排名失敗響應:', errorText);
+        throw new Error(`獲取部門排名失敗: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('獲取部門排名成功:', result);
+      return result;
+    } catch (error) {
+      console.error('獲取員工部門排名錯誤:', error);
+      throw error;
+    }
   }
 };
 

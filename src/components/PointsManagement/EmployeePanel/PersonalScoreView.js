@@ -224,15 +224,22 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
       '安全檢查': 'general',
       '設備保養': 'general',
 
-      // 品質工程積分項目
-      'ISO外部稽核': 'quality',
-      '抽檢驗收': 'quality',
-      '進料檢驗': 'quality',
-      '包裝出貨': 'quality',
-      '外觀產品全檢': 'quality',
-      '庫存盤點': 'quality',
-      '客戶投訴處理': 'quality',
-      '品質改善提案': 'quality',
+      // 品質工程積分項目（歸類為一般積分項目的子分類）
+      'ISO外部稽核': 'general',
+      '抽檢驗收': 'general',
+      '進料檢驗': 'general',
+      '包裝出貨': 'general',
+      '外觀產品全檢': 'general',
+      '庫存盤點': 'general',
+      '客戶投訴處理': 'general',
+      '品質改善提案': 'general',
+      '震動盤篩檢': 'general',
+      '品質需求全檢': 'general',
+      '客戶退貨': 'general',
+      '達成品質政策': 'general',
+      '出貨留樣': 'general',
+      '指導作業流程': 'general',
+      '出貨事項': 'general',
 
       // 專業積分項目
       '凸輪改機': 'professional',
@@ -257,11 +264,11 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
       '團隊建設': 'management',
       '跨部門協調': 'management',
 
-      // 核心職能積分項目
-      '誠信正直': 'core',
-      '創新效率': 'core',
-      '卓越品質': 'core',
-      '專業服務': 'core'
+      // 核心職能積分項目（歸類為一般積分項目的子分類）
+      '誠信正直': 'general',
+      '創新效率': 'general',
+      '卓越品質': 'general',
+      '專業服務': 'general'
     };
 
     return nameToTypeMapping[standardName] || 'general';
@@ -289,7 +296,9 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
       'production': 'professional',
       'basic': 'general',
       'tech': 'professional',
-      'mgmt': 'management'
+      'mgmt': 'management',
+      'quality': 'general',  // 品質工程項目歸類為一般積分
+      'core': 'general'      // 核心職能項目歸類為一般積分
     };
 
     return typeMapping[pointsType] || pointsType;
@@ -348,75 +357,68 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
 
   // 準備圖表數據 - 修復類型映射問題
   const pieData = Object.entries(monthlyStats.byType || {}).map(([type, value]) => {
-    // 處理可能的類型映射問題
-    let mappedType = type;
+    // 映射到正確的類型
+    const mappedType = mapPointsType(type, '');
     let typeName = type;
     let typeColor = '#8884d8';
 
-    // 檢查是否存在於配置中
-    if (pointsConfig.pointsTypes[type]) {
-      typeName = pointsConfig.pointsTypes[type].name;
-      typeColor = pointsConfig.pointsTypes[type].color;
+    // 使用映射後的類型獲取配置
+    if (pointsConfig.pointsTypes[mappedType]) {
+      typeName = pointsConfig.pointsTypes[mappedType].name;
+      typeColor = pointsConfig.pointsTypes[mappedType].color;
     } else {
-      // 嘗試映射常見的錯誤類型
-      const typeMapping = {
-        'production': 'professional', // 映射 production 到 professional
-        'basic': 'general',
-        'tech': 'professional',
-        'mgmt': 'management'
+      console.warn(`未知的積分類型: ${type} -> ${mappedType}`);
+      // 使用預設的中文名稱
+      const defaultNames = {
+        'general': '一般積分項目',
+        'professional': '專業積分項目', 
+        'management': '管理積分項目',
+        'temporary': '臨時工作項目',
+        'misc': '雜項事件',
+        'quality': '品質工程積分項目'
       };
-
-      if (typeMapping[type] && pointsConfig.pointsTypes[typeMapping[type]]) {
-        mappedType = typeMapping[type];
-        typeName = pointsConfig.pointsTypes[mappedType].name;
-        typeColor = pointsConfig.pointsTypes[mappedType].color;
-      } else {
-        // 如果都找不到，使用原始類型名稱
-        console.warn(`未知的積分類型: ${type}`);
-        typeName = type;
-      }
+      typeName = defaultNames[mappedType] || type;
     }
 
     return {
       name: typeName,
       value: value,
       color: typeColor,
-      originalType: type
+      originalType: type,
+      mappedType: mappedType
     };
   });
 
   const barData = Object.entries(monthlyStats.byType || {}).map(([type, value]) => {
-    // 使用相同的映射邏輯
-    let mappedType = type;
+    // 映射到正確的類型
+    const mappedType = mapPointsType(type, '');
     let typeName = type;
     let typeColor = '#8884d8';
 
-    if (pointsConfig.pointsTypes[type]) {
-      typeName = pointsConfig.pointsTypes[type].name;
-      typeColor = pointsConfig.pointsTypes[type].color;
+    // 使用映射後的類型獲取配置
+    if (pointsConfig.pointsTypes[mappedType]) {
+      typeName = pointsConfig.pointsTypes[mappedType].name;
+      typeColor = pointsConfig.pointsTypes[mappedType].color;
     } else {
-      const typeMapping = {
-        'production': 'professional',
-        'basic': 'general',
-        'tech': 'professional',
-        'mgmt': 'management'
+      console.warn(`未知的積分類型: ${type} -> ${mappedType}`);
+      // 使用預設的中文名稱
+      const defaultNames = {
+        'general': '一般積分項目',
+        'professional': '專業積分項目', 
+        'management': '管理積分項目',
+        'temporary': '臨時工作項目',
+        'misc': '雜項事件',
+        'quality': '品質工程積分項目'
       };
-
-      if (typeMapping[type] && pointsConfig.pointsTypes[typeMapping[type]]) {
-        mappedType = typeMapping[type];
-        typeName = pointsConfig.pointsTypes[mappedType].name;
-        typeColor = pointsConfig.pointsTypes[mappedType].color;
-      } else {
-        console.warn(`未知的積分類型: ${type}`);
-        typeName = type;
-      }
+      typeName = defaultNames[mappedType] || type;
     }
 
     return {
       type: typeName,
       points: value,
       color: typeColor,
-      originalType: type
+      originalType: type,
+      mappedType: mappedType
     };
   });
 
@@ -1154,15 +1156,19 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
         {/* 積分類型分布 - 圓餅圖 */}
         <div className="bg-slate-700/30 backdrop-blur-sm p-6 rounded-lg shadow-sm border border-slate-600/50">
           <h3 className="text-lg font-semibold text-white mb-4">積分類型分布</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                labelLine={true}
+                label={({ name, percent }) => {
+                  const shortName = name.length > 6 ? name.substring(0, 6) + '...' : name;
+                  return `${shortName} ${(percent * 100).toFixed(0)}%`;
+                }}
+                outerRadius={60}
+                innerRadius={20}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -1170,7 +1176,15 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip 
+                formatter={(value, name) => [value, name]}
+                contentStyle={{ 
+                  backgroundColor: '#475569', 
+                  border: '1px solid #64748B', 
+                  borderRadius: '6px',
+                  color: '#F1F5F9'
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>

@@ -9,32 +9,87 @@ export const pointsConfig = {
     fileUpload: '/fileupload'
   },
 
-  // 積分類型
+  // 積分類型（全新184項分類架構）
   pointsTypes: {
     general: {
       name: '一般積分項目',
       color: '#10B981',
-      description: '基本工作項目'
-    },
-    quality: {
-      name: '品質工程積分項目',
-      color: '#3B82F6',
-      description: '品質工程相關項目'
+      description: '基本工作項目（80項）',
+      subcategories: {
+        manufacturing: {
+          name: '製造部門',
+          count: 22,
+          departmentFilter: [1],
+          color: '#059669',
+          icon: '🏭'
+        },
+        quality_department: {
+          name: '品質工程部門',
+          count: 15,
+          departmentFilter: [2],
+          color: '#0D9488',
+          icon: '🔬'
+        },
+        common: {
+          name: '共同內容',
+          count: 39,
+          departmentFilter: [1,2,3,4],
+          color: '#10B981',
+          icon: '🤝'
+        },
+        core_competency: {
+          name: '核心職能項目',
+          count: 4,
+          departmentFilter: [1,2,3,4],
+          color: '#EF4444',
+          icon: '⭐'
+        }
+      }
     },
     professional: {
       name: '專業積分項目',
       color: '#8B5CF6',
-      description: '技術專業項目'
+      description: '技術專業項目（79項）',
+      subcategories: {
+        technical_skills: {
+          name: '專業技能項目',
+          count: 31,
+          departmentFilter: [1,2,3,4],
+          color: '#8B5CF6',
+          icon: '🔧'
+        },
+        professional_competency: {
+          name: '專業職能項目',
+          count: 48,
+          departmentFilter: [3,4],
+          color: '#7C3AED',
+          icon: '💼'
+        }
+      }
     },
     management: {
       name: '管理積分項目',
       color: '#F59E0B',
-      description: '管理職能項目'
+      description: '管理職能項目（20項）',
+      count: 20,
+      departmentFilter: [3,4],
+      icon: '👥'
     },
-    core: {
-      name: '核心職能積分項目',
-      color: '#EF4444',
-      description: '全體適用核心職能'
+    temporary: {
+      name: '臨時工作項目',
+      color: '#06B6D4',
+      description: '臨時性工作項目（3項）',
+      count: 3,
+      departmentFilter: [1,2,3,4],
+      icon: '⏰'
+    },
+    misc: {
+      name: '雜項事件',
+      color: '#6B7280',
+      description: '其他事件（2項）',
+      count: 2,
+      departmentFilter: [1,2,3,4],
+      icon: '📝'
     }
   },
 
@@ -69,12 +124,52 @@ export const pointsConfig = {
     { id: 6, name: '其他事項', color: '#6B7280' }
   ],
 
-  // 部門設定
+  // 部門設定（支援權限控制）
   departments: [
-    { id: 1, name: '製造部' },
-    { id: 2, name: '品質工程部' },
-    { id: 3, name: '管理部' },
-    { id: 4, name: '業務部' }
+    { 
+      id: 1, 
+      name: '製造部',
+      description: '負責產品製造生產',
+      visibleItems: {
+        general: ['manufacturing', 'common', 'core_competency'],
+        professional: ['technical_skills'],
+        temporary: true,
+        misc: true
+      }
+    },
+    { 
+      id: 2, 
+      name: '品質工程部',
+      description: '負責品質管控和工程技術',
+      visibleItems: {
+        general: ['quality_department', 'common', 'core_competency'],
+        professional: ['technical_skills'],
+        temporary: true,
+        misc: true
+      }
+    },
+    { 
+      id: 3, 
+      name: '管理部',
+      description: '負責公司管理事務',
+      visibleItems: {
+        general: ['common', 'core_competency'],
+        professional: ['technical_skills', 'professional_competency'],
+        management: true,
+        temporary: true
+      }
+    },
+    { 
+      id: 4, 
+      name: '業務部',
+      description: '負責客戶關係和業務拓展',
+      visibleItems: {
+        general: ['common', 'core_competency'],
+        professional: ['technical_skills', 'professional_competency'],
+        management: true,
+        temporary: true
+      }
+    }
   ],
 
   // 狀態設定
@@ -147,6 +242,78 @@ export const pointsConfig = {
     '董事長',
     '負責人'
   ]
+};
+
+// 部門權限工具函數
+export const departmentUtils = {
+  // 檢查用戶是否可以看到某個積分類別
+  canViewCategory: (userDepartmentId, categoryType, subcategory = null) => {
+    const department = pointsConfig.departments.find(d => d.id === userDepartmentId);
+    if (!department) return false;
+
+    const visibleItems = department.visibleItems;
+    
+    if (subcategory) {
+      // 檢查子分類權限
+      return visibleItems[categoryType] && 
+             (Array.isArray(visibleItems[categoryType]) 
+               ? visibleItems[categoryType].includes(subcategory)
+               : visibleItems[categoryType] === true);
+    } else {
+      // 檢查主分類權限
+      return visibleItems[categoryType] === true || 
+             (Array.isArray(visibleItems[categoryType]) && visibleItems[categoryType].length > 0);
+    }
+  },
+
+  // 獲取用戶可見的積分項目結構
+  getVisiblePointsStructure: (userDepartmentId) => {
+    const department = pointsConfig.departments.find(d => d.id === userDepartmentId);
+    if (!department) return {};
+
+    const visibleStructure = {};
+    
+    Object.entries(pointsConfig.pointsTypes).forEach(([categoryKey, categoryConfig]) => {
+      if (department.visibleItems[categoryKey]) {
+        visibleStructure[categoryKey] = { ...categoryConfig };
+        
+        // 處理子分類
+        if (categoryConfig.subcategories) {
+          visibleStructure[categoryKey].subcategories = {};
+          
+          if (Array.isArray(department.visibleItems[categoryKey])) {
+            department.visibleItems[categoryKey].forEach(subKey => {
+              if (categoryConfig.subcategories[subKey]) {
+                visibleStructure[categoryKey].subcategories[subKey] = categoryConfig.subcategories[subKey];
+              }
+            });
+          } else if (department.visibleItems[categoryKey] === true) {
+            visibleStructure[categoryKey].subcategories = categoryConfig.subcategories;
+          }
+        }
+      }
+    });
+
+    return visibleStructure;
+  },
+
+  // 計算用戶可見的總積分項目數
+  getTotalVisibleItems: (userDepartmentId) => {
+    const structure = departmentUtils.getVisiblePointsStructure(userDepartmentId);
+    let total = 0;
+
+    Object.values(structure).forEach(category => {
+      if (category.subcategories) {
+        Object.values(category.subcategories).forEach(subcategory => {
+          total += subcategory.count || 0;
+        });
+      } else {
+        total += category.count || 0;
+      }
+    });
+
+    return total;
+  }
 };
 
 // 積分計算工具函數
