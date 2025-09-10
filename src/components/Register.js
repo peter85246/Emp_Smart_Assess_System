@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { authAPI } from '../services/authAPI';
 import { toastConfig } from './Login';
 import { pointsConfig } from '../config/pointsConfig';
+import { REPORT_API } from '../config/apiConfig';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -104,24 +105,29 @@ export default function Register() {
     if (departmentsLoaded) return;
     
     try {
-      const response = await authAPI.getDepartments();
-      setDepartments(response.data);
+      // 直接使用預設的部門列表，對應資料庫中的實際部門
+      const defaultDepartments = [
+        { id: 0, name: '主管' },     
+        { id: 1, name: '技術' },     
+        { id: 2, name: '加工' },     
+        { id: 3, name: '品管' },     
+        { id: 4, name: '品保' },     
+        { id: 5, name: '業務' },     
+        { id: 6, name: '管理者' }    
+      ];
+      setDepartments(defaultDepartments);
       setDepartmentsLoaded(true);
-      // 成功載入時重置離線模式
       setIsOfflineMode(false);
     } catch (error) {
       // 提供預設部門選項作為備用
       const defaultDepartments = [
-        { id: 1, name: '製造部' },
-        { id: 2, name: '品質工程部' },
-        { id: 3, name: '管理部' },
-        { id: 4, name: '業務部' },
-        { id: 5, name: '研發部' },
-        { id: 6, name: '資訊部' },
-        { id: 7, name: '財務部' },
-        { id: 8, name: '採購部' },
-        { id: 9, name: '董事會' },
-        { id: 10, name: '經營管理層' }
+        { id: 0, name: '主管' },     // 對應資料庫中的主管
+        { id: 1, name: '技術' },     // 對應資料庫中的技術部門
+        { id: 2, name: '加工' },     // 對應資料庫中的加工部門
+        { id: 3, name: '品管' },     // 對應資料庫中的品管部門
+        { id: 4, name: '品保' },     // 對應資料庫中的品保部門
+        { id: 5, name: '業務' },     // 對應資料庫中的業務部門
+        { id: 6, name: '管理者' }    // 對應資料庫中的管理者角色
       ];
       setDepartments(defaultDepartments);
       setDepartmentsLoaded(true);

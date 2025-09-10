@@ -8,9 +8,25 @@
  * - ENDPOINTS: 所有API端點的路徑定義
  * - 超時設定、重試邏輯等配置
  */
+// 報工系統API配置
+export const REPORT_API = {
+  BASE_URL: 'http://127.0.0.1:7117/api',
+  ENDPOINTS: {
+    // KPI概覽API
+    kpiOverviewYear: '/AREditior/KPIOverviewByYear',  // 年度KPI概覽 - 參數: year (number)
+    kpiOverviewMonth: '/AREditior/KPIOverviewByMonthDays',
+    // 獲取員工列表
+    employees: '/AREditior/GetAllUserinfoByFilter'
+  },
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+};
+
 export const API_CONFIG = {
-  // 基礎URL配置 - 後端API服務地址
-  BASE_URL: 'http://localhost:5001/api',
+  // 基礎URL配置 - 後端API服務地址 (後端運行Port修改處)
+  BASE_URL: 'https://localhost:7001/api',
   
   // API端點配置 - 按功能模組分類組織
   ENDPOINTS: {
@@ -20,7 +36,8 @@ export const API_CONFIG = {
       logout: '/auth/logout',        // 用戶登出
       register: '/auth/register',    // 用戶註冊
       refresh: '/auth/refresh',      // Token刷新
-      profile: '/auth/profile'       // 用戶檔案
+      profile: '/auth/profile',      // 用戶檔案
+      departments: '/auth/departments' // 部門列表
     },
     // 積分管理端點 - 積分提交、查詢、審核
     points: {

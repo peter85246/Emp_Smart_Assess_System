@@ -1,0 +1,13 @@
+專案後端打包，兩個 CMD 指令：：
+一個是用於發布(publish)專案，另一個是用於將發布後的內容複製到指定的執行檔資料夾。
+
+1. 切換到專案目錄並執行發布指令：
+
+cd "C:\Users\user\Desktop\潤股-智慧評估系統\employee_smart_assessment_system\績效後台(數據卡片、報工、機聯網)\潤股_後台\app\RunGuManagement" && dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+
+-----------------------------------------------------------------------------------------------------------------------
+
+2. 將發布的內容複製到執行檔資料夾：
+
+
+>xcopy /E /I /Y "C:\Users\user\Desktop\潤股-智慧評估系統\employee_smart_assessment_system\績效後台(數據卡片、報工、機聯網)\潤股_後台\app\RunGuManagement\bin\Release\net6.0\win-x64\publish\*" "C:\Users\user\Desktop\潤股-智慧評估系統\employee_smart_assessment_system\績效後台(數據卡片、報工、機聯網)\潤股_後台\執行檔"
