@@ -571,11 +571,11 @@ const PerformanceCard = ({ metric, data }) => {
               <p className={`text-3xl font-bold ${metric.color} animate-glow`}>
                 {value === 'N/A' ? 'N/A' : `${value}${metric.unit}`}
               </p>
-              {metric.description && (
+              {/* {metric.description && (
                 <p className="text-xs text-slate-400">
                   {metric.description(data)}
                 </p>
-              )}
+              )} */}
             </div>
             {/* 等級標示 */}
             <div className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${getGradeBadgeColor(scoreData.grade)} animate-glow`}>
@@ -1362,23 +1362,17 @@ export default function PerformanceDashboard() {
         console.log('API回傳的員工數據:', data.result);
         
         // 過濾並整理員工數據
-        const uniqueEmployees = Array.from(new Set(data.result.map(emp => emp.user_Id)))
-          .map(userId => {
-            const emp = data.result.find(e => e.user_Id === userId);
-            if (!emp) return null;
-            
-            return {
-              id: userId.toString(),
-              name: emp.user_Name || emp.employee_Name || '未知員工',
-              department: emp.department_Name || '未指定部門',
-              role: emp.role_name || '一般員工',
-              grade: 'A',  // 預設等級
-              get displayName() {
-                return `${this.name} (${this.department} - ${this.role})`;
-              }
-            };
-          })
-          .filter(Boolean); // 移除空值
+        const uniqueEmployees = data.result
+          .filter(emp => emp.user_name && emp.role_name) // 確保有名稱和職位
+          .map(emp => ({
+            id: emp.user_name,
+            name: emp.user_name,
+            employee_name: emp.user_name,
+            department: '技術部', // 預設部門
+            role: emp.role_name,
+            grade: 'A',
+            displayName: `${emp.user_name} (技術部 - ${emp.role_name})`
+          }));
 
         console.log('處理後的員工列表:', uniqueEmployees);
         setEmployees(uniqueEmployees.sort((a, b) => a.grade.localeCompare(b.grade)));
@@ -1387,8 +1381,9 @@ export default function PerformanceDashboard() {
         // 使用預設的員工列表作為後備
         setEmployees([
           { 
-            id: "1", 
+            id: "張技師", 
             name: "張技師",
+            employee_name: "張技師",
             department: "技術部",
             role: "技術員",
             grade: "A",
@@ -1397,8 +1392,9 @@ export default function PerformanceDashboard() {
             }
           },
           { 
-            id: "2", 
+            id: "Manager", 
             name: "Manager",
+            employee_name: "Manager",
             department: "技術部",
             role: "主管",
             grade: "A",
@@ -1468,10 +1464,144 @@ export default function PerformanceDashboard() {
       // 更新資料
       if (yearData.code === "0000" && monthData.code === "0000") {
         // 找到選中員工的數據
-        const employeeData = monthData.result.find(item => 
-          item.user_Id === parseInt(employeeId) && 
-          item.work_Day === `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}T00:00:00`
-        );
+        let employeeData;
+        
+        if (targetDay) {
+          // 每日統計模式
+          employeeData = monthData.result.find(item => 
+            item.user_Name === employeeId && 
+            item.work_Day === `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}T00:00:00`
+          );
+        } else {
+          // 月度統計模式
+          // 先找出所有該員工的數據
+          const employeeYearData = yearData.result.filter(item => 
+            item.user_Name === employeeId
+          );
+
+          console.log('找到的年度數據:', employeeYearData);
+          console.log('當前查詢月份:', targetMonth);
+
+          // 構建目標月份字符串
+          const targetMonthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01T00:00:00`;
+          console.log('目標月份字符串:', targetMonthStr);
+
+          // 找出該月份的數據
+          const targetMonthData = employeeYearData.filter(item => {
+            const match = item.work_Month === targetMonthStr;
+            console.log('比較月份:', {
+              targetMonthStr,
+              itemMonth: item.work_Month,
+              department: item.department_Name,
+              match
+            });
+            return match;
+          });
+
+          console.log('該月份找到的數據:', targetMonthData);
+
+          // 如果有數據，選擇其中一個有效的數據
+          if (targetMonthData.length > 0) {
+            // 優先選擇有實際數據的記錄
+            const validData = targetMonthData.find(data => 
+              data.completion_Rate !== null || 
+              data.total_Hours > 0 || 
+              data.cnt_Done > 0
+            );
+
+            // 使用找到的數據，確保work_Month是正確的月份
+            const selectedData = validData || targetMonthData[0];
+            
+            employeeData = {
+              ...selectedData,
+              work_Month: targetMonthStr,
+              completion_Rate: selectedData.completion_Rate || 0,
+              yield_Percent: selectedData.yield_Percent || 0,
+              total_Hours: selectedData.total_Hours || 0,
+              machine_Run_Hours: selectedData.machine_Run_Hours || 0,
+              maintenance_Count: selectedData.maintenance_Count || 0,
+              otd_Rate: selectedData.otd_Rate || 0,
+              kpi_Percent: selectedData.kpi_Percent || 0,
+              units_Per_Hour: selectedData.units_Per_Hour || 0,
+              attendance: 100
+            };
+            
+            console.log('選擇的月度數據:', {
+              targetMonth,
+              original: selectedData,
+              processed: employeeData
+            });
+          } else {
+            // 如果找不到數據，返回空值
+            employeeData = {
+              work_Month: targetMonthStr,
+              completion_Rate: 0,
+              yield_Percent: 0,
+              total_Hours: 0,
+              machine_Run_Hours: 0,
+              maintenance_Count: 0,
+              otd_Rate: 0,
+              kpi_Percent: 0,
+              units_Per_Hour: 0,
+              attendance: 0
+            };
+            
+            console.log('未找到該月份數據，使用空值:', {
+              targetMonth,
+              employeeData
+            });
+          }
+
+          // 確保使用正確的月份數據
+          if (employeeData) {
+            const metrics = {
+              completion_Rate: employeeData.completion_Rate || 0,
+              yield_Percent: employeeData.yield_Percent || 0,
+              total_Hours: employeeData.total_Hours || 0,
+              machine_Run_Hours: employeeData.machine_Run_Hours || 0,
+              maintenance_Count: employeeData.maintenance_Count || 0,
+              otd_Rate: employeeData.otd_Rate || 0,
+              kpi_Percent: employeeData.kpi_Percent || 0,
+              units_Per_Hour: employeeData.units_Per_Hour || 0,
+              attendance: 100
+            };
+
+            console.log('處理後的指標數據:', metrics);
+            employeeData = {
+              ...employeeData,
+              ...metrics
+            };
+          }
+
+          if (!employeeData) {
+            console.log('未找到指定月份的數據:', targetMonth);
+            // 如果找不到數據，返回空值
+            employeeData = {
+              completion_Rate: 0,
+              yield_Percent: 0,
+              total_Hours: 0,
+              machine_Run_Hours: 0,
+              maintenance_Count: 0,
+              otd_Rate: 0,
+              kpi_Percent: 0,
+              units_Per_Hour: 0,
+              attendance: 0
+            };
+          }
+
+          console.log('選中的月份數據:', {
+            targetMonth,
+            employeeData
+          });
+        }
+        
+        console.log('查找條件:', {
+          employeeId,
+          targetYear,
+          targetMonth,
+          targetDay,
+          mode: targetDay ? '每日統計' : '年度統計'
+        });
         
         console.log('查找員工數據:', {
           employeeId,
@@ -1490,78 +1620,41 @@ export default function PerformanceDashboard() {
         }
 
         console.log('找到的員工數據:', employeeData);
-        const monthMetrics = employeeData;
-        const yearMetrics = yearData.result.find(item => item.user_Id === parseInt(employeeId)) || {};
-
-        console.log('月度指標:', monthMetrics);
-        console.log('年度指標:', yearMetrics);
-
-        // 添加除錯日誌
-        console.log('API回傳數據:', monthMetrics);
         
-        // 添加詳細的除錯日誌
-        console.log('API回傳的原始數據:', {
-          completion_Rate: monthMetrics.completion_Rate,
-          yield_Percent: monthMetrics.yield_Percent,
-          total_Hours: monthMetrics.total_Hours,
-          machine_Run_Hours: monthMetrics.machine_Run_Hours,
-          maintenance_Count: monthMetrics.maintenance_Count,
-          otd_Rate: monthMetrics.otd_Rate,
-          kpi_Percent: monthMetrics.kpi_Percent,
-          units_Per_Hour: monthMetrics.units_Per_Hour
-        });
-
-        // 添加詳細的除錯日誌
-        console.log('API回傳的原始數據:', monthMetrics);
-
-        console.log('處理前的 monthMetrics:', monthMetrics);
+        // 使用已經處理好的 employeeData
+        console.log('使用的數據來源:', selectedDay ? '每日統計' : '月度統計');
+        console.log('最終使用的數據:', employeeData);
         
-        // 直接使用API回傳的數據，不做任何轉換
+        // 構建最終數據結構
         const newData = {
-          // 工作完成量 (completion_Rate: 1.0000)
-          completion_Rate: monthMetrics.completion_Rate,
-          
-          // 產品質量 (yield_Percent: 60.00)
-          yield_Percent: monthMetrics.yield_Percent,
-          
-          // 工作時數 (total_Hours: 1.00)
-          total_Hours: monthMetrics.total_Hours,
-          
-          // 機台狀態 (machine_Run_Hours: 675.39)
-          machine_Run_Hours: monthMetrics.machine_Run_Hours,
-          
-          // 維護記錄 (maintenance_Count: 0)
-          maintenance_Count: monthMetrics.maintenance_Count,
-          
-          // 目標達成 (otd_Rate: 0.0000)
-          otd_Rate: monthMetrics.otd_Rate,
-          
-          // KPI總分 (kpi_Percent: 66.67)
-          kpi_Percent: monthMetrics.kpi_Percent,
-          
-          // 效率指標 (units_Per_Hour: 80000.00)
-          units_Per_Hour: monthMetrics.units_Per_Hour,
-          
-          // 差勤紀錄 - 不設定預設值，讓UI顯示無數據
-          attendance: null,
+          // 基本指標
+          completion_Rate: employeeData.completion_Rate || 0,
+          yield_Percent: employeeData.yield_Percent || 0,
+          total_Hours: employeeData.total_Hours || 0,
+          machine_Run_Hours: employeeData.machine_Run_Hours || 0,
+          maintenance_Count: employeeData.maintenance_Count || 0,
+          otd_Rate: employeeData.otd_Rate || 0,
+          kpi_Percent: employeeData.kpi_Percent || 0,
+          units_Per_Hour: employeeData.units_Per_Hour || 0,
+          attendance: employeeData.attendance || 0,
           
           // 其他相關資訊
-          machines_used: monthMetrics.machines_Used || 0,
-          items_contributed: monthMetrics.items_Contributed || 0,
-          items_on_time: monthMetrics.items_On_Time || 0,
+          machines_used: employeeData.machines_Used || 0,
+          items_contributed: employeeData.items_Contributed || 0,
+          items_on_time: employeeData.items_On_Time || 0,
           
           // 員工資訊
-          employeeId: monthMetrics.user_Id || employeeId,
-          employeeName: monthMetrics.user_Name || '',
-          departmentName: monthMetrics.department_Name || '',
+          employeeId: employeeData.user_Id || employeeId,
+          employeeName: employeeData.user_Name || '',
+          departmentName: employeeData.department_Name || '',
           
           // 歷史資料
           historicalData: [
             { 
-              month: monthMetrics.work_Month ? 
-                new Date(monthMetrics.work_Month).getMonth() + 1 + '月' : 
-                `${selectedMonth}月`,
-              value: monthMetrics.kpi_Percent || 0
+              month: employeeData.work_Month ? 
+                new Date(employeeData.work_Month).getMonth() + 1 + '月' : 
+                `${targetMonth}月`,
+              value: employeeData.kpi_Percent || 0
             }
           ],
           
@@ -1619,7 +1712,7 @@ export default function PerformanceDashboard() {
   const handleEmployeeChange = (e) => {
     const employeeId = e.target.value;
     setSelectedEmployee(employeeId);
-    console.log('選擇的員工ID:', employeeId);
+    console.log('選擇的員工名稱:', employeeId);
     
     if (employeeId) {
       // 只有在選擇了有效的員工ID時才載入數據
@@ -1780,7 +1873,16 @@ export default function PerformanceDashboard() {
                     onChange={async (e) => {
                       const newYear = parseInt(e.target.value);
                       setSelectedYear(newYear);
+                      // 清空現有數據
+                      setEmployeeData({});
+                      // 重新加載數據
                       await loadEmployeeData(selectedEmployee, newYear, selectedMonth, selectedDay);
+                      console.log('年份變更:', {
+                        newYear,
+                        selectedMonth,
+                        selectedDay,
+                        selectedEmployee
+                      });
                     }}
                     className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
                   >
@@ -1796,8 +1898,38 @@ export default function PerformanceDashboard() {
                     value={selectedMonth}
                     onChange={async (e) => {
                       const newMonth = parseInt(e.target.value);
+                      console.log('切換到新月份:', newMonth);
+                      
+                      // 先清空數據
+                      setEmployeeData(null);
+                      
+                      // 更新月份
                       setSelectedMonth(newMonth);
-                      await loadEmployeeData(selectedEmployee, selectedYear, newMonth, selectedDay);
+                      
+                      // 等待狀態更新
+                      await new Promise(resolve => setTimeout(resolve, 0));
+                      
+                      // 重新加載數據
+                      console.log('開始加載新月份數據:', {
+                        employee: selectedEmployee,
+                        year: selectedYear,
+                        month: newMonth,
+                        day: selectedDay,
+                        mode: selectedDay ? '每日統計' : '月度統計'
+                      });
+                      
+                      try {
+                        // 確保使用新的月份
+                        await loadEmployeeData(
+                          selectedEmployee,
+                          selectedYear,
+                          newMonth,
+                          selectedDay
+                        );
+                      } catch (error) {
+                        console.error('加載數據失敗:', error);
+                        setEmployeeData({});
+                      }
                     }}
                     className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
                   >
@@ -1808,20 +1940,65 @@ export default function PerformanceDashboard() {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-white">日期：</span>
+                  <span className="text-white">檢視方式：</span>
                   <select
-                    value={selectedDay}
+                    value={selectedDay ? "daily" : "monthly"}
                     onChange={async (e) => {
-                      const newDay = parseInt(e.target.value);
+                      const isDaily = e.target.value === "daily";
+                      const newDay = isDaily ? 1 : null;
+                      
+                      // 先清空數據
+                      setEmployeeData(null);
+                      
+                      // 更新檢視方式
                       setSelectedDay(newDay);
-                      await loadEmployeeData(selectedEmployee, selectedYear, selectedMonth, newDay);
+                      
+                      // 等待狀態更新
+                      await new Promise(resolve => setTimeout(resolve, 0));
+                      
+                      // 重新加載數據
+                      try {
+                        const currentMonth = selectedMonth || new Date().getMonth() + 1;
+                        
+                        console.log('檢視方式變更:', {
+                          mode: isDaily ? '每日統計' : '月度統計',
+                          year: selectedYear,
+                          month: currentMonth,
+                          day: newDay,
+                          employee: selectedEmployee
+                        });
+                        
+                        await loadEmployeeData(
+                          selectedEmployee,
+                          selectedYear,
+                          currentMonth,
+                          newDay
+                        );
+                      } catch (error) {
+                        console.error('加載數據失敗:', error);
+                        setEmployeeData({});
+                      }
                     }}
                     className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
                   >
-                    {Array.from({length: 31}, (_, i) => i + 1).map(day => (
-                      <option key={day} value={day}>{day}日</option>
-                    ))}
+                    <option value="monthly">月度統計</option>
+                    <option value="daily">每日統計</option>
                   </select>
+                  {selectedDay && (
+                    <select
+                      value={selectedDay}
+                      onChange={async (e) => {
+                        const newDay = parseInt(e.target.value);
+                        setSelectedDay(newDay);
+                        await loadEmployeeData(selectedEmployee, selectedYear, selectedMonth, newDay);
+                      }}
+                      className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
+                    >
+                      {Array.from({length: 31}, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day}日</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
             </div>

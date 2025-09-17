@@ -56,15 +56,20 @@ export default function Login() {
       // 使用AuthContext的login方法保存用戶資訊
       await login(userData);
 
-      toast.success(`歡迎回來，${userData.name}！`, toastConfig.success);
-      
-      // 登入後統一導向Dashboard主頁面
-      navigate("/dashboard");
+      // 顯示成功提示，並在1秒後跳轉
+      toast.success(`歡迎回來，${userData.name}！`, {
+        ...toastConfig.success,
+        autoClose: 1000,
+        onClose: () => navigate("/dashboard")
+      });
     } catch (error) {
       const errorMessage = error.response?.data?.message || "登入失敗，請稍後再試！";
       toast.error(errorMessage, toastConfig.error);
     } finally {
-      setLoading(false);
+      // 確保Loading效果至少顯示1秒
+      setTimeout(() => {
+        setLoading(false);
+      }, 1000);
     }
   };
 

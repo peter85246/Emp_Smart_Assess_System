@@ -123,9 +123,9 @@ export const getUpgradeInfo = (currentScore) => {
     currentGrade,
     nextGrade,
     nextGradeTarget,
-    scoreNeeded: nextGradeTarget - currentScore,
+    scoreNeeded: Number((nextGradeTarget - currentScore).toFixed(2)),
     percentageNeeded: nextGradeTarget - currentScore,
-    upgradeMessage: `再提升 ${nextGradeTarget - currentScore} 分即可達到 ${nextGrade} 級`
+    upgradeMessage: `再提升 ${(nextGradeTarget - currentScore).toFixed(2)} 分即可達到 ${nextGrade} 級`
   };
 };
 
