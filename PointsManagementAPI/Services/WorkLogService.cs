@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PointsManagementAPI.Data;
 using PointsManagementAPI.Models.WorkLogModels;
 using PointsManagementAPI.Models.UserModels;
+using System;
 
 namespace PointsManagementAPI.Services
 {
@@ -92,6 +93,83 @@ namespace PointsManagementAPI.Services
                 query = query.Where(w => w.LogDate <= endDate.Value);
 
             return await query.OrderByDescending(w => w.LogDate).ToListAsync();
+        }
+
+        /// <summary>
+        /// 計算員工指定月份的出勤率數據（按員工姓名）
+        /// 基於工作日誌填寫記錄計算：出勤率 = 已填寫日誌天數 / 當月工作天數
+        /// </summary>
+        /// <param name="employeeName">員工姓名</param>
+        /// <param name="year">年份</param>
+        /// <param name="month">月份</param>
+        /// <returns>出勤率數據</returns>
+        public async Task<object> GetEmployeeAttendanceByNameAsync(string employeeName, int year, int month)
+        {
+            // 先根據員工姓名查找員工ID
+            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.Name == employeeName);
+            if (employee == null)
+            {
+                throw new ArgumentException($"找不到員工: {employeeName}");
+            }
+
+            // 計算當月的開始和結束日期（使用 UTC 時間）
+            var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var endDate = startDate.AddMonths(1).AddDays(-1).AddHours(23).AddMinutes(59).AddSeconds(59);
+
+            // 計算當月工作天數（排除週末）
+            var workDays = GetWorkDaysInMonth(year, month);
+
+            // 獲取員工當月的工作日誌記錄
+            var workLogs = await GetWorkLogsByEmployeeAsync(employee.Id, startDate, endDate);
+
+            // 計算已填寫的天數（按日期去重，一天可能有多條記錄）
+            var filledDays = workLogs
+                .Where(log => log.Status == "submitted" || log.Status == "approved" || log.Status == "reviewed")
+                .Select(log => log.LogDate.Date)
+                .Distinct()
+                .Count();
+
+            // 計算出勤率
+            var attendanceRate = workDays > 0 ? Math.Round((double)filledDays / workDays * 100, 1) : 0;
+
+            return new
+            {
+                EmployeeName = employeeName,
+                EmployeeId = employee.Id,
+                Year = year,
+                Month = month,
+                WorkDays = workDays,
+                FilledDays = filledDays,
+                AttendanceRate = attendanceRate,
+                DisplayText = $"{filledDays}/{workDays}天",
+                Percentage = $"{attendanceRate}%"
+            };
+        }
+
+        /// <summary>
+        /// 計算指定月份的工作天數（排除週末）
+        /// </summary>
+        /// <param name="year">年份</param>
+        /// <param name="month">月份</param>
+        /// <returns>工作天數</returns>
+        private int GetWorkDaysInMonth(int year, int month)
+        {
+            var daysInMonth = DateTime.DaysInMonth(year, month);
+            var workDays = 0;
+
+            for (int day = 1; day <= daysInMonth; day++)
+            {
+                var date = new DateTime(year, month, day);
+                var dayOfWeek = date.DayOfWeek;
+
+                // 排除週六(Saturday)和週日(Sunday)
+                if (dayOfWeek != DayOfWeek.Saturday && dayOfWeek != DayOfWeek.Sunday)
+                {
+                    workDays++;
+                }
+            }
+
+            return workDays;
         }
 
         public async Task<List<WorkLog>> GetWorkLogsByDepartmentAsync(int departmentId, DateTime? startDate = null, DateTime? endDate = null)

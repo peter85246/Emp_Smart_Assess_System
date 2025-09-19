@@ -63,12 +63,38 @@ namespace PointsManagementAPI.Controllers
         /// <returns>工作日誌列表</returns>
         [HttpGet("employee/{employeeId}")]
         public async Task<ActionResult<List<WorkLog>>> GetEmployeeWorkLogs(
-            int employeeId, 
-            [FromQuery] DateTime? startDate, 
+            int employeeId,
+            [FromQuery] DateTime? startDate,
             [FromQuery] DateTime? endDate)
         {
             var workLogs = await _workLogService.GetWorkLogsByEmployeeAsync(employeeId, startDate, endDate);
             return Ok(workLogs);
+        }
+
+        /// <summary>
+        /// 【GET】 /api/worklog/attendance/{employeeName} - 獲取員工出勤率數據
+        /// 功能：計算員工指定月份的工作日誌填寫出勤率
+        /// 前端使用：PerformanceDashboard組件計算差勤紀錄指標
+        /// </summary>
+        /// <param name="employeeName">員工姓名</param>
+        /// <param name="year">年份</param>
+        /// <param name="month">月份</param>
+        /// <returns>出勤率數據</returns>
+        [HttpGet("attendance/{employeeName}")]
+        public async Task<ActionResult<object>> GetEmployeeAttendance(
+            string employeeName,
+            [FromQuery] int year,
+            [FromQuery] int month)
+        {
+            try
+            {
+                var attendanceData = await _workLogService.GetEmployeeAttendanceByNameAsync(employeeName, year, month);
+                return Ok(attendanceData);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("department/{departmentId}")]

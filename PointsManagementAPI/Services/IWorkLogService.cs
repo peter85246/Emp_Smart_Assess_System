@@ -17,5 +17,8 @@ namespace PointsManagementAPI.Services
         Task<List<WorkLog>> GetWorkLogsByDepartmentAsync(int departmentId, DateTime? startDate = null, DateTime? endDate = null);
         Task<List<WorkLog>> SearchWorkLogsAsync(string searchTerm, int? employeeId = null, string? category = null);
         Task<WorkLog> ReviewWorkLogAsync(int id, int reviewerId, string status, string? comments = null);
+
+        // 出勤率計算方法
+        Task<object> GetEmployeeAttendanceByNameAsync(string employeeName, int year, int month);
     }
 }

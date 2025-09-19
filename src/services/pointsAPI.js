@@ -542,6 +542,36 @@ export const workLogAPI = {
       console.error('獲取工作日誌錯誤:', error);
       throw error;
     }
+  },
+
+  // 獲取員工出勤率數據（按員工姓名）
+  async getEmployeeAttendance(employeeName, year, month) {
+    try {
+      console.log('獲取員工出勤率API調用:', {
+        employeeName,
+        year,
+        month,
+        url: getApiUrl(`/worklog/attendance/${encodeURIComponent(employeeName)}?year=${year}&month=${month}`)
+      });
+
+      const response = await fetch(getApiUrl(`/worklog/attendance/${encodeURIComponent(employeeName)}?year=${year}&month=${month}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`獲取出勤率失敗: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('出勤率API回應:', data);
+      return data;
+    } catch (error) {
+      console.error('獲取出勤率錯誤:', error);
+      throw error;
+    }
   }
 };
 

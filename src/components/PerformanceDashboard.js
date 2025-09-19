@@ -45,6 +45,7 @@ import {
 } from "../utils/scoreCalculations";
 import { useNavigate } from "react-router-dom";
 import { performanceAPI } from "../services/api";
+import { workLogAPI } from "../services/pointsAPI";
 import { mockEmployeeData } from "../models/employeeData";
 import { REPORT_API } from "../config/apiConfig";
 
@@ -98,20 +99,34 @@ const PerformanceCard = ({ metric, data }) => {
   // 直接使用 metric 的 value 函數獲取值
   let value = metric.value(data);
 
-  // 檢查並修復NaN值
-  if (isNaN(value) || value === null || value === undefined) {
+  // 檢查並修復NaN值，但允許出勤率指標使用字符串格式
+  if ((isNaN(value) || value === null || value === undefined) && metric.id !== 'attendance') {
     console.warn(`Invalid value for metric ${metric.id}:`, value, 'data:', data);
     value = 0;
+  } else if (metric.id === 'attendance' && (value === null || value === undefined || value === 'N/A')) {
+    value = 'N/A';
   }
 
-  // 如果是百分比指標，確保在0-100範圍內
-  if (metric.unit === "%") {
+  // 如果是百分比指標，確保在0-100範圍內（出勤率指標除外，因為它使用字符串格式）
+  if (metric.unit === "%" && metric.id !== 'attendance') {
     value = Math.max(0, Math.min(100, value));
   }
 
   // 得分計算表整合
-  const scoreData = convertPercentageToScore(value);
-  const performanceAnalysis = getPerformanceAnalysis(value, metric.id, metric.title);
+  // 對於特殊指標，使用相應的評分計算邏輯
+  let scoreValue;
+  if (metric.id === 'attendance') {
+    // 出勤率指標使用實際的百分比數值進行評分計算
+    scoreValue = data?.attendance || 0;
+  } else if (metric.scoreCalculation) {
+    // 維護指標等使用特殊評分計算
+    scoreValue = metric.scoreCalculation(data);
+  } else {
+    // 一般指標使用顯示值
+    scoreValue = value;
+  }
+  const scoreData = convertPercentageToScore(scoreValue);
+  const performanceAnalysis = getPerformanceAnalysis(scoreValue, metric.id, metric.title);
 
   /**
    * 數據處理方法：獲取最近6個月數據（智能洞察用）
@@ -152,7 +167,7 @@ const PerformanceCard = ({ metric, data }) => {
             quality: monthData.yield_Percent ? Math.round(monthData.yield_Percent) : 0,
             efficiency: monthData.kpi_Percent ? Math.round(monthData.kpi_Percent) : 0,
             workHours: monthData.total_Hours ? Math.round(monthData.total_Hours) : 0,
-            attendance: monthData.attendance || 95, // 後端暫無此欄位，使用預設值
+            attendance: monthData.attendance || 0, // 使用實際出勤率數據
             machineStatus: monthData.machine_Run_Hours ? Math.round(monthData.machine_Run_Hours) : 0,
             maintenance: monthData.maintenance_Count || 0,
             targetAchievement: monthData.otd_Rate ? Math.round(monthData.otd_Rate * 100) : 0,
@@ -180,7 +195,12 @@ const PerformanceCard = ({ metric, data }) => {
                        metric.id === 'targetAchievement' ? 'targetAchievement' :
                        metric.id === 'kpi' ? 'kpi' : 'efficiency';
 
-        lastMonth[dataKey] = value; // 使用當前計算的最終值
+        // 對於出勤率指標，使用實際的百分比數值而不是字符串格式
+        if (metric.id === 'attendance' && data?.attendance) {
+          lastMonth[dataKey] = data.attendance; // 使用實際的百分比數值（77.3）
+        } else {
+          lastMonth[dataKey] = value; // 使用當前計算的最終值
+        }
       }
 
       return recentMonths;
@@ -198,7 +218,18 @@ const PerformanceCard = ({ metric, data }) => {
         { month: "6月", completion: 74, quality: 79, efficiency: 76, workHours: 77, attendance: 97, machineStatus: 93, maintenance: 83, targetAchievement: 88, kpi: 83 },
         { month: "7月", completion: 76, quality: 81, efficiency: 78, workHours: 78, attendance: 97, machineStatus: 94, maintenance: 84, targetAchievement: 89, kpi: 84 },
         { month: "8月", completion: 78, quality: 83, efficiency: 80, workHours: 79, attendance: 98, machineStatus: 95, maintenance: 85, targetAchievement: 90, kpi: 85 },
-        { month: "9月", completion: value, quality: value, efficiency: value, workHours: value, attendance: value, machineStatus: value, maintenance: value, targetAchievement: value, kpi: value }
+        {
+          month: "9月",
+          completion: value,
+          quality: value,
+          efficiency: value,
+          workHours: value,
+          attendance: metric.id === 'attendance' && data?.attendance ? data.attendance : value,
+          machineStatus: value,
+          maintenance: value,
+          targetAchievement: value,
+          kpi: value
+        }
       ];
     }
 
@@ -363,7 +394,11 @@ const PerformanceCard = ({ metric, data }) => {
       case "workHours":
         return `總工時 = 所有工單的工作時間總和 = ${value} 小時`;
       case "attendance":
-        return `出勤率 = 已填寫日誌天數 / 當月工作天數 = ${value}%`;
+        // 對於出勤率，顯示天數格式的計算說明
+        if (data?.attendanceDetails) {
+          return `工作日誌填寫 = ${data.attendanceDetails.filledDays}天 / ${data.attendanceDetails.workDays}天 = ${data.attendance}%`;
+        }
+        return `出勤率 = 已填寫日誌天數 / 當月工作天數 = ${data?.attendance || 0}%`;
       case "machineStatus":
         return `機台運轉時間 = ${value} 小時`;
       case "maintenance":
@@ -863,7 +898,10 @@ const PerformanceCard = ({ metric, data }) => {
                                 )}
                               </div>
                               <span className={`text-sm font-medium min-w-[80px] text-right ${isLatest ? metric.color : 'text-slate-300'}`}>
-                                {itemValue === 'N/A' ? 'N/A' : `${Number(itemValue).toFixed(2)}${metric.unit}`}
+                                {itemValue === 'N/A' ? 'N/A' :
+                                 metric.id === 'attendance' && isLatest && data?.attendanceDetails ?
+                                   `${data.attendanceDetails.filledDays}/${data.attendanceDetails.workDays}天` :
+                                   `${Number(itemValue).toFixed(2)}${metric.unit}`}
                               </span>
                               {isLatest && (
                                 <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
@@ -895,7 +933,31 @@ const PerformanceCard = ({ metric, data }) => {
                                          metric.id === "kpi" ? "kpi" : "efficiency";
 
                           // 獲取原始數值，不做限制
-                          const values = recentData.map(item => item[dataKey] || 0);
+                          let values = recentData.map(item => item[dataKey] || 0);
+
+                          // 對於特殊指標，使用相應的數值進行統計計算
+                          if (metric.id === 'attendance') {
+                            // 使用實際的出勤率百分比數值，而不是字符串格式
+                            values = recentData.map(item => {
+                              // 如果是當前月份且有詳細數據，使用實際出勤率
+                              if (item === recentData[recentData.length - 1] && data?.attendance) {
+                                return data.attendance;
+                              }
+                              return item[dataKey] || 0;
+                            });
+                          } else if (metric.id === 'maintenance') {
+                            // 維護指標：使用評分值進行穩定性計算
+                            values = recentData.map(item => {
+                              // 如果是當前月份且有詳細數據，使用評分計算
+                              if (item === recentData[recentData.length - 1] && data?.maintenance_Count !== undefined) {
+                                return metric.scoreCalculation(data);
+                              }
+                              // 歷史數據：計算評分
+                              const maintenanceCount = item[dataKey] || 0;
+                              const maxMaintenanceCount = 10;
+                              return Math.max(0, 100 - (maintenanceCount / maxMaintenanceCount) * 100);
+                            });
+                          }
 
                           // 🔧 調試信息：檢查原始數據
                           console.log(`${metric.title} 原始數據:`, {
@@ -905,10 +967,35 @@ const PerformanceCard = ({ metric, data }) => {
                           });
 
                           // 🔧 修正：根據指標類型顯示正確單位（統一顯示到小數點後2位）
-                          const getValueWithUnit = (val) => {
+                          const getValueWithUnit = (val, isCurrentValue = false, isPrediction = false) => {
                             // 處理 N/A 情況
                             if (val === 'N/A' || val === null || val === undefined || isNaN(val)) {
                               return 'N/A';
+                            }
+
+                            // 對於出勤率指標，如果是當前值且有詳細數據，顯示天數格式
+                            if (metric.id === 'attendance' && isCurrentValue && data?.attendanceDetails) {
+                              return `${data.attendanceDetails.filledDays}/${data.attendanceDetails.workDays}天`;
+                            }
+
+                            // 對於出勤率指標的歷史數據，顯示百分比格式
+                            if (metric.id === 'attendance') {
+                              return `${Number(val).toFixed(1)}%`;
+                            }
+
+                            // 對於維護指標，顯示實際維護次數而不是評分
+                            if (metric.id === 'maintenance') {
+                              if (isCurrentValue && data?.maintenance_Count !== undefined) {
+                                return `${data.maintenance_Count}次`;
+                              }
+                              if (isPrediction) {
+                                // 預測值已經是次數，直接顯示
+                                return `${Math.round(val)}次`;
+                              }
+                              // 歷史數據：從評分反推維護次數
+                              const maxMaintenanceCount = 10;
+                              const maintenanceCount = Math.round(maxMaintenanceCount * (100 - val) / 100);
+                              return `${Math.max(0, maintenanceCount)}次`;
                             }
 
                             // 統一顯示到小數點後2位，並根據 metrics 配置的單位顯示
@@ -935,8 +1022,12 @@ const PerformanceCard = ({ metric, data }) => {
                               const allZeroOrNear = numericValues.every(val => Math.abs(val) < 0.01);
 
                               if (allZeroOrNear) {
-                                // 如果所有數值都是0或接近0，穩定指數為0（表示無表現）
-                                stability = 0;
+                                // 對於維護指標，0次維護是好事，應該有高穩定性
+                                if (metric.id === 'maintenance') {
+                                  stability = 100; // 維護次數都是0，表示設備穩定
+                                } else {
+                                  stability = 0; // 其他指標，0表示無表現
+                                }
                               } else if (maxValue === minValue) {
                                 // 如果所有數值完全相同，穩定指數為100（完全穩定）
                                 stability = 100;
@@ -955,7 +1046,13 @@ const PerformanceCard = ({ metric, data }) => {
                               }
                             } else {
                               // 數據點不足（少於3個），無法評估穩定性
-                              stability = 0;
+                              if (metric.id === 'maintenance' && numericValues.length > 0) {
+                                // 維護指標：即使數據點不足，如果都是高分也應該有穩定性
+                                const allHighScores = numericValues.every(val => val >= 90);
+                                stability = allHighScores ? 80 : 0; // 給予較高但不是滿分的穩定性
+                              } else {
+                                stability = 0;
+                              }
                             }
 
                             // 🔧 調試信息：檢查穩定指數計算
@@ -980,16 +1077,36 @@ const PerformanceCard = ({ metric, data }) => {
                               const trend = (recentValues[2] - recentValues[0]) / 2;
                               let rawPrediction = currentValue + trend;
 
-                              // 🔧 限制百分比指標的預測值不超過100%
-                              if (metric.unit === '%') {
+                              // 🔧 限制百分比指標和出勤率指標的預測值不超過100%
+                              if (metric.unit === '%' || metric.id === 'attendance') {
                                 predictedValue = Number(Math.min(100, Math.max(0, rawPrediction)).toFixed(2));
+                              } else if (metric.id === 'maintenance') {
+                                // 維護指標：特殊預測邏輯
+                                // 如果歷史維護次數都很低（表示設備穩定），預測也應該保持低維護
+                                const recentMaintenanceCounts = recentData.map(item => item.maintenance || 0);
+                                const avgMaintenanceCount = recentMaintenanceCounts.reduce((a, b) => a + b, 0) / recentMaintenanceCounts.length;
+
+                                if (avgMaintenanceCount <= 1) {
+                                  // 如果平均維護次數很低，預測維持低維護
+                                  predictedValue = Math.max(0, Math.min(2, Math.round(avgMaintenanceCount)));
+                                } else {
+                                  // 否則使用趨勢預測，但限制在合理範圍內
+                                  const maxMaintenanceCount = 10;
+                                  const predictedCount = Math.round(maxMaintenanceCount * (100 - rawPrediction) / 100);
+                                  predictedValue = Math.max(0, Math.min(5, predictedCount)); // 限制最大5次
+                                }
                               } else {
                                 // 非百分比指標不限制上限，但不能為負數
                                 predictedValue = Number(Math.max(0, rawPrediction).toFixed(2));
                               }
                             } else {
                               // 數據不足，無法進行預測
-                              predictedValue = 'N/A';
+                              if (metric.id === 'maintenance') {
+                                // 維護指標：即使數據不足，也給予保守預測
+                                predictedValue = 0;
+                              } else {
+                                predictedValue = 'N/A';
+                              }
                             }
                           }
 
@@ -1005,13 +1122,13 @@ const PerformanceCard = ({ metric, data }) => {
                                   <span className="text-slate-300 text-sm">當前表現</span>
                                   <div className="flex items-center gap-1">
                                     <span className={`font-bold ${metric.color}`}>
-                                      {getValueWithUnit(currentValue)}
+                                      {getValueWithUnit(currentValue, true)}
                                     </span>
                                     {change !== 0 && (
                                       <span className={`text-xs flex items-center gap-1 ${
                                         change > 0 ? 'text-green-400' : 'text-red-400'
                                       }`}>
-                                        {change > 0 ? '↗️' : '↘️'} {getValueWithUnit(Math.abs(change))}
+                                        {change > 0 ? '↗️' : '↘️'} {getValueWithUnit(Math.abs(change), false)}
                                       </span>
                                     )}
                                   </div>
@@ -1019,13 +1136,13 @@ const PerformanceCard = ({ metric, data }) => {
                                 <div className="flex justify-between items-center">
                                   <span className="text-slate-300 text-sm">最佳記錄</span>
                                   <span className="text-yellow-400 font-medium">
-                                    {getValueWithUnit(maxValue)}
+                                    {getValueWithUnit(maxValue, false)}
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                   <span className="text-slate-300 text-sm">平均水準</span>
                                   <span className="text-blue-400 font-medium">
-                                    {getValueWithUnit(avgValue)}
+                                    {getValueWithUnit(avgValue, false)}
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center">
@@ -1076,7 +1193,7 @@ const PerformanceCard = ({ metric, data }) => {
                                 <div className="flex justify-between items-center">
                                   <span className="text-slate-300 text-sm">下月預期</span>
                                   <span className="text-purple-400 font-medium">
-                                    {predictedValue === 'N/A' ? '數據不足' : getValueWithUnit(predictedValue)}
+                                    {predictedValue === 'N/A' ? '數據不足' : getValueWithUnit(predictedValue, false, true)}
                                   </span>
                                 </div>
                               </div>
@@ -1138,6 +1255,9 @@ const PerformanceCard = ({ metric, data }) => {
                             });
 
                             if (currentValue === 'N/A' || !hasValidData) {
+                              if (metric.id === 'attendance') {
+                                return `差勤紀錄目前無可用數據，建議確認數據收集流程是否正常運作。`;
+                              }
                               return `${metric.title}目前無可用數據，建議確認數據收集流程是否正常運作。`;
                             } else if (allZeroOrNear) {
                               return `${metric.title}六個月內缺乏有效表現數據，建議建立完整的監控機制並設定基礎目標。`;
@@ -1907,7 +2027,7 @@ const metrics = [
       description: (data) => `(completion_Rate: ${data?.completion_Rate?.toFixed(2) || 'N/A'})`,
       icon: <Activity className="w-6 h-6" />,
       color: "text-blue-500",
-      target: 95,
+      target: 90,
       weight: 0.125,
     },
     {
@@ -1918,7 +2038,7 @@ const metrics = [
       description: (data) => `(yield_Percent: ${data?.yield_Percent?.toFixed(2) || 'N/A'})`,
       icon: <Target className="w-6 h-6" />,
       color: "text-green-500",
-      target: 98,
+      target: 90,
       weight: 0.125,
     },
     {
@@ -1929,8 +2049,14 @@ const metrics = [
       description: (data) => `(total_Hours: ${data?.total_Hours?.toFixed(2) || 'N/A'})`,
       icon: <Clock className="w-6 h-6" />,
       color: "text-orange-400",
-      target: 95,
+      target: 85,
       weight: 0.125,
+      // 評分計算：工作時間轉換為效率百分比
+      scoreCalculation: (data) => {
+        const hours = data?.total_Hours || 0;
+        const standardHours = 176; // 標準月工作時數
+        return hours > 0 ? Number(((hours / standardHours) * 100).toFixed(2)) : 0;
+      },
     },
     {
       id: "attendance",
@@ -1940,19 +2066,30 @@ const metrics = [
         if (!data || data.attendance === undefined || data.attendance === null) {
           return 'N/A';
         }
-        return data.attendance;
+        // 優先顯示天數格式，如果沒有詳細數據則顯示 N/A
+        if (data.attendanceDetails) {
+          return `${data.attendanceDetails.filledDays}/${data.attendanceDetails.workDays}`;
+        }
+        return 'N/A';
       },
-      unit: "%",
+      unit: "天",
       description: (data) => {
         if (!data || data.attendance === undefined || data.attendance === null) {
-          return '(attendance: 無數據)';
+          return '(基於工作日誌填寫記錄)';
         }
-        return `(attendance: ${data.attendance})`;
+        // 顯示出勤率百分比作為補充信息
+        if (data.attendanceDetails && data.attendance) {
+          return `出勤率 ${data.attendance}%`;
+        }
+        return `(出勤率: ${data.attendance}%)`;
       },
       icon: <Calendar className="w-6 h-6" />,
       color: "text-pink-400",
-      target: 95,
+      target: 85,
       weight: 0.125,
+      dataSource: "每日工作日誌填寫記錄",
+      needsCalculation: true,
+      formula: "出勤率 = 已填寫日誌天數 / 當月工作天數"
     },
     {
       id: "machineStatus",
@@ -1962,8 +2099,14 @@ const metrics = [
       description: (data) => `(machine_Run_Hours: ${data?.machine_Run_Hours?.toFixed(2) || 'N/A'})`,
       icon: <Settings className="w-6 h-6" />,
       color: "text-cyan-400",
-      target: 90,
+      target: 80,
       weight: 0.125,
+      // 評分計算：機台運行時間轉換為效率百分比
+      scoreCalculation: (data) => {
+        const runHours = data?.machine_Run_Hours || 0;
+        const standardRunHours = 720; // 標準月運行時數 (30天 * 24小時)
+        return runHours > 0 ? Number(((runHours / standardRunHours) * 100).toFixed(2)) : 0;
+      },
     },
     {
       id: "maintenance",
@@ -1973,8 +2116,15 @@ const metrics = [
       description: (data) => `(maintenance_Count: ${data?.maintenance_Count || 'N/A'})`,
       icon: <Wrench className="w-6 h-6" />,
       color: "text-purple-400",
-      target: 90,
+      target: 85,
       weight: 0.125,
+      // 特殊評分邏輯：維護次數越少分數越高
+      scoreCalculation: (data) => {
+        const maintenanceCount = data?.maintenance_Count || 0;
+        // 假設最大維護次數為10次，0次維護得100分
+        const maxMaintenanceCount = 10;
+        return Math.max(0, 100 - (maintenanceCount / maxMaintenanceCount) * 100);
+      },
     },
     {
       id: "targetAchievement",
@@ -1984,7 +2134,7 @@ const metrics = [
       description: (data) => `(otd_Rate: ${data?.otd_Rate?.toFixed(2) || 'N/A'})`,
       icon: <Target className="w-6 h-6" />,
       color: "text-red-400",
-      target: 90,
+      target: 80,
       weight: 0.125,
     },
     {
@@ -2001,12 +2151,19 @@ const metrics = [
     {
       id: "efficiency",
       title: "效率指標",
-      value: (data) => data?.units_Per_Hour ? Number((data.units_Per_Hour).toFixed(2)) : 0,
+      value: (data) => {
+        // 將效率數值轉換為合理的百分比，超過100%就顯示100%
+        const efficiency = data?.units_Per_Hour || 0;
+        // 假設標準效率為1000單位/小時，進行百分比轉換
+        const standardEfficiency = 1000;
+        const percentage = efficiency > 0 ? (efficiency / standardEfficiency) * 100 : 0;
+        return Number(Math.min(100, percentage).toFixed(2));
+      },
       unit: "%",
       description: (data) => `(units_Per_Hour: ${data?.units_Per_Hour?.toFixed(2) || 'N/A'})`,
       icon: <Zap className="w-6 h-6" />,
       color: "text-lime-400",
-      target: 85,
+      target: 80,
       weight: 0.125,
     },
   ];
@@ -2022,8 +2179,15 @@ const metrics = [
     
     const grades = [];
     metrics.forEach(metric => {
-      const value = metric.value(data);
-      const grade = getGradeFromScore(value);
+      let scoreValue;
+      if (metric.scoreCalculation) {
+        // 使用特殊評分計算（如維護指標）
+        scoreValue = metric.scoreCalculation(data);
+      } else {
+        // 使用一般數值
+        scoreValue = metric.value(data);
+      }
+      const grade = getGradeFromScore(scoreValue);
       grades.push(grade);
     });
     
@@ -2247,6 +2411,44 @@ const metrics = [
               units_Per_Hour: (acc.units_Per_Hour || 0) + (curr.units_Per_Hour || 0)
             }), {});
 
+            // 計算年度出勤率
+            let yearlyAttendance = null;
+            let yearlyAttendanceDetails = null;
+
+            try {
+              // 計算年度總工作天數和已填寫天數
+              let totalWorkDays = 0;
+              let totalFilledDays = 0;
+
+              for (let month = 1; month <= 12; month++) {
+                try {
+                  const monthAttendance = await workLogAPI.getEmployeeAttendance(employeeId, targetYear, month);
+                  if (monthAttendance) {
+                    totalWorkDays += monthAttendance.workDays || 0;
+                    totalFilledDays += monthAttendance.filledDays || 0;
+                  }
+                } catch (error) {
+                  console.warn(`獲取${month}月出勤率失敗:`, error);
+                }
+              }
+
+              if (totalWorkDays > 0) {
+                yearlyAttendance = Math.round((totalFilledDays / totalWorkDays) * 100 * 10) / 10;
+                yearlyAttendanceDetails = {
+                  filledDays: totalFilledDays,
+                  workDays: totalWorkDays
+                };
+              }
+
+              console.log('年度出勤率計算:', {
+                totalWorkDays,
+                totalFilledDays,
+                yearlyAttendance
+              });
+            } catch (error) {
+              console.warn('計算年度出勤率失敗:', error);
+            }
+
             // 計算平均值
             const monthCount = employeeYearData.length;
             employeeData = {
@@ -2260,7 +2462,8 @@ const metrics = [
               otd_Rate: yearlyTotals.otd_Rate / monthCount,
               kpi_Percent: yearlyTotals.kpi_Percent / monthCount,
               units_Per_Hour: yearlyTotals.units_Per_Hour / monthCount,
-              attendance: 100,
+              attendance: yearlyAttendance || 0,
+              attendanceDetails: yearlyAttendanceDetails,
               isYearlyView: true  // 標記為年度統計視圖
             };
 
@@ -2449,6 +2652,19 @@ const metrics = [
             // 使用找到的數據，確保work_Month是正確的月份
             const selectedData = validData || targetMonthData[0];
             
+            // 獲取出勤率數據
+            let attendanceData = null;
+            try {
+              // 使用員工姓名而不是ID來調用API
+              attendanceData = await workLogAPI.getEmployeeAttendance(employeeId, targetYear, targetMonth);
+              console.log('出勤率數據:', attendanceData);
+              console.log('出勤率數據類型:', typeof attendanceData);
+              console.log('filledDays:', attendanceData?.filledDays);
+              console.log('workDays:', attendanceData?.workDays);
+            } catch (error) {
+              console.warn('獲取出勤率失敗:', error);
+            }
+
             employeeData = {
               ...selectedData,
               work_Month: targetMonthStr,
@@ -2460,9 +2676,19 @@ const metrics = [
               otd_Rate: selectedData.otd_Rate || 0,
               kpi_Percent: selectedData.kpi_Percent || 0,
               units_Per_Hour: selectedData.units_Per_Hour || 0,
-              attendance: 100,
+              attendance: attendanceData ? attendanceData.attendanceRate : 0,
+              attendanceDetails: attendanceData ? {
+                filledDays: attendanceData.filledDays,
+                workDays: attendanceData.workDays,
+                displayText: attendanceData.displayText
+              } : null,
               isYearlyView: false  // 清除年度統計標記
             };
+
+            console.log('最終設置的employeeData:', {
+              attendance: employeeData.attendance,
+              attendanceDetails: employeeData.attendanceDetails
+            });
             
             // 更新檢視方式
             setViewMode("monthly");
@@ -2473,7 +2699,16 @@ const metrics = [
               processed: employeeData
             });
           } else {
-            // 如果找不到數據，返回空值
+            // 如果找不到數據，仍然嘗試獲取出勤率
+            let attendanceData = null;
+            try {
+              attendanceData = await workLogAPI.getEmployeeAttendance(employeeId, targetYear, targetMonth);
+              console.log('出勤率數據 (無其他數據):', attendanceData);
+            } catch (error) {
+              console.warn('獲取出勤率失敗:', error);
+            }
+
+            // 返回空值但包含出勤率
             employeeData = {
               work_Month: targetMonthStr,
               completion_Rate: 0,
@@ -2484,7 +2719,12 @@ const metrics = [
               otd_Rate: 0,
               kpi_Percent: 0,
               units_Per_Hour: 0,
-              attendance: 0
+              attendance: attendanceData ? attendanceData.attendanceRate : 0,
+              attendanceDetails: attendanceData ? {
+                filledDays: attendanceData.filledDays,
+                workDays: attendanceData.workDays,
+                displayText: attendanceData.displayText
+              } : null
             };
             
             console.log('未找到該月份數據，使用空值:', {
@@ -2504,7 +2744,7 @@ const metrics = [
               otd_Rate: employeeData.otd_Rate || 0,
               kpi_Percent: employeeData.kpi_Percent || 0,
               units_Per_Hour: employeeData.units_Per_Hour || 0,
-              attendance: 100
+              attendance: employeeData.attendance || 0  // 使用實際的出勤率數據
             };
 
             console.log('處理後的指標數據:', metrics);
@@ -2591,7 +2831,8 @@ const metrics = [
           kpi_Percent: employeeData.kpi_Percent || 0,
           units_Per_Hour: employeeData.units_Per_Hour || 0,
           attendance: employeeData.attendance || 0,
-          
+          attendanceDetails: employeeData.attendanceDetails || null,
+
           // 其他相關資訊
           machines_used: employeeData.machines_Used || 0,
           items_contributed: employeeData.items_Contributed || 0,
@@ -2648,8 +2889,17 @@ const metrics = [
   useEffect(() => {
     const initializeData = async () => {
       if (!selectedEmployee) {
+        setEmployeeData({});
+        setIsLoading(false);
         return;
       }
+
+      // 防止重複載入
+      if (isLoading) {
+        return;
+      }
+
+      setIsLoading(true);
 
       try {
         // 根據當前檢視方式載入數據
@@ -2677,21 +2927,28 @@ const metrics = [
         );
       } catch (error) {
         console.error("初始化資料失敗:", error);
+        setEmployeeData({});
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    // 執行初始化
-    initializeData();
+    // 使用防抖延遲執行，避免快速切換時的閃爍
+    const timeoutId = setTimeout(initializeData, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [selectedEmployee, selectedYear, selectedMonth, selectedDay, viewMode]);
 
   const handleEmployeeChange = async (e) => {
     const employeeId = e.target.value;
     console.log('選擇的員工名稱:', employeeId);
-    
-    // 先清空現有數據
-    setEmployeeData(null);
+
+    // 設置Loading狀態，避免畫面閃爍
+    setIsLoading(true);
     setSelectedEmployee(employeeId);
-    
+
     // 重新加載可用年份列表
     await loadAvailableYears();
     
@@ -2723,10 +2980,14 @@ const metrics = [
       } catch (error) {
         console.error('載入員工數據失敗:', error);
         setEmployeeData({});
+      } finally {
+        // 無論成功或失敗都關閉Loading狀態
+        setIsLoading(false);
       }
     } else {
       // 如果選擇了空值，清空數據
       setEmployeeData({});
+      setIsLoading(false);
     }
   };
 
@@ -2967,15 +3228,15 @@ const metrics = [
                         onChange={async (e) => {
                           const newMonth = parseInt(e.target.value);
                           console.log('切換到新月份:', newMonth);
-                          
-                          // 先清空數據
-                          setEmployeeData(null);
-                          
+
+                          // 設置Loading狀態，避免閃爍
+                          setIsLoading(true);
+
                           // 更新月份
                           setSelectedMonth(newMonth);
-                          
+
                           // 等待狀態更新
-                          await new Promise(resolve => setTimeout(resolve, 0));
+                          await new Promise(resolve => setTimeout(resolve, 10));
                           
                           // 重新加載數據
                           console.log('開始加載新月份數據:', {
@@ -2998,6 +3259,9 @@ const metrics = [
                           } catch (error) {
                             console.error('加載數據失敗:', error);
                             setEmployeeData({});
+                          } finally {
+                            // 無論成功或失敗都關閉Loading狀態
+                            setIsLoading(false);
                           }
                         }}
                         className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
@@ -3043,20 +3307,20 @@ const metrics = [
                           currentViewMode: viewMode
                         });
                         
-                        // 先清空數據
-                        setEmployeeData(null);
-                        
+                        // 設置Loading狀態，避免閃爍
+                        setIsLoading(true);
+
                         // 更新檢視方式狀態
                         setViewMode(newViewMode);
                         setSelectedDay(newDay);
-                        
+
                         // 如果是年度統計，強制設置月份為1月
                         if (isYearly) {
                           setSelectedMonth(1);
                         }
-                        
+
                         // 等待狀態更新
-                        await new Promise(resolve => setTimeout(resolve, 0));
+                        await new Promise(resolve => setTimeout(resolve, 10));
                         
                         // 重新加載數據
                         try {
@@ -3081,6 +3345,9 @@ const metrics = [
                         } catch (error) {
                           console.error('加載數據失敗:', error);
                           setEmployeeData({});
+                        } finally {
+                          // 無論成功或失敗都關閉Loading狀態
+                          setIsLoading(false);
                         }
                       }}
                       className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
@@ -3111,12 +3378,12 @@ const metrics = [
                             month: selectedMonth
                           });
                           
-                          // 先清空數據
-                          setEmployeeData(null);
+                          // 設置Loading狀態，避免閃爍
+                          setIsLoading(true);
                           setSelectedDay(newDay);
-                          
+
                           // 等待狀態更新
-                          await new Promise(resolve => setTimeout(resolve, 0));
+                          await new Promise(resolve => setTimeout(resolve, 10));
                           
                           try {
                             // 重新加載數據
@@ -3130,6 +3397,8 @@ const metrics = [
                           } catch (error) {
                             console.error('載入日期數據失敗:', error);
                             setEmployeeData({});
+                          } finally {
+                            setIsLoading(false);
                           }
                         }}
                         className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
@@ -3240,7 +3509,29 @@ const metrics = [
                           <span className="text-slate-300 text-sm px-2">月份：</span>
                           <select
                             value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                            onChange={async (e) => {
+                              const newMonth = parseInt(e.target.value);
+                              setIsLoading(true);
+                              setSelectedMonth(newMonth);
+
+                              if (selectedEmployee) {
+                                try {
+                                  await loadEmployeeData(
+                                    selectedEmployee,
+                                    selectedYear,
+                                    newMonth,
+                                    viewMode === "daily" ? 1 : null,
+                                    viewMode === "yearly"
+                                  );
+                                } catch (error) {
+                                  console.error('載入數據失敗:', error);
+                                } finally {
+                                  setIsLoading(false);
+                                }
+                              } else {
+                                setIsLoading(false);
+                              }
+                            }}
                             className="bg-slate-800 text-white rounded px-4 text-sm font-medium min-w-[100px] h-[38px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                           >
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
@@ -3314,62 +3605,96 @@ const metrics = [
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-600">
-                      {metrics.map((metric) => (
-                        <tr
-                          key={metric.id}
-                          className="hover:bg-slate-600/50 transition-colors"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                            <div className="flex items-center">
-                              <span
-                                className={`mr-2 animate-glow ${metric.color}`}
-                              >
-                                {metric.icon}
-                              </span>
+                      {metrics.map((metric) => {
+                        // 計算評分值（用於狀態判斷）
+                        let scoreValue;
+                        if (metric.scoreCalculation) {
+                          // 使用特殊評分計算（維護指標、工作時間、機台運行狀態）
+                          scoreValue = metric.scoreCalculation(currentEmployeeData);
+                        } else if (metric.id === 'attendance') {
+                          // 出勤率使用百分比數值
+                          scoreValue = currentEmployeeData?.attendance || 0;
+                        } else {
+                          // 其他指標使用原始數值
+                          scoreValue = metric.value(currentEmployeeData);
+                        }
+
+                        // 顯示值（用於數值欄位）
+                        let displayValue;
+                        if (metric.id === 'attendance') {
+                          // 出勤率顯示百分比
+                          displayValue = `${currentEmployeeData?.attendance || 0}%`;
+                        } else if (metric.id === 'maintenance') {
+                          // 維護指標顯示次數，但評分用百分比
+                          displayValue = `${metric.value(currentEmployeeData)}次 (評分: ${scoreValue.toFixed(1)}%)`;
+                        } else if (metric.id === 'workHours') {
+                          // 工作時間顯示小時數和評分
+                          displayValue = `${metric.value(currentEmployeeData)}小時 (評分: ${scoreValue.toFixed(1)}%)`;
+                        } else if (metric.id === 'machineStatus') {
+                          // 機台運行狀態顯示小時數和評分
+                          displayValue = `${metric.value(currentEmployeeData)}小時 (評分: ${scoreValue.toFixed(1)}%)`;
+                        } else {
+                          // 其他指標根據單位顯示
+                          displayValue = `${metric.value(currentEmployeeData)}${metric.unit}`;
+                        }
+
+                        return (
+                          <tr
+                            key={metric.id}
+                            className="hover:bg-slate-600/50 transition-colors"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-slate-200">
+                              <div className="flex items-center">
+                                <span
+                                  className={`mr-2 animate-glow ${metric.color}`}
+                                >
+                                  {metric.icon}
+                                </span>
+                                <span className="animate-glow">
+                                  {metric.title}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-slate-200">
                               <span className="animate-glow">
-                                {metric.title}
+                                {displayValue}
                               </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                            <span className="animate-glow">
-                              {metric.value(employeeData)}%
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                            <span className="animate-glow">80%</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 py-1 rounded-full text-sm animate-glow ${
-                                metric.value(employeeData) === 100
-                                  ? "bg-gradient-to-r from-purple-300 via-purple-100 to-purple-300 text-purple-800"
-                                  : metric.value(employeeData) >= 90
-                                    ? "bg-green-100 text-green-800"
-                                    : metric.value(employeeData) >= 80
-                                      ? "bg-blue-100 text-blue-800"
-                                      : metric.value(employeeData) >= 70
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : metric.value(employeeData) >= 60
-                                          ? "bg-orange-100 text-orange-800"
-                                          : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {metric.value(employeeData) === 100
-                                ? "完美"
-                                : metric.value(employeeData) >= 90
-                                  ? "優秀"
-                                  : metric.value(employeeData) >= 80
-                                    ? "良好"
-                                    : metric.value(employeeData) >= 70
-                                      ? "待加強"
-                                      : metric.value(employeeData) >= 60
-                                        ? "不及格"
-                                        : "極需改進"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-slate-200">
+                              <span className="animate-glow">{metric.target}%</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`px-2 py-1 rounded-full text-sm animate-glow ${
+                                  scoreValue === 100
+                                    ? "bg-gradient-to-r from-purple-300 via-purple-100 to-purple-300 text-purple-800"
+                                    : scoreValue >= 90
+                                      ? "bg-green-100 text-green-800"
+                                      : scoreValue >= 80
+                                        ? "bg-blue-100 text-blue-800"
+                                        : scoreValue >= 70
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : scoreValue >= 60
+                                            ? "bg-orange-100 text-orange-800"
+                                            : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {scoreValue === 100
+                                  ? "完美"
+                                  : scoreValue >= 90
+                                    ? "優秀"
+                                    : scoreValue >= 80
+                                      ? "良好"
+                                      : scoreValue >= 70
+                                        ? "待加強"
+                                        : scoreValue >= 60
+                                          ? "不及格"
+                                          : "極需改進"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -3380,17 +3705,29 @@ const metrics = [
             {activeTab === "recommendations" && (
               <div className="space-y-4">
                 {metrics.map((metric) => {
-                  const value = metric.value(employeeData);
+                  // 計算評分值（用於建議判斷）
+                  let scoreValue;
+                  if (metric.scoreCalculation) {
+                    // 使用特殊評分計算（維護指標、工作時間、機台運行狀態）
+                    scoreValue = metric.scoreCalculation(currentEmployeeData);
+                  } else if (metric.id === 'attendance') {
+                    // 出勤率使用百分比數值
+                    scoreValue = currentEmployeeData?.attendance || 0;
+                  } else {
+                    // 其他指標使用原始數值
+                    scoreValue = metric.value(currentEmployeeData);
+                  }
+
                   const performanceLevel =
-                    value === 100
+                    scoreValue === 100
                       ? "perfect"
-                      : value >= 90
+                      : scoreValue >= 90
                         ? "excellent"
-                        : value >= 80
+                        : scoreValue >= 80
                           ? "good"
-                          : value >= 70
+                          : scoreValue >= 70
                             ? "needsImprovement"
-                            : value >= 60
+                            : scoreValue >= 60
                               ? "poor"
                               : "critical";
 
@@ -3449,17 +3786,89 @@ const metrics = [
                         </span>
                       </div>
                       <p className="text-slate-300">
-                        {performanceLevel === "perfect"
-                          ? `目前${metric.title}表現完美，建議持續保持並協助其他同仁。`
-                          : performanceLevel === "excellent"
-                            ? `目前${metric.title}表現優異，建議持續保持並協助其他同仁。`
-                            : performanceLevel === "good"
-                              ? `目前${metric.title}表現良好，建議持續保持並協助其他同仁。`
-                              : performanceLevel === "needsImprovement"
-                                ? `建議參加${metric.title}相關培訓課程，提升專業技能。`
-                                : performanceLevel === "poor"
-                                  ? `建議參加${metric.title}相關培訓課程，提升專業技能。`
-                                  : `急需改進${metric.title}，建議參加相關培訓課程，提升專業技能。`}
+                        {(() => {
+                          // 根據不同指標提供專門的建議
+                          const getSpecificRecommendation = (metricId, level) => {
+                            const recommendations = {
+                              workCompletion: {
+                                perfect: "工作完成量表現完美！建議分享經驗給團隊成員，協助提升整體效率。",
+                                excellent: "工作完成量優異，建議持續保持高效率，並考慮承擔更多挑戰性任務。",
+                                good: "工作完成量良好，建議優化工作流程，朝向更高效率目標邁進。",
+                                needsImprovement: "建議檢視工作方法，參加時間管理培訓，提升工作效率。",
+                                poor: "建議重新規劃工作流程，尋求主管指導，參加相關技能培訓。",
+                                critical: "急需改進工作方法，建議接受一對一指導，制定詳細改進計畫。"
+                              },
+                              quality: {
+                                perfect: "產品質量完美無瑕！建議擔任質量標準制定者，指導其他同仁。",
+                                excellent: "產品質量優異，建議持續保持高標準，分享品質控制經驗。",
+                                good: "產品質量良好，建議加強細節檢查，朝向零缺陷目標努力。",
+                                needsImprovement: "建議參加品質管理培訓，加強作業標準化流程。",
+                                poor: "建議重新學習品質標準，加強自我檢查機制。",
+                                critical: "急需品質意識培訓，建議暫停獨立作業，接受密切指導。"
+                              },
+                              workHours: {
+                                perfect: "工作時間管理完美！建議分享時間管理技巧給團隊。",
+                                excellent: "工作時間安排優異，建議持續保持良好的工作節奏。",
+                                good: "工作時間安排良好，建議進一步優化時間分配效率。",
+                                needsImprovement: "建議參加時間管理課程，學習更有效的工作安排。",
+                                poor: "建議重新檢視工作時間分配，尋求主管協助調整工作負荷。",
+                                critical: "急需時間管理指導，建議制定詳細的工作時間計畫。"
+                              },
+                              attendance: {
+                                perfect: "出勤記錄完美！建議持續保持，成為團隊出勤典範。",
+                                excellent: "出勤表現優異，建議持續保持良好的工作紀律。",
+                                good: "出勤記錄良好，建議進一步提升出勤穩定性。",
+                                needsImprovement: "建議改善出勤習慣，確保按時完成工作日誌填寫。",
+                                poor: "建議重視出勤紀律，養成每日填寫工作日誌的習慣。",
+                                critical: "急需改善出勤狀況，建議與主管討論工作安排問題。"
+                              },
+                              machineStatus: {
+                                perfect: "機台運行管理完美！建議分享設備維護經驗。",
+                                excellent: "機台運行狀況優異，建議持續保持設備最佳狀態。",
+                                good: "機台運行良好，建議加強預防性維護措施。",
+                                needsImprovement: "建議參加設備操作培訓，提升機台運行效率。",
+                                poor: "建議重新學習設備操作規範，加強日常維護。",
+                                critical: "急需設備操作指導，建議暫停獨立操作，接受專業培訓。"
+                              },
+                              maintenance: {
+                                perfect: "設備維護表現完美！零維護需求顯示優秀的預防性管理。",
+                                excellent: "維護需求極低，顯示良好的設備管理能力。",
+                                good: "維護頻率合理，建議加強預防性檢查減少維護需求。",
+                                needsImprovement: "維護頻率偏高，建議學習預防性維護技巧。",
+                                poor: "維護需求過多，建議重新檢視設備操作方式。",
+                                critical: "維護頻率過高，急需設備操作培訓和維護指導。"
+                              },
+                              targetAchievement: {
+                                perfect: "目標達成率完美！建議設定更具挑戰性的目標。",
+                                excellent: "目標達成表現優異，建議持續保持高達成率。",
+                                good: "目標達成良好，建議優化執行策略提升達成率。",
+                                needsImprovement: "建議重新檢視目標設定，調整執行計畫。",
+                                poor: "建議分解目標為小階段，逐步提升達成能力。",
+                                critical: "急需目標管理指導，建議重新制定可達成的階段性目標。"
+                              },
+                              kpi: {
+                                perfect: "KPI表現完美！建議分享成功經驗給團隊。",
+                                excellent: "KPI表現優異，建議持續保持高績效水準。",
+                                good: "KPI表現良好，建議針對弱項進行重點改善。",
+                                needsImprovement: "建議參加績效管理培訓，提升關鍵指標表現。",
+                                poor: "建議重新檢視工作方法，尋求績效改善指導。",
+                                critical: "急需績效改善計畫，建議接受一對一績效輔導。"
+                              },
+                              efficiency: {
+                                perfect: "效率指標完美！建議分享高效工作方法。",
+                                excellent: "效率表現優異，建議持續保持高效率工作模式。",
+                                good: "效率表現良好，建議進一步優化工作流程。",
+                                needsImprovement: "建議參加效率提升培訓，學習更有效的工作方法。",
+                                poor: "建議重新檢視工作流程，尋求效率改善指導。",
+                                critical: "急需效率改善計畫，建議接受工作方法指導。"
+                              }
+                            };
+
+                            return recommendations[metricId]?.[level] || `建議針對${metric.title}進行專項改善。`;
+                          };
+
+                          return getSpecificRecommendation(metric.id, performanceLevel);
+                        })()}
                       </p>
                     </div>
                   );
@@ -3469,8 +3878,6 @@ const metrics = [
           </div>
         </div>
       </div>
-
-
     </>
   );
 }
