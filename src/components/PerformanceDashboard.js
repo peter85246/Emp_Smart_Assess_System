@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from '../contexts/AuthContext';
 import {
   LineChart,
   Line,
@@ -113,125 +114,133 @@ const PerformanceCard = ({ metric, data }) => {
   const performanceAnalysis = getPerformanceAnalysis(value, metric.id, metric.title);
 
   /**
-   * 數據處理方法：獲取最近三個月數據
-   * 🎯 完整修正歷史趨勢一致性問題：
-   * - 支援所有9個指標的歷史數據映射
-   * - 當前月份（7月）使用最終得分（包含加分機制）
-   * - 前兩個月使用基礎分數（原始數據）
-   * - 確保每個指標的7月歷史數據與當前顯示的得分一致
-   * - 修正dataKey映射邏輯，避免所有指標錯誤使用同一字段
+   * 數據處理方法：獲取最近6個月數據（智能洞察用）
+   * 🎯 使用真實後端數據，支援智能分析
+   * - 優先使用後端API數據
+   * - 回退到模擬數據作為備用
+   * - 確保數據一致性和完整性
    */
   const getRecentMonthsData = () => {
+    // 嘗試從全局API響應中獲取真實數據
+    const apiResponse = window.apiResponse;
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // getMonth()返回0-11，需要+1
-    
-    // 獲取對應員工的年度數據
-    const employeeId = data?.employeeId || 'EMP001'; // 從data中獲取員工ID，預設為EMP001
-    const employeeAllData = mockEmployeeData[employeeId];
-    
-    if (!employeeAllData || !employeeAllData.yearlyData || !employeeAllData.yearlyData[currentYear]) {
-      // 如果沒有年度數據，使用預設的三個月數據（調整為與當前最終得分一致）
-      const currentFieldValue = metric.id === 'workCompletion' ? 'completion' :
-                               metric.id === 'quality' ? 'quality' :
-                               metric.id === 'workHours' ? 'workHours' :
-                               metric.id === 'attendance' ? 'attendance' :
-                               metric.id === 'machineStatus' ? 'machineStatus' :
-                               metric.id === 'maintenance' ? 'maintenance' :
-                               metric.id === 'targetAchievement' ? 'targetAchievement' :
-                               metric.id === 'kpi' ? 'kpi' : 'efficiency';
-      
-      return [
-        { month: "5月", completion: 70, quality: 75, efficiency: 72, workHours: 75, attendance: 95, machineStatus: 90, maintenance: 80, targetAchievement: 85, kpi: 80 },
-        { month: "6月", completion: 72, quality: 77, efficiency: 75, workHours: 75, attendance: 96, machineStatus: 92, maintenance: 82, targetAchievement: 87, kpi: 82 },
-        { month: "7月", [currentFieldValue]: value, completion: 75, quality: 80, efficiency: 77, workHours: 75, attendance: 98, machineStatus: 95, maintenance: 85, targetAchievement: 90, kpi: 85 } // 使用當前最終得分
-      ];
-    }
-    
-    const yearData = employeeAllData.yearlyData[currentYear];
-    
-    // 獲取最近三個月的數據，包括當前月份
-    const recentThreeMonths = [];
-    for (let i = 2; i >= 0; i--) {
-      const targetMonth = currentMonth - i;
-      if (targetMonth > 0 && targetMonth <= yearData.length) {
-        const monthData = yearData[targetMonth - 1]; // 數組索引從0開始
-        
-        // 🎯 關鍵修正：如果是當前月份，需要調整數據以反映最終得分
-        if (targetMonth === currentMonth) {
-          // 當前月份使用最終得分，確保與數據卡片一致
-          let adjustedData = {
-            month: monthData.month,
-            completion: monthData.completion,
-            quality: monthData.quality, 
-            efficiency: monthData.efficiency,
-            workHours: monthData.workHours || 75,
-            attendance: monthData.attendance || 98,
-            machineStatus: monthData.machineStatus || 95,
-            maintenance: monthData.maintenance || 85,
-            targetAchievement: monthData.targetAchievement || 95,
-            kpi: monthData.kpi || 88
-          };
-          
-          // 根據當前指標類型調整對應的數值為最終得分
-          if (metric.id === 'workCompletion') {
-            adjustedData.completion = value; // 使用最終得分
-          } else if (metric.id === 'quality') {
-            adjustedData.quality = value; // 使用最終得分
-          } else if (metric.id === 'workHours') {
-            adjustedData.workHours = value; // 使用最終得分
-          } else if (metric.id === 'attendance') {
-            adjustedData.attendance = value; // 使用最終得分
-          } else if (metric.id === 'machineStatus') {
-            adjustedData.machineStatus = value; // 使用最終得分
-          } else if (metric.id === 'maintenance') {
-            adjustedData.maintenance = value; // 使用最終得分
-          } else if (metric.id === 'targetAchievement') {
-            adjustedData.targetAchievement = value; // 使用最終得分
-          } else if (metric.id === 'kpi') {
-            adjustedData.kpi = value; // 使用最終得分
-          } else if (metric.id === 'efficiency') {
-            adjustedData.efficiency = value; // 使用最終得分
-          }
-          
-          recentThreeMonths.push(adjustedData);
+    const currentMonth = now.getMonth() + 1;
+
+    // 如果有真實API數據，優先使用
+    if (apiResponse && apiResponse.yearData && apiResponse.yearData.result) {
+      const yearData = apiResponse.yearData.result;
+      const selectedEmployee = data?.user_Name || data?.employeeId || 'EMP001';
+
+      // 獲取最近6個月的數據
+      const recentMonths = [];
+      for (let i = 5; i >= 0; i--) {
+        const targetMonth = currentMonth - i;
+        const targetYear = targetMonth > 0 ? currentYear : currentYear - 1;
+        const adjustedMonth = targetMonth > 0 ? targetMonth : targetMonth + 12;
+
+        // 查找對應月份的數據
+        const monthStr = `${targetYear}-${String(adjustedMonth).padStart(2, '0')}-01T00:00:00`;
+        const monthData = yearData.find(item =>
+          item.work_Month === monthStr && item.user_Name === selectedEmployee
+        );
+
+        if (monthData) {
+          recentMonths.push({
+            month: `${adjustedMonth}月`,
+            completion: monthData.completion_Rate ? Math.round(monthData.completion_Rate * 100) : 0,
+            quality: monthData.yield_Percent ? Math.round(monthData.yield_Percent) : 0,
+            efficiency: monthData.kpi_Percent ? Math.round(monthData.kpi_Percent) : 0,
+            workHours: monthData.total_Hours ? Math.round(monthData.total_Hours) : 0,
+            attendance: monthData.attendance || 95, // 後端暫無此欄位，使用預設值
+            machineStatus: monthData.machine_Run_Hours ? Math.round(monthData.machine_Run_Hours) : 0,
+            maintenance: monthData.maintenance_Count || 0,
+            targetAchievement: monthData.otd_Rate ? Math.round(monthData.otd_Rate * 100) : 0,
+            kpi: monthData.kpi_Percent ? Math.round(monthData.kpi_Percent) : 0
+          });
         } else {
-          // 前幾個月保持原始數據
-          recentThreeMonths.push({
-            month: monthData.month,
-            completion: monthData.completion,
-            quality: monthData.quality,
-            efficiency: monthData.efficiency,
-            workHours: monthData.workHours || 75,
-            attendance: monthData.attendance || 98,
-            machineStatus: monthData.machineStatus || 95,
-            maintenance: monthData.maintenance || 85,
-            targetAchievement: monthData.targetAchievement || 95,
-            kpi: monthData.kpi || 88
+          // 如果沒有數據，使用預設值
+          recentMonths.push({
+            month: `${adjustedMonth}月`,
+            completion: 0, quality: 0, efficiency: 0, workHours: 0,
+            attendance: 0, machineStatus: 0, maintenance: 0, targetAchievement: 0, kpi: 0
           });
         }
       }
+
+      // 確保當前月份使用最終計算值
+      if (recentMonths.length > 0) {
+        const lastMonth = recentMonths[recentMonths.length - 1];
+        const dataKey = metric.id === 'workCompletion' ? 'completion' :
+                       metric.id === 'quality' ? 'quality' :
+                       metric.id === 'workHours' ? 'workHours' :
+                       metric.id === 'attendance' ? 'attendance' :
+                       metric.id === 'machineStatus' ? 'machineStatus' :
+                       metric.id === 'maintenance' ? 'maintenance' :
+                       metric.id === 'targetAchievement' ? 'targetAchievement' :
+                       metric.id === 'kpi' ? 'kpi' : 'efficiency';
+
+        lastMonth[dataKey] = value; // 使用當前計算的最終值
+      }
+
+      return recentMonths;
     }
-    
-    // 如果數據不足三個月，用現有數據填充
-    while (recentThreeMonths.length < 3) {
-      const lastData = recentThreeMonths[recentThreeMonths.length - 1] || 
-        { month: "當月", completion: 75, quality: 75, efficiency: 75, workHours: 75, attendance: 95, machineStatus: 90, maintenance: 80, targetAchievement: 85, kpi: 80 };
-      recentThreeMonths.unshift({
-        month: `${recentThreeMonths.length + 1}月前`,
-        completion: Math.max(0, lastData.completion - 5),
-        quality: Math.max(0, lastData.quality - 3),
-        efficiency: Math.max(0, lastData.efficiency - 4),
-        workHours: Math.max(0, (lastData.workHours || 75) - 2),
-        attendance: Math.max(0, (lastData.attendance || 95) - 1),
-        machineStatus: Math.max(0, (lastData.machineStatus || 90) - 3),
-        maintenance: Math.max(0, (lastData.maintenance || 80) - 2),
-        targetAchievement: Math.max(0, (lastData.targetAchievement || 85) - 3),
-        kpi: Math.max(0, (lastData.kpi || 80) - 2)
-      });
+
+    // 回退到模擬數據
+    const employeeId = data?.employeeId || 'EMP001';
+    const employeeAllData = mockEmployeeData[employeeId];
+
+    if (!employeeAllData || !employeeAllData.yearlyData || !employeeAllData.yearlyData[currentYear]) {
+      // 使用預設的6個月數據
+      return [
+        { month: "4月", completion: 70, quality: 75, efficiency: 72, workHours: 75, attendance: 95, machineStatus: 90, maintenance: 80, targetAchievement: 85, kpi: 80 },
+        { month: "5月", completion: 72, quality: 77, efficiency: 74, workHours: 76, attendance: 96, machineStatus: 91, maintenance: 81, targetAchievement: 86, kpi: 81 },
+        { month: "6月", completion: 74, quality: 79, efficiency: 76, workHours: 77, attendance: 97, machineStatus: 93, maintenance: 83, targetAchievement: 88, kpi: 83 },
+        { month: "7月", completion: 76, quality: 81, efficiency: 78, workHours: 78, attendance: 97, machineStatus: 94, maintenance: 84, targetAchievement: 89, kpi: 84 },
+        { month: "8月", completion: 78, quality: 83, efficiency: 80, workHours: 79, attendance: 98, machineStatus: 95, maintenance: 85, targetAchievement: 90, kpi: 85 },
+        { month: "9月", completion: value, quality: value, efficiency: value, workHours: value, attendance: value, machineStatus: value, maintenance: value, targetAchievement: value, kpi: value }
+      ];
     }
-    
-    return recentThreeMonths;
+
+    const yearData = employeeAllData.yearlyData[currentYear];
+
+    // 獲取最近6個月的數據
+    const recentSixMonths = [];
+    for (let i = 5; i >= 0; i--) {
+      const targetMonth = currentMonth - i;
+      if (targetMonth > 0 && targetMonth <= yearData.length) {
+        const monthData = yearData[targetMonth - 1];
+
+        if (targetMonth === currentMonth) {
+          // 當前月份使用最終得分
+          let adjustedData = { ...monthData };
+          const dataKey = metric.id === 'workCompletion' ? 'completion' :
+                         metric.id === 'quality' ? 'quality' :
+                         metric.id === 'workHours' ? 'workHours' :
+                         metric.id === 'attendance' ? 'attendance' :
+                         metric.id === 'machineStatus' ? 'machineStatus' :
+                         metric.id === 'maintenance' ? 'maintenance' :
+                         metric.id === 'targetAchievement' ? 'targetAchievement' :
+                         metric.id === 'kpi' ? 'kpi' : 'efficiency';
+
+          adjustedData[dataKey] = value;
+          recentSixMonths.push(adjustedData);
+        } else {
+          recentSixMonths.push(monthData);
+        }
+      } else {
+        // 生成歷史數據
+        const baseValue = Math.max(0, value - (6 - i) * 2);
+        recentSixMonths.push({
+          month: `${targetMonth > 0 ? targetMonth : targetMonth + 12}月`,
+          completion: baseValue, quality: baseValue, efficiency: baseValue,
+          workHours: baseValue, attendance: Math.min(100, baseValue + 10),
+          machineStatus: baseValue, maintenance: baseValue, targetAchievement: baseValue, kpi: baseValue
+        });
+      }
+    }
+
+    return recentSixMonths;
   };
   /**
    * 工具方法：獲取指標樣式
@@ -256,54 +265,55 @@ const PerformanceCard = ({ metric, data }) => {
    */
   const getScoreExplanation = (metric, data) => {
     switch (metric.id) {
-      case "workHours":
-        const standardHours = data.standardHours || 176;
-        const actualHours = data.actualHours || 0;
-        const baseScore = Math.round((actualHours / standardHours) * 100);
-
-        return {
-          baseScoreExplanation: "工時分數計算依據：",
-          baseScoreDetails: [
-            `基礎得分：${baseScore}分`,
-            "計算公式：(實際工時/標準工時) × 100",
-            `標準工時：${standardHours}小時`,
-            `實際工時：${actualHours}小時`,
-            `計算結果：(${actualHours}/${standardHours}) × 100 = ${baseScore}分`,
-          ],
-          calculationMethod: "此分數反映員工實際工作時數與標準工時的比例",
-        };
-      case "quality":
-        return {
-          baseScoreExplanation: "產品質量基本表現",
-          baseScoreDetails: [`基礎得分：${data.productQuality}分`],
-          calculationMethod: "基於產品檢驗結果評分",
-        };
       case "workCompletion":
         return {
-          baseScoreExplanation: "基於完成的工作項目數量計算：",
-          baseScoreDetails: [
-            `總工作項目數：${data.totalTasks || 0}項`,
-            `已完成項目數：${data.completedTasks || 0}項`,
-            `完成率：${breakdown.baseScore}%`,
-          ],
-          calculationMethod: "計算方式：(已完成項目 / 總項目) × 100",
+          baseScoreExplanation: "工單系統的狀態統計（已完成、進行中）",
+          calculationMethod: "完成率 = 已完成工單數 / (進行中+已完成工單數) × 100%"
+        };
+      case "workHours":
+        return {
+          baseScoreExplanation: "工單系統的開始與結束時間記錄",
+          calculationMethod: "總工時 = 所有工單的工作時間總和"
+        };
+      case "machineStatus":
+        return {
+          baseScoreExplanation: "機台運轉記錄系統",
+          calculationMethod: "計算項目：\n- 今日使用的機台數量\n- 機台實際運轉時間\n- 目前運轉狀態"
+        };
+      case "maintenance":
+        return {
+          baseScoreExplanation: "維護作業紀錄系統",
+          calculationMethod: "統計當日維護作業次數"
+        };
+      case "targetAchievement":
+        return {
+          baseScoreExplanation: "訂單完成與交期記錄",
+          calculationMethod: "準時達交率 = 準時完成數量 / 總訂單數量 × 100%"
         };
       case "efficiency":
         return {
-          baseScoreExplanation: "基於工作效率評估：",
-          baseScoreDetails: [
-            `標準工時：${data.standardHours || 0}小時`,
-            `實際工時：${data.actualHours || 0}小時`,
-            `效率指數：${breakdown.baseScore}%`,
-          ],
-          calculationMethod: "計算方式：(標準工時 / 實際工時) × 100",
+          baseScoreExplanation: "生產數量與工時統計",
+          calculationMethod: "單位效率 = 總生產數量 / 總工時"
         };
-      // ... 其他指標的說明
+      case "kpi":
+        return {
+          baseScoreExplanation: "綜合三項指標評估",
+          calculationMethod: "KPI = (工作完成率 + 準時達交率 + 效率達成率) / 3"
+        };
+      case "attendance":
+        return {
+          baseScoreExplanation: "每日工作日誌填寫記錄",
+          calculationMethod: "出勤率 = 已填寫日誌天數 / 當月工作天數"
+        };
+      case "quality":
+        return {
+          baseScoreExplanation: "生產製程品質記錄",
+          calculationMethod: "良率 = 品檢合格數量 / 總生產數量 × 100%"
+        };
       default:
         return {
           baseScoreExplanation: `${metric.title}基本表現`,
-          baseScoreDetails: [`基礎得分：${metric.value(data)}分`],
-          calculationMethod: "",
+          calculationMethod: "計算方式未定義"
         };
     }
   };
@@ -318,32 +328,54 @@ const PerformanceCard = ({ metric, data }) => {
     const { getDetailedCalculationFormula } = require('../config/scoringConfig');
     const formulaConfig = getDetailedCalculationFormula(metricId);
     
+    const getValueWithUnit = (metricId, value) => {
+      // 🔧 修正：統一顯示到小數點後2位
+      const formattedValue = (value === 'N/A' || value === null || value === undefined || isNaN(value))
+        ? 'N/A'
+        : Number(value).toFixed(2);
+
+      if (formattedValue === 'N/A') {
+        return 'N/A';
+      }
+
+      switch (metricId) {
+        case "workHours":
+          return `${formattedValue} 小時`;
+        case "maintenance":
+          return `${formattedValue} 次`;
+        case "machineStatus":
+          return `${formattedValue} 小時`;
+        default:
+          return `${formattedValue}%`;
+      }
+    };
+
     if (formulaConfig && formulaConfig.formula !== "計算公式未定義") {
-      return `${formulaConfig.formula} = ${value}%`;
+      return `${formulaConfig.formula} = ${getValueWithUnit(metricId, value)}`;
     }
     
-    // 備用的簡化版本（向後兼容）
+    // 修改九張卡片數據的"數據來源與計算依據"內的"資料來源、計算公式"的內容
     switch (metricId) {
       case "workCompletion":
-        return "工作完成量 = 完成量 / 應交量 × 100 = " + value + "%";
+        return `完成率 = 已完成工單數 / (進行中+已完成工單數) × 100% = ${value}%`;
       case "quality":
-        return "產品質量 = 已完成工單數 / 總工單數 × 100 = " + value + "%";
+        return `良率 = 品檢合格數量 / 總生產數量 × 100% = ${value}%`;
       case "workHours":
-        return "工作時間效率 = 單位時間完成數 / 平均值 x 100 = " + value + "%";
+        return `總工時 = 所有工單的工作時間總和 = ${value} 小時`;
       case "attendance":
-        return "差勤紀錄 = 出勤日 / 應出勤日 × 100 = " + value + "%";
+        return `出勤率 = 已填寫日誌天數 / 當月工作天數 = ${value}%`;
       case "machineStatus":
-        return "機台稼動率 = Running時間 / 總時間 × 100 = " + value + "%";
+        return `機台運轉時間 = ${value} 小時`;
       case "maintenance":
-        return "維護表現 = 100 - (Alarm時間 / 總時間 × 100) = " + value + "%";
+        return `維護作業次數 = ${value} 次`;
       case "targetAchievement":
-        return "目標達成率 = 員工產出 / 工單需求 × 100 = " + value + "%";
+        return `準時達交率 = 準時完成數量 / 總訂單數量 × 100% = ${value}%`;
       case "kpi":
-        return "關鍵績效指標 = 各項指標加權平均 = " + value + "%";
+        return `KPI = (工作完成率 + 準時達交率 + 效率達成率) / 3 = ${value}%`;
       case "efficiency":
-        return "效率指標 = 實際效率 / 標準效率 × 100 = " + value + "%";
+        return `單位效率 = 總生產數量 / 總工時 = ${value}%`;
       default:
-        return "計算結果 = " + value + "%";
+        return `計算結果 = ${value}%`;
     }
   };
 
@@ -578,7 +610,7 @@ const PerformanceCard = ({ metric, data }) => {
               )} */}
             </div>
             {/* 等級標示 */}
-            <div className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${getGradeBadgeColor(scoreData.grade)} animate-glow`}>
+            <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold bg-${scoreData.grade === 'A' ? 'green' : scoreData.grade === 'B' ? 'blue' : scoreData.grade === 'C' ? 'yellow' : scoreData.grade === 'D' ? 'orange' : 'red'}-100 text-${scoreData.grade === 'A' ? 'green' : scoreData.grade === 'B' ? 'blue' : scoreData.grade === 'C' ? 'yellow' : scoreData.grade === 'D' ? 'orange' : 'red'}-800 border border-${scoreData.grade === 'A' ? 'green' : scoreData.grade === 'B' ? 'blue' : scoreData.grade === 'C' ? 'yellow' : scoreData.grade === 'D' ? 'orange' : 'red'}-200 animate-glow`}>
               {scoreData.grade}級
             </div>
           </div>
@@ -633,22 +665,24 @@ const PerformanceCard = ({ metric, data }) => {
               }}
             >
               {/* 當前績效表現 */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-700 p-4 rounded-lg text-center">
-                  <p className="text-slate-300 mb-1">百分比表現</p>
-                  <p className={`text-3xl font-bold ${metric.color}`}>
-                    {value}%
+                  <p className="text-slate-300 mb-1">績效表現</p>
+                  <p className={`text-3xl font-bold ${metric.color} animate-glow`}>
+                    {value === 'N/A' ? 'N/A' : `${value}${metric.unit}`}
                   </p>
                 </div>
+                {/* 註釋掉得分計算表積分
                 <div className="bg-slate-700 p-4 rounded-lg text-center">
                   <p className="text-slate-300 mb-1">得分計算表積分</p>
                   <p className="text-3xl font-bold text-orange-400">
                     {scoreData.score}分
                   </p>
                 </div>
+                */}
                 <div className="bg-slate-700 p-4 rounded-lg text-center">
                   <p className="text-slate-300 mb-1">評等級別</p>
-                  <div className={`inline-block px-3 py-1 rounded-full text-lg font-bold ${getGradeBadgeColor(scoreData.grade)}`}>
+                  <div className={`inline-block px-3 py-1 rounded-full text-lg font-bold bg-${scoreData.grade === 'A' ? 'green' : scoreData.grade === 'B' ? 'blue' : scoreData.grade === 'C' ? 'yellow' : scoreData.grade === 'D' ? 'orange' : 'red'}-100 text-${scoreData.grade === 'A' ? 'green' : scoreData.grade === 'B' ? 'blue' : scoreData.grade === 'C' ? 'yellow' : scoreData.grade === 'D' ? 'orange' : 'red'}-800 border border-${scoreData.grade === 'A' ? 'green' : scoreData.grade === 'B' ? 'blue' : scoreData.grade === 'C' ? 'yellow' : scoreData.grade === 'D' ? 'orange' : 'red'}-200 animate-glow`}>
                     {scoreData.grade}級
                   </div>
                 </div>
@@ -667,11 +701,11 @@ const PerformanceCard = ({ metric, data }) => {
                   <p className="text-slate-300 mb-2">升級條件</p>
                   <div className="space-y-1">
                     {performanceAnalysis.upgrade.isMaxGrade ? (
-                      <p className="text-green-400 font-medium">{performanceAnalysis.upgrade.message}</p>
+                      <p className="text-green-400 font-medium animate-glow">{performanceAnalysis.upgrade.message}</p>
                     ) : (
                       <>
                         <p className="text-white">距離{performanceAnalysis.upgrade.nextGrade}級還需: {performanceAnalysis.upgrade.scoreNeeded}分</p>
-                        <p className="text-orange-400 text-sm">{performanceAnalysis.upgrade.upgradeMessage}</p>
+                        <p className="text-orange-400 text-sm animate-glow">{performanceAnalysis.upgrade.upgradeMessage}</p>
                       </>
                     )}
                   </div>
@@ -688,9 +722,6 @@ const PerformanceCard = ({ metric, data }) => {
                     <h5 className="text-white font-medium">資料來源：</h5>
                     <div className="bg-slate-600/50 rounded p-3 text-sm text-slate-300">
                       {scoreExplanation.baseScoreExplanation}
-                      <div className="text-slate-400 mt-1">
-                        {scoreExplanation.calculationMethod}
-                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -714,13 +745,17 @@ const PerformanceCard = ({ metric, data }) => {
                   <div className="space-y-2">
                     <h5 className="text-white font-medium">分數區間：</h5>
                     <div className="bg-slate-600/50 rounded p-3">
-                      <div className="flex justify-between text-slate-300">
-                        <span>當前分數區間</span>
-                        <span>{scoreData.range}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-300">當前分數區間</span>
+                        <span className={`${getGradeBadgeColor(scoreData.grade)} animate-glow`}>
+                          {scoreData.range}
+                        </span>
                       </div>
-                      <div className="flex justify-between text-slate-300 mt-1">
-                        <span>對應等級</span>
-                        <span>{scoreData.grade}級 - {scoreData.gradeDescription}</span>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-slate-300">對應等級</span>
+                        <span className={`${getGradeBadgeColor(scoreData.grade)} animate-glow`}>
+                          {scoreData.grade}級 - {scoreData.gradeDescription}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -733,18 +768,11 @@ const PerformanceCard = ({ metric, data }) => {
                         <span>基礎得分</span>
                         <span>{performanceAnalysis.bonus.baseScore}分</span>
                       </div>
-                      {performanceAnalysis.bonus.bonusReasons.length > 0 ? (
-                        performanceAnalysis.bonus.bonusReasons.map((reason, index) => (
-                          <div key={index} className="flex justify-between text-green-400 text-sm">
-                            <span>{reason}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-slate-400 text-sm">無額外加分項目</div>
-                      )}
-                      <div className="flex justify-between text-white font-semibold pt-2 border-t border-slate-500 mt-2">
-                        <span>最終得分</span>
-                        <span>{performanceAnalysis.bonus.finalScore}分</span>
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-500 mt-2">
+                        <span className="text-white font-semibold">最終得分</span>
+                        <span className={`text-lg font-bold ${metric.color} animate-glow`}>
+                          {performanceAnalysis.bonus.finalScore}分
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -787,48 +815,352 @@ const PerformanceCard = ({ metric, data }) => {
                 </div>
               </div>
 
-              {/* 修改後的歷史趨勢 */}
+              {/* 智能洞察卡片 */}
               <div className="space-y-2">
-                <h4 className="text-lg font-semibold text-white">歷史趨勢</h4>
-                <div className="bg-slate-700 p-4 rounded-lg h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={getRecentMonthsData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="month" stroke="#9CA3AF" />
-                      <YAxis stroke="#9CA3AF" domain={[0, 100]} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1F2937",
-                          border: "none",
-                          borderRadius: "0.5rem",
-                          color: "#ffffff", // 添加文字顏色
-                        }}
-                      />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey={
-                          metric.id === "workCompletion" ? "completion" :
-                          metric.id === "quality" ? "quality" :
-                          metric.id === "workHours" ? "workHours" :
-                          metric.id === "attendance" ? "attendance" :
-                          metric.id === "machineStatus" ? "machineStatus" :
-                          metric.id === "maintenance" ? "maintenance" :
-                          metric.id === "targetAchievement" ? "targetAchievement" :
-                          metric.id === "kpi" ? "kpi" :
-                          "efficiency"
-                        }
-                        name={getMetricStyle(metric.id).name}
-                        stroke={getMetricStyle(metric.id).color}
-                        strokeWidth={2}
-                        dot={{
-                          fill: "#fff",
-                          stroke: getMetricStyle(metric.id).color,
-                          strokeWidth: 2,
-                        }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  績效洞察分析
+                </h4>
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* 左側：趨勢軌跡 */}
+                    <div className="space-y-3">
+                      <h5 className="text-white font-medium flex items-center gap-2">
+                        <ReactFeatherTrendingUp className="w-4 h-4 text-blue-400" />
+                        趨勢軌跡
+                      </h5>
+                      <div className="space-y-2">
+                        {getRecentMonthsData().map((item, index) => {
+                          const dataKey = metric.id === "workCompletion" ? "completion" :
+                                         metric.id === "quality" ? "quality" :
+                                         metric.id === "workHours" ? "workHours" :
+                                         metric.id === "attendance" ? "attendance" :
+                                         metric.id === "machineStatus" ? "machineStatus" :
+                                         metric.id === "maintenance" ? "maintenance" :
+                                         metric.id === "targetAchievement" ? "targetAchievement" :
+                                         metric.id === "kpi" ? "kpi" : "efficiency";
+                          const itemValue = item[dataKey] || 0;
+                          const isLatest = index === getRecentMonthsData().length - 1;
+
+                          return (
+                            <div key={index} className="flex items-center gap-3">
+                              <span className="text-xs text-slate-400 w-8">{item.month}</span>
+                              <div className="flex-1 bg-slate-600 rounded-full h-2.5 relative overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    isLatest
+                                      ? `${metric.color.replace('text-', 'bg-')} animate-pulse`
+                                      : 'bg-slate-500'
+                                  }`}
+                                  style={{
+                                    width: itemValue === 'N/A' ? '0%' :
+                                           metric.unit === '%' ? `${Math.min(Math.max(itemValue, 0), 100)}%` :
+                                           `${Math.min(Math.max((itemValue / metric.target) * 100, 0), 100)}%`
+                                  }}
+                                />
+                                {isLatest && (
+                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                                )}
+                              </div>
+                              <span className={`text-sm font-medium min-w-[80px] text-right ${isLatest ? metric.color : 'text-slate-300'}`}>
+                                {itemValue === 'N/A' ? 'N/A' : `${Number(itemValue).toFixed(2)}${metric.unit}`}
+                              </span>
+                              {isLatest && (
+                                <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
+                                  當前
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 右側：關鍵指標 */}
+                    <div className="space-y-3">
+                      <h5 className="text-white font-medium flex items-center gap-2">
+                        <Target className="w-4 h-4 text-green-400" />
+                        關鍵指標
+                      </h5>
+                      <div className="space-y-3">
+                        {(() => {
+                          const recentData = getRecentMonthsData();
+                          const dataKey = metric.id === "workCompletion" ? "completion" :
+                                         metric.id === "quality" ? "quality" :
+                                         metric.id === "workHours" ? "workHours" :
+                                         metric.id === "attendance" ? "attendance" :
+                                         metric.id === "machineStatus" ? "machineStatus" :
+                                         metric.id === "maintenance" ? "maintenance" :
+                                         metric.id === "targetAchievement" ? "targetAchievement" :
+                                         metric.id === "kpi" ? "kpi" : "efficiency";
+
+                          // 獲取原始數值，不做限制
+                          const values = recentData.map(item => item[dataKey] || 0);
+
+                          // 🔧 調試信息：檢查原始數據
+                          console.log(`${metric.title} 原始數據:`, {
+                            recentData,
+                            dataKey,
+                            values
+                          });
+
+                          // 🔧 修正：根據指標類型顯示正確單位（統一顯示到小數點後2位）
+                          const getValueWithUnit = (val) => {
+                            // 處理 N/A 情況
+                            if (val === 'N/A' || val === null || val === undefined || isNaN(val)) {
+                              return 'N/A';
+                            }
+
+                            // 統一顯示到小數點後2位，並根據 metrics 配置的單位顯示
+                            return `${Number(val).toFixed(2)}${metric.unit}`;
+                          };
+
+                          // 處理數值計算（過濾掉 N/A 值）
+                          const numericValues = values.filter(val => val !== 'N/A' && val !== null && val !== undefined && !isNaN(val));
+
+                          const currentValue = values[values.length - 1];
+                          const previousValue = values[values.length - 2];
+
+                          // 只有數值才能進行統計計算
+                          let maxValue = 0, minValue = 0, avgValue = 0, stability = 0, predictedValue = currentValue;
+
+                          if (numericValues.length > 0) {
+                            maxValue = Math.max(...numericValues);
+                            minValue = Math.min(...numericValues);
+                            avgValue = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+
+                            // 🔧 修正穩定指數計算邏輯（需要至少3個有效數據點才能評估穩定性）
+                            if (numericValues.length >= 3) {
+                              // 檢查是否所有數值都是0或接近0
+                              const allZeroOrNear = numericValues.every(val => Math.abs(val) < 0.01);
+
+                              if (allZeroOrNear) {
+                                // 如果所有數值都是0或接近0，穩定指數為0（表示無表現）
+                                stability = 0;
+                              } else if (maxValue === minValue) {
+                                // 如果所有數值完全相同，穩定指數為100（完全穩定）
+                                stability = 100;
+                              } else {
+                                // 使用變異係數計算穩定性
+                                const range = maxValue - minValue;
+                                const avgRange = Math.abs(avgValue) > 0.01 ? Math.abs(avgValue) : 1;
+                                const variationRatio = range / avgRange;
+
+                                // 穩定指數：變異係數越小越穩定
+                                if (variationRatio <= 0.1) stability = 100; // 變化<10%，非常穩定
+                                else if (variationRatio <= 0.2) stability = 80; // 變化<20%，穩定
+                                else if (variationRatio <= 0.3) stability = 60; // 變化<30%，一般
+                                else if (variationRatio <= 0.5) stability = 40; // 變化<50%，不穩定
+                                else stability = 20; // 變化>50%，很不穩定
+                              }
+                            } else {
+                              // 數據點不足（少於3個），無法評估穩定性
+                              stability = 0;
+                            }
+
+                            // 🔧 調試信息：檢查穩定指數計算
+                            console.log(`${metric.title} 穩定指數計算:`, {
+                              numericValues,
+                              numericValuesLength: numericValues.length,
+                              maxValue,
+                              minValue,
+                              avgValue,
+                              stability,
+                              stabilityCalculation: {
+                                range: maxValue - minValue,
+                                avgRange: Math.abs(avgValue) > 0.01 ? Math.abs(avgValue) : 1,
+                                variationRatio: (maxValue - minValue) / (Math.abs(avgValue) > 0.01 ? Math.abs(avgValue) : 1)
+                              }
+                            });
+
+                            // 🔧 修正系統預測邏輯（需要至少3個有效數據點才能預測）
+                            if (numericValues.length >= 3 && !isNaN(currentValue) && currentValue !== 'N/A') {
+                              // 使用線性回歸預測
+                              const recentValues = numericValues.slice(-3);
+                              const trend = (recentValues[2] - recentValues[0]) / 2;
+                              let rawPrediction = currentValue + trend;
+
+                              // 🔧 限制百分比指標的預測值不超過100%
+                              if (metric.unit === '%') {
+                                predictedValue = Number(Math.min(100, Math.max(0, rawPrediction)).toFixed(2));
+                              } else {
+                                // 非百分比指標不限制上限，但不能為負數
+                                predictedValue = Number(Math.max(0, rawPrediction).toFixed(2));
+                              }
+                            } else {
+                              // 數據不足，無法進行預測
+                              predictedValue = 'N/A';
+                            }
+                          }
+
+                          // 計算變化量
+                          const change = (!isNaN(currentValue) && !isNaN(previousValue) &&
+                                         currentValue !== 'N/A' && previousValue !== 'N/A')
+                                         ? Number((currentValue - previousValue).toFixed(2)) : 0;
+
+                          return (
+                            <>
+                              <div className="bg-slate-600/50 rounded-lg p-3 space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-300 text-sm">當前表現</span>
+                                  <div className="flex items-center gap-1">
+                                    <span className={`font-bold ${metric.color}`}>
+                                      {getValueWithUnit(currentValue)}
+                                    </span>
+                                    {change !== 0 && (
+                                      <span className={`text-xs flex items-center gap-1 ${
+                                        change > 0 ? 'text-green-400' : 'text-red-400'
+                                      }`}>
+                                        {change > 0 ? '↗️' : '↘️'} {getValueWithUnit(Math.abs(change))}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-300 text-sm">最佳記錄</span>
+                                  <span className="text-yellow-400 font-medium">
+                                    {getValueWithUnit(maxValue)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-300 text-sm">平均水準</span>
+                                  <span className="text-blue-400 font-medium">
+                                    {getValueWithUnit(avgValue)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-300 text-sm">穩定指數</span>
+                                  <div className="flex items-center gap-1">
+                                    {Array.from({ length: 5 }, (_, i) => {
+                                      // 🔧 修正星星顯示邏輯：根據穩定指數百分比計算星星數量
+                                      // 0-19%: 0星, 20-39%: 1星, 40-59%: 2星, 60-79%: 3星, 80-99%: 4星, 100%: 5星
+                                      let starCount = 0;
+                                      if (stability >= 100) starCount = 5;
+                                      else if (stability >= 80) starCount = 4;
+                                      else if (stability >= 60) starCount = 3;
+                                      else if (stability >= 40) starCount = 2;
+                                      else if (stability >= 20) starCount = 1;
+                                      else starCount = 0;
+
+                                      // 🔧 調試信息：檢查所有星星計算
+                                      console.log(`${metric.title} 星星${i+1}計算:`, {
+                                        i,
+                                        stability,
+                                        starCount,
+                                        shouldShowStar: i < starCount,
+                                        condition: `${i} < ${starCount} = ${i < starCount}`
+                                      });
+
+                                      const shouldShowStar = i < starCount;
+
+                                      return (
+                                        <span key={i} className={`text-xs ${
+                                          shouldShowStar ? 'text-yellow-400' : 'text-gray-400'
+                                        }`}>
+                                          {shouldShowStar ? '⭐' : '✩'}
+                                        </span>
+                                      );
+                                    })}
+                                    <span className="text-xs text-slate-400 ml-1">
+                                      ({stability.toFixed(0)}%)
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 系統預測 */}
+                              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg p-3 border border-purple-500/20">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-purple-400 text-sm">🔮 系統預測</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-300 text-sm">下月預期</span>
+                                  <span className="text-purple-400 font-medium">
+                                    {predictedValue === 'N/A' ? '數據不足' : getValueWithUnit(predictedValue)}
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 智能建議 */}
+                  <div className="mt-4 pt-4 border-t border-slate-600">
+                    <div className="flex items-start gap-2">
+                      <span className="text-yellow-400 text-sm">💡</span>
+                      <div className="flex-1">
+                        <span className="text-yellow-400 text-sm font-medium">智能建議：</span>
+                        <p className="text-slate-300 text-sm mt-1">
+                          {(() => {
+                            const recentData = getRecentMonthsData();
+                            const dataKey = metric.id === "workCompletion" ? "completion" :
+                                           metric.id === "quality" ? "quality" :
+                                           metric.id === "workHours" ? "workHours" :
+                                           metric.id === "attendance" ? "attendance" :
+                                           metric.id === "machineStatus" ? "machineStatus" :
+                                           metric.id === "maintenance" ? "maintenance" :
+                                           metric.id === "targetAchievement" ? "targetAchievement" :
+                                           metric.id === "kpi" ? "kpi" : "efficiency";
+
+                            // 獲取原始數值，不做限制
+                            const values = recentData.map(item => item[dataKey] || 0);
+
+                            // 過濾數值型數據進行趨勢分析
+                            const numericValues = values.filter(val => val !== 'N/A' && val !== null && val !== undefined && !isNaN(val));
+
+                            const currentValue = values[values.length - 1];
+                            const previousValue = values[values.length - 2];
+
+                            // 計算趨勢（只對數值進行計算）
+                            let trend = 0;
+                            if (numericValues.length >= 2 && !isNaN(currentValue) && !isNaN(previousValue) &&
+                                currentValue !== 'N/A' && previousValue !== 'N/A') {
+                              trend = currentValue - previousValue;
+                            }
+
+                            // 根據指標類型設定優秀標準（基於目標值）
+                            const excellentThreshold = metric.target;
+
+                            // 🔧 修正智能建議邏輯（基於六個月趨勢軌跡數據）
+                            // 檢查六個月內的數據質量
+                            const validDataCount = recentData.filter(item => {
+                              const value = item[dataKey];
+                              return value !== 'N/A' && value !== null && value !== undefined && !isNaN(value) && Math.abs(value) > 0.01;
+                            }).length;
+
+                            const hasValidData = validDataCount > 0;
+                            const allZeroOrNear = recentData.every(item => {
+                              const value = item[dataKey];
+                              return value === 'N/A' || value === null || value === undefined || isNaN(value) || Math.abs(value) < 0.01;
+                            });
+
+                            if (currentValue === 'N/A' || !hasValidData) {
+                              return `${metric.title}目前無可用數據，建議確認數據收集流程是否正常運作。`;
+                            } else if (allZeroOrNear) {
+                              return `${metric.title}六個月內缺乏有效表現數據，建議建立完整的監控機制並設定基礎目標。`;
+                            } else if (validDataCount < 3) {
+                              return `${metric.title}數據收集不足（僅${validDataCount}個月有數據），建議持續記錄以建立完整的表現軌跡。`;
+                            } else if (!isNaN(currentValue) && currentValue >= excellentThreshold) {
+                              return `表現優異！${metric.title}已達到優秀水準，建議保持當前工作模式，並考慮分享成功經驗給團隊。`;
+                            } else if (trend > 0) {
+                              const trendDesc = metric.unit === "小時" || metric.unit === "次" ? "增加" : "提升";
+                              return `${metric.title}呈${trendDesc}趨勢，建議繼續保持當前改善方向，穩步提升表現。`;
+                            } else if (trend < 0) {
+                              const trendDesc = metric.unit === "小時" || metric.unit === "次" ? "減少" : "下滑";
+                              return `近期${metric.title}有所${trendDesc}，建議檢視相關工作流程，找出可能的改善點。`;
+                            } else if (currentValue < excellentThreshold * 0.5) {
+                              return `${metric.title}表現需要關注，建議制定具體的改善計劃並設定階段性目標。`;
+                            } else {
+                              return `${metric.title}表現相對穩定，建議設定新的挑戰目標，尋求突破性進展。`;
+                            }
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -876,11 +1208,11 @@ const PerformanceCard = ({ metric, data }) => {
                                   : "bg-red-500"
                         }`}
                       ></div>
-                      <span className="text-sm text-slate-300">
+                      <span className="text-lg text-slate-300 animate-glow">
                         {scoreData.gradeDescription}
                       </span>
                     </div>
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${getGradeBadgeColor(scoreData.grade)}`}>
+                    <div className={`px-2 py-1 rounded text-lg font-medium ${getGradeBadgeColor(scoreData.grade)} animate-glow`}>
                       {scoreData.grade}級 · {scoreData.score}分
                     </div>
                   </div>
@@ -893,7 +1225,7 @@ const PerformanceCard = ({ metric, data }) => {
                         1個月內提升至{performanceAnalysis.upgrade.nextGrade}級（{performanceAnalysis.upgrade.nextGradeTarget}分以上）
                       </p>
                       <p className="text-xs text-slate-400">
-                        需要提升: {performanceAnalysis.upgrade.scoreNeeded}分（對應{performanceAnalysis.upgrade.percentageNeeded}%）
+                        需要提升: {performanceAnalysis.upgrade.scoreNeeded}分
                       </p>
                     </div>
                   )}
@@ -1058,9 +1390,27 @@ export const ScoreDetails = ({ employeeData, role }) => {
  * 主要組件：績效儀表板
  * 整合所有子組件和功能的主容器
  */
+// 登入用戶資訊組件
+const LoginUserInfo = () => {
+  const { user } = useAuth();
+  
+  const getDisplayName = (user) => {
+    if (!user) return '未登入';
+    return user.displayName || `${user.name || user.username} (${user.department || '未指定部門'})`;
+  };
+  
+  return (
+    <div className="flex items-center gap-2 text-slate-300 mt-2">
+      <User className="w-4 h-4" />
+      <span>目前登入：{getDisplayName(user)}</span>
+    </div>
+  );
+};
+
 export default function PerformanceDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEmployee, setSelectedEmployee] = useState(""); // 初始狀態為空
+  const [viewMode, setViewMode] = useState("monthly"); // 'yearly', 'monthly', 'daily'
   const [isLoading, setIsLoading] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedYear, setSelectedYear] = useState(2025); // 年份選擇狀態，默認2025年
@@ -1163,20 +1513,398 @@ export default function PerformanceDashboard() {
 
   const timeSeriesData = getTimeSeriesData();
 
-  // 可選年份列表
-  const availableYears = [2025, 2024, 2023, 2022];
+  // 可選年份列表狀態
+  const [availableYears, setAvailableYears] = useState([]);
+
+  // 獲取可用年份列表
+  const loadAvailableYears = async () => {
+    try {
+      console.log('開始獲取可用年份列表');
+      const response = await fetch(`${REPORT_API.BASE_URL}/AREditior/GetAvailableYears`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('獲取年份列表失敗');
+      }
+
+      const data = await response.json();
+      
+      if (data.code === "0000" && Array.isArray(data.result)) {
+        // 確保年份是數字並排序
+        const years = data.result
+          .map(year => parseInt(year))
+          .filter(year => !isNaN(year))
+          .sort((a, b) => b - a); // 降序排列，最新年份在前
+
+        console.log('獲取到的年份列表:', years);
+        
+        if (years.length > 0) {
+          setAvailableYears(years);
+          // 如果當前選擇的年份不在列表中，設置為最新的年份
+          if (!years.includes(selectedYear)) {
+            setSelectedYear(years[0]);
+          }
+        } else {
+          // 如果沒有獲取到年份，使用當前年份作為預設
+          const currentYear = new Date().getFullYear();
+          setAvailableYears([currentYear]);
+          setSelectedYear(currentYear);
+        }
+      } else {
+        console.error('年份數據格式錯誤:', data);
+        // 使用當前年份作為預設
+        const currentYear = new Date().getFullYear();
+        setAvailableYears([currentYear]);
+        setSelectedYear(currentYear);
+      }
+    } catch (error) {
+      console.error('獲取年份列表失敗:', error);
+      // 發生錯誤時使用當前年份作為預設
+      const currentYear = new Date().getFullYear();
+      setAvailableYears([currentYear]);
+      setSelectedYear(currentYear);
+    }
+  };
 
   /**
    * 指標配置區域
    * 定義所有績效指標的計算規則和展示方式
    */
-  const metrics = [
+  // 處理趨勢圖表數據
+const processChartData = (data, viewMode, year, month, day = 1) => {
+  console.log('處理圖表數據:', { data, viewMode, year, month }); // 添加日誌
+
+  if (!data) return [];
+
+  try {
+    let chartData = [];
+    
+    switch(viewMode) {
+      case 'yearly': {
+        // 確保有年度數據
+        const yearData = data.yearData?.result || [];
+        console.log('年度數據:', yearData);
+        
+        // 生成12個月的基礎數據點
+        chartData = Array.from({ length: 12 }, (_, i) => {
+          const monthStr = `${year}-${String(i + 1).padStart(2, '0')}-01`;
+          
+          // 找出當月的數據
+          const monthDataList = yearData.filter(d => {
+            if (!d || !d.work_Month) return false;
+            const dataDate = new Date(d.work_Month);
+            return dataDate.getMonth() === i && d.user_Name === selectedEmployee;
+          });
+          
+          // 計算當月值
+          let formattedData = {
+            date: monthStr,
+            工作完成量: 0,
+            產品質量: 0,
+            效率指標: 0
+          };
+
+          // 獲取當月數據
+          const monthData = monthDataList.length > 0 ? monthDataList[0] : null;
+
+          if (monthData) {
+            // 使用與九張卡片相同的計算邏輯
+            formattedData = {
+              date: monthStr,
+              工作完成量: monthData.completion_Rate ? Math.min(100, Number((monthData.completion_Rate * 100).toFixed(2))) : 0,
+              產品質量: monthData.yield_Percent ? Math.min(100, Number(monthData.yield_Percent.toFixed(2))) : 0,
+              效率指標: monthData.kpi_Percent ? Math.min(100, Number(monthData.kpi_Percent.toFixed(2))) : 0
+            };
+            
+          }
+          
+          console.log(`${monthStr} 月份數據詳情:`, {
+            原始數據: monthData,
+            計算過程: monthData ? {
+              工作完成量: `completion_Rate: ${monthData.completion_Rate} * 100 (限制最大值100%)`,
+              產品質量: `yield_Percent: ${monthData.yield_Percent} (限制最大值100%)`,
+              效率指標: `kpi_Percent: ${monthData.kpi_Percent} (限制最大值100%)`
+            } : null,
+            格式化數據: formattedData
+          });
+          
+          return formattedData;
+        });
+        break;
+      }
+      
+      case 'monthly': {
+        // 確保有月度數據
+        const monthData = data.monthData?.result || [];
+        console.log('月度數據:', monthData);
+        
+        // 過濾當前員工的數據
+        const employeeData = monthData.filter(d => d.user_Name === selectedEmployee);
+        console.log('當前員工數據:', employeeData);
+        
+        // 生成當月每一天的數據點
+        const getDaysInMonth = (year, month) => {
+          // month 參數需要是 1-12
+          const thirtyDaysMonths = [4, 6, 9, 11];
+          const thirtyOneDaysMonths = [1, 3, 5, 7, 8, 10, 12];
+          
+          if (month === 2) {
+            // 檢查是否為閏年
+            return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 29 : 28;
+          }
+          if (thirtyDaysMonths.includes(month)) {
+            return 30;
+          }
+          if (thirtyOneDaysMonths.includes(month)) {
+            return 31;
+          }
+          console.error(`Invalid month: ${month}`);
+          return 31; // 預設返回31天
+        };
+        
+        const daysInMonth = getDaysInMonth(year, month);
+        console.log(`${year}年${month}月的天數: ${daysInMonth}天`);
+        chartData = Array.from({ length: daysInMonth }, (_, i) => {
+          const dayStr = `${year}-${String(month).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
+          
+          // 找出當天的數據
+          const dayData = employeeData.find(d => {
+            if (!d || !d.work_Day) return false;
+            const dataDate = new Date(d.work_Day);
+            return dataDate.getDate() === (i + 1);
+          });
+          
+          // 格式化數據
+          const formattedData = {
+            date: dayStr,
+            工作完成量: dayData?.completion_Rate ? Math.min(100, Number((dayData.completion_Rate * 100).toFixed(2))) : 0,
+            產品質量: dayData?.yield_Percent ? Math.min(100, Number(dayData.yield_Percent.toFixed(2))) : 0,
+            效率指標: dayData?.kpi_Percent ? Math.min(100, Number(dayData.kpi_Percent.toFixed(2))) : 0
+          };
+          
+          console.log(`${dayStr} 數據詳情:`, {
+            原始數據: dayData,
+            計算過程: dayData ? {
+              工作完成量: `completion_Rate: ${dayData.completion_Rate} * 100 (限制最大值100%)`,
+              產品質量: `yield_Percent: ${dayData.yield_Percent} (限制最大值100%)`,
+              效率指標: `kpi_Percent: ${dayData.kpi_Percent} (限制最大值100%)`
+            } : null,
+            格式化數據: formattedData
+          });
+          
+          return formattedData;
+        });
+        break;
+      }
+      
+      case 'daily': {
+        // 確保有日度數據
+        const dailyData = data.monthData?.result || [];
+        
+        // 生成當日每小時數據點
+        chartData = Array.from({ length: 24 }, (_, i) => {
+          const hourStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(i).padStart(2, '0')}:00:00`;
+          const hourData = dailyData.find(d => {
+            if (!d || !d.work_Day) return false;
+            const dataDate = new Date(d.work_Day);
+            return dataDate.getHours() === i;
+          }) || {};
+
+          return {
+            date: hourStr,
+            完成率: hourData.completion_Rate ? Number((hourData.completion_Rate * 100).toFixed(2)) : 0,
+            質量: hourData.yield_Percent ? Number((hourData.yield_Percent || 0).toFixed(2)) : 0,
+            效率: hourData.units_Per_Hour ? Number((hourData.units_Per_Hour || 0).toFixed(2)) : 0
+          };
+        });
+        break;
+      }
+      
+      default:
+        return [];
+    }
+    
+    console.log('處理後的圖表數據:', chartData);
+    return chartData;
+  } catch (error) {
+    console.error('處理圖表數據時出錯:', error);
+    return [];
+  }
+};
+
+// 自定義 Tooltip 組件
+const CustomTooltip = ({ active, payload, label, viewMode }) => {
+  if (active && payload && payload.length) {
+    const date = new Date(label);
+    let dateStr = '';
+    
+    switch(viewMode) {
+      case 'yearly':
+        dateStr = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+        break;
+      case 'monthly':
+        dateStr = `${date.getMonth() + 1}月${date.getDate()}日`;
+        break;
+      case 'daily':
+        dateStr = `${date.getHours()}:00`;
+        break;
+      default:
+        dateStr = label;
+    }
+
+    return (
+      <div className="bg-slate-800 p-3 rounded-lg shadow-lg">
+        <p className="text-sm font-semibold text-slate-200 mb-2">{dateStr}</p>
+        {payload.map((item, index) => (
+          <p key={index} className="text-sm" style={{ color: item.color }}>
+            {`${item.name}: ${Number(item.value).toFixed(2)}%`}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+// 績效趨勢圖表組件
+const PerformanceTrendChart = ({ data, viewMode }) => {
+  console.log('趨勢圖表數據:', { data, viewMode }); // 添加日誌
+
+  // 確保數據有效性
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-slate-400">暫無數據</p>
+      </div>
+    );
+  }
+
+  // 根據檢視模式設置 X 軸標籤
+  const getXAxisLabel = () => {
+    switch(viewMode) {
+      case 'yearly':
+        return '月份';
+      case 'monthly':
+        return '日期';
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <div className="w-full bg-slate-800 rounded-lg p-4 mt-6" style={{ minHeight: '400px' }}>
+      {data && data.length > 0 ? (
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={data} margin={{ top: 30, right: 50, left: 20, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+            <XAxis 
+              dataKey="date" 
+              stroke="#888"
+              interval={0}
+              minTickGap={10}
+              axisLine={{ strokeWidth: 2 }}
+              tickFormatter={(date) => {
+                if (!date) return '';
+                const d = new Date(date);
+                switch(viewMode) {
+                  case 'yearly':
+                    return d.getMonth() + 1;
+                  case 'monthly':
+                    return d.getDate();
+                  case 'daily':
+                    return d.getHours();
+                  default:
+                    return date;
+                }
+              }}
+              label={{ 
+                value: viewMode === 'yearly' ? '(月)' : viewMode === 'monthly' ? '(日)' : '(時)',
+                position: 'right',
+                offset: 15,
+                style: { fill: '#888', fontSize: 14 }
+              }}
+            />
+            <YAxis 
+              stroke="#888"
+              domain={[0, 100]}
+              ticks={[0, 20, 40, 60, 80, 100]}
+              tickFormatter={(value) => value}
+              label={{ 
+                value: '(%)',
+                position: 'top',
+                offset: 20,
+                style: { fill: '#888', fontSize: 14 }
+              }}
+              allowDataOverflow={false}
+            />
+            <Tooltip content={<CustomTooltip viewMode={viewMode} />} />
+            <Legend 
+              verticalAlign="top" 
+              height={36}
+              wrapperStyle={{
+                paddingBottom: '20px',
+                color: '#fff'
+              }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="工作完成量" 
+              name="工作完成量"
+              stroke="#8884d8" 
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 8 }}
+              isAnimationActive={true}
+              animationDuration={1000}
+              unit="%"
+            />
+            <Line 
+              type="monotone" 
+              dataKey="產品質量" 
+              name="產品質量"
+              stroke="#82ca9d" 
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 8 }}
+              isAnimationActive={true}
+              animationDuration={1000}
+              unit="%"
+            />
+            <Line 
+              type="monotone" 
+              dataKey="效率指標" 
+              name="效率指標"
+              stroke="#ffc658" 
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 8 }}
+              isAnimationActive={true}
+              animationDuration={1000}
+              unit="%"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="flex items-center justify-center h-[400px] text-slate-400">
+          暫無趨勢數據
+        </div>
+      )}
+    </div>
+  );
+};
+
+const metrics = [
     {
       id: "workCompletion",
       title: "工作完成量",
-      value: (data) => data?.completion_Rate ? Math.round(data.completion_Rate * 100) : 0,
+      value: (data) => data?.completion_Rate ? Number((data.completion_Rate * 100).toFixed(2)) : 0,
       unit: "%",
-      description: (data) => `(completion_Rate: ${data?.completion_Rate?.toFixed(4) || 'N/A'})`,
+      description: (data) => `(completion_Rate: ${data?.completion_Rate?.toFixed(2) || 'N/A'})`,
       icon: <Activity className="w-6 h-6" />,
       color: "text-blue-500",
       target: 95,
@@ -1185,7 +1913,7 @@ export default function PerformanceDashboard() {
     {
       id: "quality",
       title: "產品質量",
-      value: (data) => data?.yield_Percent || 0,
+      value: (data) => data?.yield_Percent ? Number(data.yield_Percent.toFixed(2)) : 0,
       unit: "%",
       description: (data) => `(yield_Percent: ${data?.yield_Percent?.toFixed(2) || 'N/A'})`,
       icon: <Target className="w-6 h-6" />,
@@ -1251,9 +1979,9 @@ export default function PerformanceDashboard() {
     {
       id: "targetAchievement",
       title: "目標達成率",
-      value: (data) => data?.otd_Rate ? Math.round(data.otd_Rate * 100) : 0,
+      value: (data) => data?.otd_Rate ? Number((data.otd_Rate * 100).toFixed(2)) : 0,
       unit: "%",
-      description: (data) => `(otd_Rate: ${data?.otd_Rate?.toFixed(4) || 'N/A'})`,
+      description: (data) => `(otd_Rate: ${data?.otd_Rate?.toFixed(2) || 'N/A'})`,
       icon: <Target className="w-6 h-6" />,
       color: "text-red-400",
       target: 90,
@@ -1262,7 +1990,7 @@ export default function PerformanceDashboard() {
     {
       id: "kpi",
       title: "關鍵績效指標",
-      value: (data) => data?.kpi_Percent || 0,
+      value: (data) => data?.kpi_Percent ? Number(data.kpi_Percent.toFixed(2)) : 0,
       unit: "%",
       description: (data) => `(kpi_Percent: ${data?.kpi_Percent?.toFixed(2) || 'N/A'})`,
       icon: <BarChart className="w-6 h-6" />,
@@ -1273,7 +2001,7 @@ export default function PerformanceDashboard() {
     {
       id: "efficiency",
       title: "效率指標",
-      value: (data) => data?.units_Per_Hour ? 100 : 0,
+      value: (data) => data?.units_Per_Hour ? Number((data.units_Per_Hour).toFixed(2)) : 0,
       unit: "%",
       description: (data) => `(units_Per_Hour: ${data?.units_Per_Hour?.toFixed(2) || 'N/A'})`,
       icon: <Zap className="w-6 h-6" />,
@@ -1330,6 +2058,11 @@ export default function PerformanceDashboard() {
   };
 
   // 獲取員工列表
+  // 初始化時加載年份列表
+  useEffect(() => {
+    loadAvailableYears();
+  }, []);
+
   useEffect(() => {
     const loadEmployees = async () => {
       try {
@@ -1371,7 +2104,7 @@ export default function PerformanceDashboard() {
             department: '技術部', // 預設部門
             role: emp.role_name,
             grade: 'A',
-            displayName: `${emp.user_name} (技術部 - ${emp.role_name})`
+            displayName: `${emp.user_name} ( ${emp.role_name} )`
           }));
 
         console.log('處理後的員工列表:', uniqueEmployees);
@@ -1415,7 +2148,7 @@ export default function PerformanceDashboard() {
    * 生命週期方法區域
    */
   // 載入員工KPI資料的函數
-  const loadEmployeeData = async (employeeId, targetYear, targetMonth, targetDay) => {
+  const loadEmployeeData = async (employeeId, targetYear, targetMonth, targetDay, isYearly = false) => {
     if (!employeeId) {
       return;
     }
@@ -1423,7 +2156,13 @@ export default function PerformanceDashboard() {
     setIsLoading(true);
     try {
       console.group('載入KPI資料');
-      console.log('參數:', { employeeId, targetYear, targetMonth, targetDay });
+      console.log('參數:', { 
+        employeeId, 
+        targetYear, 
+        targetMonth, 
+        targetDay,
+        mode: isYearly ? '年度統計' : targetDay ? '每日統計' : '月度統計'
+      });
 
       // 同時發送兩個API請求
       const [yearResponse, monthResponse] = await Promise.all([
@@ -1459,19 +2198,217 @@ export default function PerformanceDashboard() {
         monthResponse.json()
       ]);
 
+      // 保存原始API回應
+      window.apiResponse = {
+        yearData,
+        monthData
+      };
+      
+      // 處理並組織數據
+      let processedData;
+      
+      if (isYearly) {
+        // 年度統計模式
+        processedData = yearData.result || [];
+      } else if (targetDay) {
+        // 每日統計模式
+        processedData = monthData.result || [];
+      } else {
+        // 月度統計模式
+        processedData = monthData.result || [];
+      }
+
       console.log('API回應:', { yearData, monthData });
 
       // 更新資料
       if (yearData.code === "0000" && monthData.code === "0000") {
+        setEmployeeData(processedData);
         // 找到選中員工的數據
         let employeeData;
         
-        if (targetDay) {
-          // 每日統計模式
-          employeeData = monthData.result.find(item => 
-            item.user_Name === employeeId && 
-            item.work_Day === `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}T00:00:00`
+        if (isYearly) {
+          // 年度統計模式
+          const employeeYearData = yearData.result.filter(item => 
+            item.user_Name === employeeId
           );
+
+          console.log('找到的年度數據:', employeeYearData);
+
+          if (employeeYearData.length > 0) {
+            // 計算年度總和
+            const yearlyTotals = employeeYearData.reduce((acc, curr) => ({
+              completion_Rate: (acc.completion_Rate || 0) + (curr.completion_Rate || 0),
+              yield_Percent: (acc.yield_Percent || 0) + (curr.yield_Percent || 0),
+              total_Hours: (acc.total_Hours || 0) + (curr.total_Hours || 0),
+              machine_Run_Hours: (acc.machine_Run_Hours || 0) + (curr.machine_Run_Hours || 0),
+              maintenance_Count: (acc.maintenance_Count || 0) + (curr.maintenance_Count || 0),
+              otd_Rate: (acc.otd_Rate || 0) + (curr.otd_Rate || 0),
+              kpi_Percent: (acc.kpi_Percent || 0) + (curr.kpi_Percent || 0),
+              units_Per_Hour: (acc.units_Per_Hour || 0) + (curr.units_Per_Hour || 0)
+            }), {});
+
+            // 計算平均值
+            const monthCount = employeeYearData.length;
+            employeeData = {
+              ...employeeYearData[0],
+              work_Month: `${targetYear}-01-01T00:00:00`,
+              completion_Rate: yearlyTotals.completion_Rate / monthCount,
+              yield_Percent: yearlyTotals.yield_Percent / monthCount,
+              total_Hours: yearlyTotals.total_Hours,  // 總和
+              machine_Run_Hours: yearlyTotals.machine_Run_Hours,  // 總和
+              maintenance_Count: yearlyTotals.maintenance_Count,  // 總和
+              otd_Rate: yearlyTotals.otd_Rate / monthCount,
+              kpi_Percent: yearlyTotals.kpi_Percent / monthCount,
+              units_Per_Hour: yearlyTotals.units_Per_Hour / monthCount,
+              attendance: 100,
+              isYearlyView: true  // 標記為年度統計視圖
+            };
+
+            // 更新檢視方式
+            setViewMode("yearly");
+
+            console.log('年度統計數據:', {
+              monthCount,
+              totals: yearlyTotals,
+              processed: employeeData
+            });
+          }
+      } else if (targetDay) {
+        // 每日統計模式
+        const targetDate = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}T00:00:00`;
+        console.log('尋找日期:', targetDate);
+        
+        // 檢查是否有該日期的數據
+        console.log('開始查找日期數據:', {
+          targetDate,
+          employeeId,
+          availableData: monthData.result.length
+        });
+
+        // 先找出所有該員工的數據
+        const employeeMonthData = monthData.result.filter(item => item.user_Name === employeeId);
+        console.log('該員工本月數據:', employeeMonthData.length, '筆');
+
+        // 在員工數據中找出指定日期的數據
+        const dailyData = employeeMonthData.find(item => {
+          const itemDate = new Date(item.work_Day);
+          const targetDateObj = new Date(targetDate);
+          
+          const match = itemDate.getFullYear() === targetDateObj.getFullYear() &&
+                       itemDate.getMonth() === targetDateObj.getMonth() &&
+                       itemDate.getDate() === targetDateObj.getDate();
+          
+          console.log('比對日期:', {
+            itemDate: item.work_Day,
+            targetDate,
+            match,
+            data: match ? item : null
+          });
+          
+          return match;
+        });
+
+        if (dailyData) {
+          console.log('找到指定日期的數據:', dailyData);
+          
+          // 檢查是否有有效數據
+          const hasValidData = dailyData.completion_Rate !== null ||
+                             dailyData.yield_Percent !== null ||
+                             dailyData.total_Hours > 0 ||
+                             dailyData.machine_Run_Hours > 0 ||
+                             dailyData.maintenance_Count > 0;
+          
+          if (hasValidData) {
+            // 使用找到的有效數據，將null值轉換為0
+            employeeData = {
+              ...dailyData,
+              completion_Rate: dailyData.completion_Rate || 0,
+              yield_Percent: dailyData.yield_Percent || 0,
+              total_Hours: dailyData.total_Hours || 0,
+              machine_Run_Hours: dailyData.machine_Run_Hours || 0,
+              maintenance_Count: dailyData.maintenance_Count || 0,
+              otd_Rate: dailyData.otd_Rate || 0,
+              kpi_Percent: dailyData.kpi_Percent || 0,
+              units_Per_Hour: dailyData.units_Per_Hour || 0,
+              attendance: dailyData.attendance || 0
+            };
+          } else {
+            // 數據全為null，使用預設值但保留基本信息
+            employeeData = {
+              ...dailyData,
+              completion_Rate: 0,
+              yield_Percent: 0,
+              total_Hours: 0,
+              machine_Run_Hours: 0,
+              maintenance_Count: 0,
+              otd_Rate: 0,
+              kpi_Percent: 0,
+              units_Per_Hour: 0,
+              attendance: 0,
+              cnt_Done: 0,
+              cnt_Running_Done: 0,
+              machines_Used: 0,
+              items_Contributed: 0,
+              items_On_Time: 0,
+              in_Qty: 0,
+              qc_Qty: 0,
+              yield_Rate: 0
+            };
+          }
+        } else {
+          // 找不到數據，使用完全預設值
+          employeeData = {
+            work_Day: targetDate,
+            user_Name: employeeId,
+            completion_Rate: 0,
+            yield_Percent: 0,
+            total_Hours: 0,
+            machine_Run_Hours: 0,
+            maintenance_Count: 0,
+            otd_Rate: 0,
+            kpi_Percent: 0,
+            units_Per_Hour: 0,
+            attendance: 0,
+            user_Id: null,
+            employee_Name: employeeId,
+            department_Name: '技術部',
+            work_Month: `${targetYear}-${String(targetMonth).padStart(2, '0')}-01T00:00:00`,
+            cnt_Done: 0,
+            cnt_Running_Done: 0,
+            machines_Used: 0,
+            items_Contributed: 0,
+            items_On_Time: 0,
+            in_Qty: 0,
+            qc_Qty: 0,
+            yield_Rate: 0
+          };
+        }
+        
+        // 確保更新後的數據使用正確的日期和值
+        console.log('最終使用的數據:', {
+          requestedDate: targetDate,
+          actualDate: employeeData.work_Day,
+          hasData: !!dailyData,
+          values: {
+            completion_Rate: employeeData.completion_Rate,
+            yield_Percent: employeeData.yield_Percent,
+            total_Hours: employeeData.total_Hours,
+            machine_Run_Hours: employeeData.machine_Run_Hours,
+            kpi_Percent: employeeData.kpi_Percent
+          }
+        });
+        
+        // 確保更新後的數據使用正確的日期
+        console.log('最終使用的數據:', {
+          requestedDate: targetDate,
+          actualDate: employeeData.work_Day,
+          hasData: !!dailyData
+        });
+          
+          if (employeeData) {
+            // 更新檢視方式
+            setViewMode("daily");
+          }
         } else {
           // 月度統計模式
           // 先找出所有該員工的數據
@@ -1523,8 +2460,12 @@ export default function PerformanceDashboard() {
               otd_Rate: selectedData.otd_Rate || 0,
               kpi_Percent: selectedData.kpi_Percent || 0,
               units_Per_Hour: selectedData.units_Per_Hour || 0,
-              attendance: 100
+              attendance: 100,
+              isYearlyView: false  // 清除年度統計標記
             };
+            
+            // 更新檢視方式
+            setViewMode("monthly");
             
             console.log('選擇的月度數據:', {
               targetMonth,
@@ -1610,13 +2551,26 @@ export default function PerformanceDashboard() {
         });
 
         if (!employeeData) {
-          console.error('找不到員工數據:', {
+          console.log('找不到員工數據，使用預設值:', {
             employeeId,
             targetYear,
             targetMonth,
             targetDay
           });
-          return;
+          const defaultData = {
+            completion_Rate: 0,
+            yield_Percent: 0,
+            total_Hours: 0,
+            machine_Run_Hours: 0,
+            maintenance_Count: 0,
+            otd_Rate: 0,
+            kpi_Percent: 0,
+            units_Per_Hour: 0,
+            attendance: 0,
+            user_Name: employeeId
+          };
+          setEmployeeData(defaultData);
+          employeeData = defaultData;
         }
 
         console.log('找到的員工數據:', employeeData);
@@ -1698,8 +2652,29 @@ export default function PerformanceDashboard() {
       }
 
       try {
-        // 使用新的loadEmployeeData函數載入資料
-        await loadEmployeeData(selectedEmployee, selectedYear, selectedMonth, selectedDay);
+        // 根據當前檢視方式載入數據
+        const isDaily = viewMode === "daily";
+        const isYearly = viewMode === "yearly";
+        const currentDay = isDaily ? 1 : null;
+        const currentMonth = isYearly ? 1 : selectedMonth;
+
+        console.log('初始化數據:', {
+          employee: selectedEmployee,
+          year: selectedYear,
+          month: currentMonth,
+          day: currentDay,
+          viewMode,
+          isYearly
+        });
+
+        // 載入數據
+        await loadEmployeeData(
+          selectedEmployee,
+          selectedYear,
+          currentMonth,
+          currentDay,
+          isYearly
+        );
       } catch (error) {
         console.error("初始化資料失敗:", error);
       }
@@ -1707,16 +2682,48 @@ export default function PerformanceDashboard() {
 
     // 執行初始化
     initializeData();
-  }, [selectedEmployee, selectedYear, selectedMonth, selectedDay]);
+  }, [selectedEmployee, selectedYear, selectedMonth, selectedDay, viewMode]);
 
-  const handleEmployeeChange = (e) => {
+  const handleEmployeeChange = async (e) => {
     const employeeId = e.target.value;
-    setSelectedEmployee(employeeId);
     console.log('選擇的員工名稱:', employeeId);
     
+    // 先清空現有數據
+    setEmployeeData(null);
+    setSelectedEmployee(employeeId);
+    
+    // 重新加載可用年份列表
+    await loadAvailableYears();
+    
     if (employeeId) {
-      // 只有在選擇了有效的員工ID時才載入數據
-      loadEmployeeData(employeeId, selectedYear, selectedMonth, selectedDay);
+      try {
+        // 根據當前檢視方式載入數據
+        const isDaily = viewMode === "daily";
+        const isYearly = viewMode === "yearly";
+        const currentDay = isDaily ? 1 : null;
+        const currentMonth = isYearly ? 1 : selectedMonth;
+        
+        console.log('載入新員工數據:', {
+          employeeId,
+          year: selectedYear,
+          month: currentMonth,
+          day: currentDay,
+          viewMode,
+          isYearly
+        });
+        
+        // 載入數據
+        await loadEmployeeData(
+          employeeId,
+          selectedYear,
+          currentMonth,
+          currentDay,
+          isYearly
+        );
+      } catch (error) {
+        console.error('載入員工數據失敗:', error);
+        setEmployeeData({});
+      }
     } else {
       // 如果選擇了空值，清空數據
       setEmployeeData({});
@@ -1751,16 +2758,29 @@ export default function PerformanceDashboard() {
   /**
    * 條件渲染：加載狀態
    */
-  if (!employeeData || isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-slate-800 to-slate-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
-          <p className="text-slate-300">載入中...</p>
-        </div>
+  // 只在真正loading時顯示loading畫面
+  // 使用遮罩層而不是全頁loading
+  const LoadingOverlay = () => (
+    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="text-center bg-slate-800 p-6 rounded-lg shadow-xl">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4 mx-auto"></div>
+        <p className="text-slate-300">載入中...</p>
       </div>
-    );
-  }
+    </div>
+  );
+
+  // 如果沒有employeeData，使用預設值
+  const currentEmployeeData = employeeData || {
+    completion_Rate: 0,
+    yield_Percent: 0,
+    total_Hours: 0,
+    machine_Run_Hours: 0,
+    maintenance_Count: 0,
+    otd_Rate: 0,
+    kpi_Percent: 0,
+    units_Per_Hour: 0,
+    attendance: 0
+  };
 
   // 已經在前面定義過 handleEmployeeChange，這裡移除重複的定義
 
@@ -1786,16 +2806,20 @@ export default function PerformanceDashboard() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 p-6 relative">
+        {isLoading && <LoadingOverlay />}
         <div className="max-w-7xl mx-auto">
           {/* 頁面頭部：標題和用戶選項 */}
           <div className="flex flex-col gap-4 mb-6">
             {/* 第一行：標題和基本操作 */}
             <div className="flex justify-between items-center">
-              <h1 className="text-3xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors duration-200 flex items-center gap-2">
-                <Activity className="w-8 h-8" />
-                員工智慧考核系統
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-3xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors duration-200 flex items-center gap-2">
+                  <Activity className="w-8 h-8" />
+                  員工智慧考核系統
+                </h1>
+                <LoginUserInfo />
+              </div>
               <div className="flex items-center gap-4">
                 {/* 積分管理按鈕 */}
                 <button
@@ -1868,136 +2892,267 @@ export default function PerformanceDashboard() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-white">年份：</span>
-                  <select
-                    value={selectedYear}
-                    onChange={async (e) => {
-                      const newYear = parseInt(e.target.value);
-                      setSelectedYear(newYear);
-                      // 清空現有數據
-                      setEmployeeData({});
-                      // 重新加載數據
-                      await loadEmployeeData(selectedEmployee, newYear, selectedMonth, selectedDay);
-                      console.log('年份變更:', {
-                        newYear,
-                        selectedMonth,
-                        selectedDay,
-                        selectedEmployee
-                      });
-                    }}
-                    className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
-                  >
-                    {availableYears.map(year => (
-                      <option key={year} value={year}>{year}年</option>
-                    ))}
-                  </select>
+                  <div className="relative inline-block">
+                    <select
+                      value={selectedYear}
+                      onChange={async (e) => {
+                        const newYear = parseInt(e.target.value);
+                        
+                        // 設置loading狀態
+                        setIsLoading(true);
+                        
+                        try {
+                          // 先更新年份
+                          setSelectedYear(newYear);
+                          
+                          // 等待一個極短的時間以確保狀態更新
+                          await new Promise(resolve => setTimeout(resolve, 10));
+                          
+                          // 根據當前檢視模式決定是否需要重置月份
+                          const currentMonth = viewMode === "yearly" ? 1 : selectedMonth;
+                          const currentDay = viewMode === "daily" ? selectedDay : null;
+                          const isYearlyView = viewMode === "yearly";
+                          
+                          // 重新加載數據
+                          await loadEmployeeData(
+                            selectedEmployee,
+                            newYear,
+                            currentMonth,
+                            currentDay,
+                            isYearlyView
+                          );
+                          
+                          console.log('年份變更:', {
+                            newYear,
+                            currentMonth,
+                            currentDay,
+                            selectedEmployee,
+                            viewMode
+                          });
+                        } catch (error) {
+                          console.error('載入年度數據失敗:', error);
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                      className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
+                        hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 
+                        transition-all duration-200 cursor-pointer min-w-[120px] backdrop-blur-sm
+                        shadow-sm hover:shadow-md"
+                    >
+                      {availableYears.map(year => (
+                        <option 
+                          key={year} 
+                          value={year}
+                          className="bg-slate-700 text-white hover:bg-slate-600"
+                        >
+                          {year}年
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <span className="text-white">月份：</span>
-                  <select
-                    value={selectedMonth}
-                    onChange={async (e) => {
-                      const newMonth = parseInt(e.target.value);
-                      console.log('切換到新月份:', newMonth);
-                      
-                      // 先清空數據
-                      setEmployeeData(null);
-                      
-                      // 更新月份
-                      setSelectedMonth(newMonth);
-                      
-                      // 等待狀態更新
-                      await new Promise(resolve => setTimeout(resolve, 0));
-                      
-                      // 重新加載數據
-                      console.log('開始加載新月份數據:', {
-                        employee: selectedEmployee,
-                        year: selectedYear,
-                        month: newMonth,
-                        day: selectedDay,
-                        mode: selectedDay ? '每日統計' : '月度統計'
-                      });
-                      
-                      try {
-                        // 確保使用新的月份
-                        await loadEmployeeData(
-                          selectedEmployee,
-                          selectedYear,
-                          newMonth,
-                          selectedDay
-                        );
-                      } catch (error) {
-                        console.error('加載數據失敗:', error);
-                        setEmployeeData({});
-                      }
-                    }}
-                    className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
-                  >
-                    {Array.from({length: 12}, (_, i) => i + 1).map(month => (
-                      <option key={month} value={month}>{month}月</option>
-                    ))}
-                  </select>
-                </div>
+                {viewMode !== "yearly" && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-white">月份：</span>
+                    <div className="relative inline-block">
+                      <select
+                        value={selectedMonth}
+                        onChange={async (e) => {
+                          const newMonth = parseInt(e.target.value);
+                          console.log('切換到新月份:', newMonth);
+                          
+                          // 先清空數據
+                          setEmployeeData(null);
+                          
+                          // 更新月份
+                          setSelectedMonth(newMonth);
+                          
+                          // 等待狀態更新
+                          await new Promise(resolve => setTimeout(resolve, 0));
+                          
+                          // 重新加載數據
+                          console.log('開始加載新月份數據:', {
+                            employee: selectedEmployee,
+                            year: selectedYear,
+                            month: newMonth,
+                            day: selectedDay,
+                            mode: selectedDay ? '每日統計' : '月度統計'
+                          });
+                          
+                          try {
+                            // 確保使用新的月份
+                            await loadEmployeeData(
+                              selectedEmployee,
+                              selectedYear,
+                              newMonth,
+                              selectedDay,
+                              false  // 不是年度統計
+                            );
+                          } catch (error) {
+                            console.error('加載數據失敗:', error);
+                            setEmployeeData({});
+                          }
+                        }}
+                        className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
+                          hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 
+                          transition-all duration-200 cursor-pointer min-w-[100px] backdrop-blur-sm
+                          shadow-sm hover:shadow-md"
+                      >
+                        {Array.from({length: 12}, (_, i) => i + 1).map(month => (
+                          <option 
+                            key={month} 
+                            value={month}
+                            className="bg-slate-700 text-white hover:bg-slate-600"
+                          >
+                            {month}月
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-2">
                   <span className="text-white">檢視方式：</span>
-                  <select
-                    value={selectedDay ? "daily" : "monthly"}
-                    onChange={async (e) => {
-                      const isDaily = e.target.value === "daily";
-                      const newDay = isDaily ? 1 : null;
-                      
-                      // 先清空數據
-                      setEmployeeData(null);
-                      
-                      // 更新檢視方式
-                      setSelectedDay(newDay);
-                      
-                      // 等待狀態更新
-                      await new Promise(resolve => setTimeout(resolve, 0));
-                      
-                      // 重新加載數據
-                      try {
-                        const currentMonth = selectedMonth || new Date().getMonth() + 1;
+                  <div className="relative inline-block">
+                    <select
+                      value={viewMode}
+                      onChange={async (e) => {
+                        const newViewMode = e.target.value;
+                        const isDaily = newViewMode === "daily";
+                        const isYearly = newViewMode === "yearly";
+                        const newDay = isDaily ? 1 : null;
                         
-                        console.log('檢視方式變更:', {
-                          mode: isDaily ? '每日統計' : '月度統計',
-                          year: selectedYear,
-                          month: currentMonth,
-                          day: newDay,
-                          employee: selectedEmployee
+                        console.log('切換檢視方式:', {
+                          newViewMode,
+                          isDaily,
+                          isYearly,
+                          newDay,
+                          currentViewMode: viewMode
                         });
                         
-                        await loadEmployeeData(
-                          selectedEmployee,
-                          selectedYear,
-                          currentMonth,
-                          newDay
-                        );
-                      } catch (error) {
-                        console.error('加載數據失敗:', error);
-                        setEmployeeData({});
-                      }
-                    }}
-                    className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
-                  >
-                    <option value="monthly">月度統計</option>
-                    <option value="daily">每日統計</option>
-                  </select>
-                  {selectedDay && (
-                    <select
-                      value={selectedDay}
-                      onChange={async (e) => {
-                        const newDay = parseInt(e.target.value);
+                        // 先清空數據
+                        setEmployeeData(null);
+                        
+                        // 更新檢視方式狀態
+                        setViewMode(newViewMode);
                         setSelectedDay(newDay);
-                        await loadEmployeeData(selectedEmployee, selectedYear, selectedMonth, newDay);
+                        
+                        // 如果是年度統計，強制設置月份為1月
+                        if (isYearly) {
+                          setSelectedMonth(1);
+                        }
+                        
+                        // 等待狀態更新
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                        
+                        // 重新加載數據
+                        try {
+                          const currentMonth = isYearly ? 1 : selectedMonth;
+                          
+                          console.log('開始加載新數據:', {
+                            mode: newViewMode,
+                            year: selectedYear,
+                            month: currentMonth,
+                            day: newDay,
+                            employee: selectedEmployee,
+                            isYearly
+                          });
+                          
+                          await loadEmployeeData(
+                            selectedEmployee,
+                            selectedYear,
+                            currentMonth,
+                            newDay,
+                            isYearly
+                          );
+                        } catch (error) {
+                          console.error('加載數據失敗:', error);
+                          setEmployeeData({});
+                        }
                       }}
-                      className="bg-slate-600 text-white px-3 py-1 rounded border border-slate-500 focus:border-blue-400 focus:outline-none"
+                      className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
+                        hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 
+                        transition-all duration-200 cursor-pointer min-w-[120px] backdrop-blur-sm
+                        shadow-sm hover:shadow-md"
                     >
-                      {Array.from({length: 31}, (_, i) => i + 1).map(day => (
-                        <option key={day} value={day}>{day}日</option>
-                      ))}
+                      <option value="yearly" className="bg-slate-700 text-white hover:bg-slate-600">年度統計</option>
+                      <option value="monthly" className="bg-slate-700 text-white hover:bg-slate-600">月度統計</option>
+                      <option value="daily" className="bg-slate-700 text-white hover:bg-slate-600">每日統計</option>
                     </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                    </div>
+                  </div>
+                  {viewMode === "daily" && (
+                    <div className="relative inline-block">
+                      <select
+                        value={selectedDay}
+                        onChange={async (e) => {
+                          const newDay = parseInt(e.target.value);
+                          console.log('切換到新日期:', {
+                            currentDay: selectedDay,
+                            newDay,
+                            year: selectedYear,
+                            month: selectedMonth
+                          });
+                          
+                          // 先清空數據
+                          setEmployeeData(null);
+                          setSelectedDay(newDay);
+                          
+                          // 等待狀態更新
+                          await new Promise(resolve => setTimeout(resolve, 0));
+                          
+                          try {
+                            // 重新加載數據
+                            await loadEmployeeData(
+                              selectedEmployee,
+                              selectedYear,
+                              selectedMonth,
+                              newDay,
+                              false  // 不是年度統計
+                            );
+                          } catch (error) {
+                            console.error('載入日期數據失敗:', error);
+                            setEmployeeData({});
+                          }
+                        }}
+                        className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
+                          hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 
+                          transition-all duration-200 cursor-pointer min-w-[100px] backdrop-blur-sm
+                          shadow-sm hover:shadow-md"
+                      >
+                        {Array.from({length: 31}, (_, i) => i + 1).map(day => (
+                          <option 
+                            key={day} 
+                            value={day}
+                            className="bg-slate-700 text-white hover:bg-slate-600"
+                          >
+                            {day}日
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -2036,6 +3191,32 @@ export default function PerformanceDashboard() {
 
           {/* 主要內容區域 */}
           <div className="space-y-6">
+            {/* 無數據提示 */}
+            {selectedEmployee && !isLoading && (
+              <div className={`mb-6 ${Object.values(currentEmployeeData).every(value => value === 0 || value === null) ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-blue-500/10 border border-blue-500/20'} rounded-lg p-4 ${Object.values(currentEmployeeData).every(value => value === 0 || value === null) ? 'text-yellow-400' : 'text-blue-400'}`}>
+                <div className="flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  <span className="font-medium">
+                    {Object.values(currentEmployeeData).every(value => value === 0 || value === null) ? '無可用數據' : '數據載入成功'}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm opacity-80">
+                  {Object.values(currentEmployeeData).every(value => value === 0 || value === null) ? (
+                    <>
+                      目前所選的{viewMode === "yearly" ? "年度" : viewMode === "monthly" ? "月份" : "日期"}
+                      尚無績效數據，系統將顯示預設值。請確認選擇的時間區間是否正確，或選擇其他時間區間查看。
+                    </>
+                  ) : (
+                    <>
+                      已成功載入 {selectedEmployee} 在 {selectedYear}年
+                      {viewMode !== "yearly" ? `${selectedMonth}月` : ""}
+                      {viewMode === "daily" ? `${selectedDay}日` : ""} 的績效數據。
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+
             {/* Dashboard View */}
             {activeTab === "dashboard" && (
               <>
@@ -2044,50 +3225,69 @@ export default function PerformanceDashboard() {
                     <PerformanceCard
                       key={metric.id}
                       metric={metric}
-                      data={employeeData || {}}
+                      data={currentEmployeeData}
                     />
                   ))}
                 </div>
 
-                <div className="bg-slate-700 rounded-xl p-6 text-white">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold">績效趨勢分析</h3>
-                  </div>
-                  <div className="h-[400px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={timeSeriesData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis dataKey="month" stroke="#9CA3AF" />
-                        <YAxis stroke="#9CA3AF" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#1F2937",
-                            border: "none",
-                          }}
-                        />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="completion"
-                          stroke="#10B981"
-                          name="完成率"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="quality"
-                          stroke="#3B82F6"
-                          name="質量"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="efficiency"
-                          stroke="#F59E0B"
-                          name="效率"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                {/* 績效趨勢圖表 */}
+                <div className="mt-6">
+                  <div className="bg-slate-800 rounded-lg p-6 relative">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-200">績效趨勢分析</h3>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="absolute top-4 right-6 flex items-center gap-3">
+                        <div className={`flex items-center bg-slate-700/50 rounded-lg py-1 px-1.5 border border-slate-600 ${viewMode !== 'monthly' ? 'opacity-0 pointer-events-none' : ''}`}>
+                          <span className="text-slate-300 text-sm px-2">月份：</span>
+                          <select
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                            className="bg-slate-800 text-white rounded px-4 text-sm font-medium min-w-[100px] h-[38px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                              <option key={month} value={month}>{month}月</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-center bg-slate-700/50 rounded-lg py-1 px-1.5 border border-slate-600">
+                          <button
+                            onClick={() => setViewMode('yearly')}
+                            className={`h-[38px] px-3 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${
+                              viewMode === 'yearly'
+                                ? 'bg-blue-500 text-white'
+                                : 'text-slate-300 hover:text-white'
+                            }`}
+                          >
+                            年度檢視
+                          </button>
+                          <button
+                            onClick={() => setViewMode('monthly')}
+                            className={`h-[38px] px-3 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${
+                              viewMode === 'monthly'
+                                ? 'bg-blue-500 text-white'
+                                : 'text-slate-300 hover:text-white'
+                            }`}
+                          >
+                            月度檢視
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <PerformanceTrendChart
+                      data={processChartData(
+                        window.apiResponse || {
+                          yearData: { result: [] },
+                          monthData: { result: [] }
+                        },
+                        viewMode,
+                        selectedYear,
+                        selectedMonth,
+                        selectedDay
+                      )}
+                      viewMode={viewMode}
+                    />
                   </div>
                 </div>
+
               </>
             )}
 

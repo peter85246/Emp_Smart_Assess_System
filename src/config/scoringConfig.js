@@ -112,81 +112,82 @@ export const calculationFormulas = {
   // 工作完成量計算
   workCompletion: {
     title: "工作完成量",
-    dataSource: "purchase_order_items.quantity, produced_quantity", 
+    dataSource: "工單系統的狀態統計（已完成、進行中）",
     needsCalculation: true,
-    formula: "完成量 / 應交量 × 100",
-    description: "衡量員工實際完成的工作量與預期應完成量的比例",
-    example: "如完成量900件，應交量1000件，則工作完成量 = 900/1000 × 100 = 90%"
+    formula: "完成率 = 已完成工單數 / (進行中+已完成工單數) × 100%",
+    description: "衡量工作完成情況"
   },
 
-  // 產品質量（間接法）計算
-  productQuality: {
-    title: "產品質量（間接法）",
-    dataSource: "works_orders_processing.status",
-    needsCalculation: true, 
-    formula: "已完成工單數 / 總工單數 × 100",
-    description: "透過工單完成狀態間接評估產品質量表現",
-    example: "如已完成工單45張，總工單50張，則產品質量 = 45/50 × 100 = 90%"
-  },
-
-  // 工作時間效率計算
+  // 工作時間計算
   workHoursEfficiency: {
-    title: "工作時間效率", 
-    dataSource: "works_orders_processing.start_time/end_time, produced_quantity",
+    title: "工作時間",
+    dataSource: "工單系統的開始與結束時間記錄",
     needsCalculation: true,
-    formula: "單位時間完成數 / 平均值 x 100",
-    description: "評估員工在單位時間內的工作效率，並進行正規化處理",
-    example: "員工單位時間完成8件，部門平均7件，則效率比 = 8/7 ≈ 1.14 → 正規化為114%"
+    formula: "總工時 = 所有工單的工作時間總和",
+    description: "計算實際工作時間"
   },
 
-  // 差勤紀錄（參與度）計算
-  attendance: {
-    title: "差勤紀錄（參與度）",
-    dataSource: "works_orders_processing.start_time（推算出勤日）", 
-    needsCalculation: true,
-    formula: "出勤日 / 應出勤日 × 100",
-    description: "根據工單開始時間推算實際出勤狀況，評估員工參與度",
-    example: "如實際出勤19天，應出勤20天，則差勤紀錄 = 19/20 × 100 = 95%"
-  },
-
-  // 機台稼動率計算
+  // 機台狀態計算
   machineOperationRate: {
-    title: "機台稼動率",
-    dataSource: "UrTable.Status='Running', Interval",
+    title: "機台狀態",
+    dataSource: "機台運轉記錄系統",
     needsCalculation: true,
-    formula: "Running時間 / 全部狀態時間 × 100", 
-    description: "機台實際運行時間占總時間的比例，反映設備使用效率",
-    example: "如Running時間7.2小時，總時間8小時，則機台稼動率 = 7.2/8 × 100 = 90%"
+    formula: "計算項目：\n- 今日使用的機台數量\n- 機台實際運轉時間\n- 目前運轉狀態",
+    description: "追蹤機台使用情況"
   },
 
-  // 維護異常比例計算
+  // 機台維護計算
   maintenanceAnomalyRate: {
-    title: "維護異常比例",
-    dataSource: "UrTable.Status='Alarm', Interval",
+    title: "機台維護",
+    dataSource: "維護作業紀錄系統",
     needsCalculation: true,
-    formula: "Alarm時間 / 全部狀態時間 × 100（可倒扣轉正分）",
-    description: "機台異常報警時間比例，異常率越低維護表現越好",
-    example: "如Alarm時間0.5小時，總時間8小時，異常率 = 0.5/8 × 100 = 6.25%，維護得分 = 100-6.25 = 93.75%"
+    formula: "統計當日維護作業次數",
+    description: "記錄維護工作執行情況"
   },
 
   // 目標達成率計算
   targetAchievement: {
-    title: "目標達成率",
-    dataSource: "works_orders_processing, purchase_order_items",
+    title: "目標達成率(OTD)",
+    dataSource: "訂單完成與交期記錄",
     needsCalculation: true,
-    formula: "員工產出 / 該工單總需求 × 100",
-    description: "員工個人產出與該工單總需求量的比例關係",
-    example: "如員工產出850件，工單總需求1000件，則目標達成率 = 850/1000 × 100 = 85%"
+    formula: "準時達交率 = 準時完成數量 / 總訂單數量 × 100%",
+    description: "評估訂單準時完成情況"
   },
 
-  // KPI 綜合評估
-  kpiOverall: {
-    title: "關鍵績效指標 (KPI)",
-    dataSource: "綜合上述各項",
+  // 效率指標計算
+  efficiency: {
+    title: "效率指標",
+    dataSource: "生產數量與工時統計",
     needsCalculation: true,
-    formula: "加權平均總和",
-    description: "將各項指標按重要性進行加權平均，得出綜合績效分數",
-    example: "工作完成量(40%權重)×90% + 質量(30%權重)×85% + 效率(30%權重)×88% = 88.1%"
+    formula: "單位效率 = 總生產數量 / 總工時",
+    description: "評估生產效率"
+  },
+
+  // KPI 計算
+  kpiOverall: {
+    title: "關鍵績效指標(KPI)",
+    dataSource: "綜合三項指標評估",
+    needsCalculation: true,
+    formula: "KPI = (工作完成率 + 準時達交率 + 效率達成率) / 3",
+    description: "綜合績效評估"
+  },
+
+  // 差勤紀錄計算
+  attendance: {
+    title: "差勤紀錄",
+    dataSource: "每日工作日誌填寫記錄",
+    needsCalculation: true,
+    formula: "出勤率 = 已填寫日誌天數 / 當月工作天數",
+    description: "追蹤工作日誌填寫情況"
+  },
+
+  // 產品質量計算
+  productQuality: {
+    title: "產品質量",
+    dataSource: "生產製程品質記錄",
+    needsCalculation: true,
+    formula: "良率 = 品檢合格數量 / 總生產數量 × 100%",
+    description: "評估產品品質水準"
   }
 };
 

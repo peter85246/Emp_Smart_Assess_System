@@ -80,13 +80,13 @@ export const getGradeDescription = (score) => {
  */
 export const getGradeBadgeColor = (grade) => {
   const colorMap = {
-    'A': 'bg-green-100 text-green-800 border-green-200',
-    'B': 'bg-blue-100 text-blue-800 border-blue-200',
-    'C': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    'D': 'bg-orange-100 text-orange-800 border-orange-200',
-    'E': 'bg-red-100 text-red-800 border-red-200'
+    'A': 'text-green-500',
+    'B': 'text-blue-500',
+    'C': 'text-yellow-500',
+    'D': 'text-orange-500',
+    'E': 'text-red-500'
   };
-  return colorMap[grade] || 'bg-gray-100 text-gray-800 border-gray-200';
+  return colorMap[grade] || 'text-gray-500';
 };
 
 /**
@@ -141,34 +141,9 @@ export const getBonusPenaltyInfo = (percentage, metricType) => {
   let bonusReasons = [];
   
   // 根據不同指標類型設定獎勵機制
-  switch (metricType) {
-    case 'workCompletion':
-      if (percentage >= 95) {
-        bonusPoints += 2;
-        bonusReasons.push('超越目標獎勵 +2分');
-      }
-      break;
-    case 'quality':
-      if (percentage >= 98) {
-        bonusPoints += 3;
-        bonusReasons.push('零缺陷獎勵 +3分');
-      } else if (percentage >= 95) {
-        bonusPoints += 1;
-        bonusReasons.push('高品質獎勵 +1分');
-      }
-      break;
-    case 'attendance':
-      if (percentage >= 98) {
-        bonusPoints += 2;
-        bonusReasons.push('全勤獎勵 +2分');
-      }
-      break;
-    default:
-      if (percentage >= 95) {
-        bonusPoints += 1;
-        bonusReasons.push('優秀表現獎勵 +1分');
-      }
-  }
+  // 移除獎勵加分機制，保持基礎分數
+  bonusPoints = 0;
+  bonusReasons = [];
   
   return {
     baseScore,
