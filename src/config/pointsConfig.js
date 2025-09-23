@@ -199,14 +199,14 @@ export const pointsConfig = {
     // 管理層 - 高級權限
     '管理者': 'admin',
     
-    // 技術部門 - 部門主管權限
-    '技師': 'manager',
-    
     // 一般員工權限
-    '加工員': 'employee',
-    '品管員': 'employee',
-    '品保員': 'employee',
-    '業務員': 'employee'
+    '技師': 'employee',
+    '加工': 'employee',
+    '檢驗': 'employee',
+    '品保': 'employee',
+    '生管': 'employee',
+    '業助': 'employee',
+    '其它': 'employee'
   },
 
   // 職位選項（對應資料庫角色）
@@ -220,14 +220,13 @@ export const pointsConfig = {
     '管理者',
     // 技術部門
     '技師',
-    // 加工部門
-    '加工員',
-    // 品管部門
-    '品管員',
-    // 品保部門
-    '品保員',
-    // 業務部門
-    '業務員'
+    // 一般員工
+    '加工',
+    '檢驗',
+    '品保',
+    '生管',
+    '業助',
+    '其它'
   ]
 };
 

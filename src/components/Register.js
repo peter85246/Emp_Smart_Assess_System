@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { authAPI } from '../services/authAPI';
 import { toastConfig } from './Login';
 import { pointsConfig } from '../config/pointsConfig';
+import { departmentConfig } from '../config/departmentConfig';
 import { REPORT_API } from '../config/apiConfig';
 
 export default function Register() {
@@ -105,15 +106,16 @@ export default function Register() {
     if (departmentsLoaded) return;
     
     try {
-      // 直接使用預設的部門列表，對應資料庫中的實際部門
+      // 直接使用預設的部門列表，對應報工系統的部門
       const defaultDepartments = [
-        { id: 0, name: '主管' },     
-        { id: 1, name: '技術' },     
-        { id: 2, name: '加工' },     
-        { id: 3, name: '品管' },     
-        { id: 4, name: '品保' },     
-        { id: 5, name: '業務' },     
-        { id: 6, name: '管理者' }    
+        { id: '1', name: '管理者' },
+        { id: '2', name: '加工' },
+        { id: '3', name: '檢驗' },
+        { id: '4', name: '品保' },
+        { id: '5', name: '生管' },
+        { id: '6', name: '技師' },
+        { id: '7', name: '業助' },
+        { id: '8', name: '其它' }
       ];
       setDepartments(defaultDepartments);
       setDepartmentsLoaded(true);
@@ -158,26 +160,71 @@ export default function Register() {
     // 處理職位選擇
     if (name === 'position') {
       const assignedRole = getAutoAssignedRole(value);
-      const assignedDepartment = getAutoAssignedDepartment(value);
       
-      setFormData(prev => ({
-        ...prev,
-        position: value,
-        role: assignedRole,
-        // 如果是高階職位，自動分配部門；否則保持原部門或清空
-        departmentId: assignedDepartment ? assignedDepartment.toString() : (isExecutivePosition(value) ? '' : prev.departmentId)
-      }));
-      setAutoAssignedRole(assignedRole);
+      // 檢查是否為高階職位
+      if (isExecutivePosition(value)) {
+        setFormData(prev => ({
+          ...prev,
+          position: value,
+          role: assignedRole,
+          departmentId: '' // 高階職位不需要選擇部門
+        }));
+        setAutoAssignedRole(assignedRole);
+      } else {
+        // 職位和部門ID的對應關係
+        const positionToDepartmentId = {
+          '管理者': '1',
+          '加工': '2',
+          '檢驗': '3',
+          '品保': '4',
+          '生管': '5',
+          '技師': '6',
+          '業助': '7',
+          '其它': '8'
+        };
+
+        const departmentId = positionToDepartmentId[value] || '';
+
+        setFormData(prev => ({
+          ...prev,
+          position: value,
+          role: assignedRole,
+          departmentId
+        }));
+        setAutoAssignedRole(assignedRole);
+      }
       
       // 即時檢查職位可用性
       await checkPositionAvailability(value);
-    } else if (name === 'departmentId') {
+    } 
+    // 處理部門選擇
+    else if (name === 'departmentId') {
       // 如果是高階職位，禁止手動修改部門
       if (!isExecutivePosition(formData.position)) {
-        setFormData(prev => ({
-          ...prev,
-          [name]: value
-        }));
+        // 部門ID和職位的對應關係
+        const departmentIdToPosition = {
+          '1': '管理者',
+          '2': '加工',
+          '3': '檢驗',
+          '4': '品保',
+          '5': '生管',
+          '6': '技師',
+          '7': '業助',
+          '8': '其它'
+        };
+
+        const position = departmentIdToPosition[value] || '';
+        if (position) {
+          const assignedRole = getAutoAssignedRole(position);
+          
+          setFormData(prev => ({
+            ...prev,
+            departmentId: value,
+            position: position,
+            role: assignedRole
+          }));
+          setAutoAssignedRole(assignedRole);
+        }
       }
     } else {
       setFormData(prev => ({

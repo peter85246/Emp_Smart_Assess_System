@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from '../contexts/AuthContext';
+import { pointsConfig } from '../config/pointsConfig';
 import {
   LineChart,
   Line,
@@ -1516,7 +1517,7 @@ const LoginUserInfo = () => {
   
   const getDisplayName = (user) => {
     if (!user) return '未登入';
-    return user.displayName || `${user.name || user.username} (${user.department || '未指定部門'})`;
+    return `${user.name || user.username} ( ${pointsConfig.userRoles[user.role] || user.role} )`;
   };
   
   return (
@@ -1529,7 +1530,14 @@ const LoginUserInfo = () => {
 
 export default function PerformanceDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [selectedEmployee, setSelectedEmployee] = useState(""); // 初始狀態為空
+  const [selectedEmployee, setSelectedEmployee] = useState("");  // 初始狀態為空
+  const { user } = useAuth();
+  
+  // 檢查用戶是否有查看所有員工數據的權限
+  const canViewAllEmployees = useMemo(() => {
+    // 只有高階管理層和管理者可以查看所有員工
+    return ['boss', 'admin', 'president'].includes(user?.role);
+  }, [user?.role]);
   const [viewMode, setViewMode] = useState("monthly"); // 'yearly', 'monthly', 'daily'
   const [isLoading, setIsLoading] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -2227,11 +2235,34 @@ const metrics = [
     loadAvailableYears();
   }, []);
 
+  // 當用戶信息載入後，如果是一般員工則自動選擇自己
+  useEffect(() => {
+    if (user && !canViewAllEmployees) {
+      setSelectedEmployee(user.name);
+    }
+  }, [user, canViewAllEmployees]);
+
   useEffect(() => {
     const loadEmployees = async () => {
       try {
         debugLog('開始獲取員工列表', null);
         console.log('正在獲取員工列表...');
+
+        // 如果是一般員工，直接返回當前用戶
+        if (!canViewAllEmployees) {
+          const currentUserData = {
+            id: user.name,
+            name: user.name,
+            employee_name: user.name,
+            department: user.department || '未指定',
+            position: user.position || user.role_name, // 使用 position 或 role_name
+            role: pointsConfig.positionRoleMapping[user.position || user.role_name] || 'employee'
+          };
+          setEmployees([currentUserData]);
+          setSelectedEmployee(user.name); // 自動選擇當前用戶
+          return;
+        }
+
         const response = await fetch(`${REPORT_API.BASE_URL}/AREditior/GetAllUserinfoByFilter`, {
           method: 'POST',
           headers: {
@@ -2250,13 +2281,26 @@ const metrics = [
         }
 
         const data = await response.json();
-         // 檢查API回應格式
+        // 檢查API回應格式
         if (!data || !data.result || !Array.isArray(data.result)) {
           console.error('API回應格式錯誤:', data);
-          throw new Error('API回應格式錯誤');
+          return;
         }
 
         console.log('API回傳的員工數據:', data.result);
+
+        // 處理員工數據
+        const processedEmployees = data.result.map(emp => ({
+          id: emp.user_name,
+          name: emp.user_name,
+          employee_name: emp.user_name,
+          department: emp.department || '未指定',
+          position: emp.position || emp.role_name, // 使用 position 或 role_name
+          role: pointsConfig.positionRoleMapping[emp.position || emp.role_name] || 'employee'
+        }));
+
+        console.log('處理後的員工數據:', processedEmployees);
+        setEmployees(processedEmployees);
         
         // 過濾並整理員工數據
         const uniqueEmployees = data.result
@@ -2311,6 +2355,34 @@ const metrics = [
   /**
    * 生命週期方法區域
    */
+  // 自動更新數據 (刷新首頁)
+  useEffect(() => {
+    // 設置30秒自動更新
+    const intervalId = setInterval(() => {
+      console.log('執行30秒定時更新...');
+      if (selectedEmployee) {
+        const isDaily = viewMode === "daily";
+        const isYearly = viewMode === "yearly";
+        const currentDay = isDaily ? selectedDay : null;
+        const currentMonth = isYearly ? 1 : selectedMonth;
+
+        loadEmployeeData(
+          selectedEmployee,
+          selectedYear,
+          currentMonth,
+          currentDay,
+          isYearly
+        );
+      }
+    }, 30000); // 30秒
+
+    // 組件卸載時清理定時器
+    return () => {
+      clearInterval(intervalId);
+      console.log('清理定時更新');
+    };
+  }, [selectedEmployee, selectedYear, selectedMonth, selectedDay, viewMode]);
+
   // 載入員工KPI資料的函數
   const loadEmployeeData = async (employeeId, targetYear, targetMonth, targetDay, isYearly = false) => {
     if (!employeeId) {
@@ -3132,22 +3204,28 @@ const metrics = [
             <div className="flex items-center gap-4 bg-slate-700/50 p-4 rounded-lg">
               <div className="flex items-center gap-2">
                 <span className="text-white">員工：</span>
+                {canViewAllEmployees ? (
                   <select
-                  className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 min-w-[200px] cursor-pointer hover:bg-slate-600 transition-colors"
-                  value={selectedEmployee}
-                  onChange={handleEmployeeChange}
-                >
-                  <option value="">請選擇員工</option>
-                  {employees && employees.length > 0 ? (
-                    employees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.displayName || `${emp.name} (${emp.department})`}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>無可用員工資料</option>
-                  )}
-                </select>
+                    className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 min-w-[200px] cursor-pointer hover:bg-slate-600 transition-colors"
+                    value={selectedEmployee}
+                    onChange={handleEmployeeChange}
+                  >
+                    <option value="">請選擇員工</option>
+                    {employees && employees.length > 0 ? (
+                      employees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {`${emp.name} ( ${pointsConfig.userRoles[pointsConfig.positionRoleMapping[emp.position] || emp.role] || emp.role} )`}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>無可用員工資料</option>
+                    )}
+                  </select>
+                ) : (
+                  <div className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 min-w-[200px]">
+                    {`${user.name} ( ${pointsConfig.userRoles[user.role] || user.role} )`}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-4">
