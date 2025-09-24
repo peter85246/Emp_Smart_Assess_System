@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PointsManagementAPI.Data;
 using PointsManagementAPI.Models.WorkLogModels;
 using PointsManagementAPI.Models.UserModels;
+using PointsManagementAPI.Models.PointsModels;
 using System;
 
 namespace PointsManagementAPI.Services
@@ -37,22 +38,233 @@ namespace PointsManagementAPI.Services
 
         public async Task<WorkLog> CreateWorkLogAsync(WorkLog workLog)
         {
-            workLog.CreatedAt = DateTime.UtcNow;
-            // 確保LogDate有正確的值 - 如果沒有設置，使用當前日期
-            if (workLog.LogDate == default(DateTime))
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                workLog.LogDate = DateTime.UtcNow;
+                // 基本驗證
+                if (workLog.EmployeeId <= 0)
+                    throw new ArgumentException("員工ID無效");
+        
+                if (string.IsNullOrEmpty(workLog.Title))
+                    throw new ArgumentException("標題不能為空");
+
+                // 設置基本屬性
+                workLog.CreatedAt = DateTime.UtcNow;
+                workLog.LogDate = (workLog.LogDate == default(DateTime) ? DateTime.UtcNow : workLog.LogDate).Date;
+                workLog.UpdatedAt = DateTime.UtcNow;
+
+                // 檢查當月當天是否已經加過分
+                var logDate = workLog.LogDate.Date;
+                var monthStart = new DateTime(logDate.Year, logDate.Month, 1);
+                var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+                var existingApprovedLog = await _context.WorkLogs
+                    .Where(w => w.EmployeeId == workLog.EmployeeId)
+                    .Where(w => w.LogDate.Date == logDate)
+                    .Where(w => w.Status == "auto_approved" || w.Status == "approved")
+                    .AnyAsync();
+
+                var existingPointsEntry = await _context.PointsEntries
+                    .Where(p => p.EmployeeId == workLog.EmployeeId)
+                    .Where(p => p.EntryDate.Date == logDate)
+                    .Where(p => p.Description.Contains("工作日誌"))
+                    .AnyAsync();
+
+                var existingTodayLog = existingApprovedLog || existingPointsEntry;
+
+                Console.WriteLine($"員工 {workLog.EmployeeId} 在 {workLog.LogDate.Date:yyyy-MM-dd} 是否已有日誌: {existingTodayLog}");
+
+                // 根據是否首次填寫設置狀態
+                if (!existingTodayLog)
+                {
+                    workLog.PointsClaimed = 0.1m;
+                    workLog.Status = "auto_approved";
+                    Console.WriteLine($"首次填寫日誌，自動加0.1分");
+                }
+                else
+                {
+                    workLog.PointsClaimed = 0;
+                    workLog.Status = "submitted";
+                    Console.WriteLine($"當日已有日誌，不加分");
+                }
+
+                // 先檢查並設置分類
+                var categoryId = workLog.CategoryId ?? 6;
+                var category = await _context.LogCategories
+                    .FirstOrDefaultAsync(c => c.Id == categoryId);
+
+                if (category == null)
+                {
+                    // 如果分類不存在，創建默認分類
+                    category = new LogCategory
+                    {
+                        Id = categoryId,
+                        Name = categoryId == 6 ? "其他事項" : "一般事項",
+                        Description = "自動創建的分類",
+                        Color = "#6B7280",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.LogCategories.Add(category);
+                    await _context.SaveChangesAsync();
+                    Console.WriteLine($"已創建新分類: ID={categoryId}, Name={category.Name}");
+                }
+
+                workLog.CategoryId = category.Id;
+
+                // 處理附件
+                if (!string.IsNullOrEmpty(workLog.Attachments))
+                {
+                    try
+                    {
+                        // 驗證 JSON 格式
+                        var attachments = System.Text.Json.JsonSerializer.Deserialize<List<object>>(workLog.Attachments);
+                        // 如果解析成功，保持原樣
+                    }
+                    catch
+                    {
+                        // 如果解析失敗，設為 null
+                        workLog.Attachments = null;
+                        Console.WriteLine("附件格式無效，已設為 null");
+                    }
+                }
+
+                // 保存工作日誌
+                var entry = _context.Entry(workLog);
+                entry.State = EntityState.Added;
+                await _context.SaveChangesAsync();
+
+                // 如果是首次填寫，創建積分記錄
+                if (!existingTodayLog)
+                {
+                    var pointsEntry = new PointsEntry
+                    {
+                        EmployeeId = workLog.EmployeeId,
+                        StandardId = 40, // 使用工作日誌積分項目ID
+                        EntryDate = workLog.LogDate,
+                        BasePoints = 0.1m,
+                        PointsEarned = 0.1m,
+                        Status = "approved",
+                        ApprovedBy = workLog.EmployeeId,
+                        ApprovedAt = DateTime.UtcNow,
+                        ReviewComments = "工作日誌首次填寫自動加分",
+                        CreatedAt = DateTime.UtcNow,
+                        Description = "工作日誌紀錄",
+                        BonusPoints = 0m,
+                        PenaltyPoints = 0m,
+                        PromotionMultiplier = 1.0m
+                    };
+
+                    _context.PointsEntries.Add(pointsEntry);
+                    await _context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+                return workLog;
             }
-            _context.WorkLogs.Add(workLog);
-            await _context.SaveChangesAsync();
-            return workLog;
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"創建工作日誌錯誤: {ex.Message}");
+                Console.WriteLine($"堆疊追蹤: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"內部錯誤: {ex.InnerException.Message}");
+                    Console.WriteLine($"內部堆疊追蹤: {ex.InnerException.StackTrace}");
+                }
+                throw;
+            }
         }
 
         public async Task<WorkLog> UpdateWorkLogAsync(WorkLog workLog)
         {
-            _context.Entry(workLog).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-            return workLog;
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var existingLog = await _context.WorkLogs
+                    .Include(w => w.Category)
+                    .FirstOrDefaultAsync(w => w.Id == workLog.Id);
+            
+                if (existingLog == null)
+                    throw new ArgumentException("工作日誌不存在");
+
+                // 保存原始狀態用於判斷
+                var originalStatus = existingLog.Status;
+                var originalPoints = existingLog.PointsClaimed;
+
+                // 更新基本信息
+                existingLog.Title = workLog.Title;
+                existingLog.Content = workLog.Content;
+                existingLog.CategoryId = workLog.CategoryId;
+                existingLog.Tags = workLog.Tags;
+                existingLog.Attachments = workLog.Attachments;
+                existingLog.UpdatedAt = DateTime.UtcNow;
+
+                /* 審核功能設計（目前停用）
+                // 此區塊實現了工作日誌編輯的審核流程
+                // 當編輯已通過的日誌時，狀態會改為待審核
+                if (originalStatus == "auto_approved" || originalStatus == "approved")
+                {
+                    existingLog.Status = "edit_pending";
+                    existingLog.ReviewedBy = null;
+                    existingLog.ReviewedAt = null;
+                    existingLog.ReviewComments = null;
+            
+                    Console.WriteLine($"工作日誌 {existingLog.Id} 狀態從 {originalStatus} 改為 edit_pending");
+                }
+                else
+                {
+                    // 保持原有狀態
+                    existingLog.Status = originalStatus;
+                }
+                */
+                
+                // 直接保持原有狀態，不需要審核
+                existingLog.Status = originalStatus;
+                Console.WriteLine($"保持原有狀態: {originalStatus}");
+
+                // 保持原有積分不變
+                existingLog.PointsClaimed = originalPoints;
+                Console.WriteLine($"保持原有積分: {originalPoints}");
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+        
+                return existingLog;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"更新工作日誌錯誤: {ex.Message}");
+                throw;
+            }
+        }
+
+        // 新增方法：獲取員工當月填寫日誌的天數（去重）
+        public async Task<int> GetWorkLogDaysCountAsync(int employeeId, int year, int month)
+        {
+            var startDate = new DateTime(year, month, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
+
+            var distinctDays = await _context.WorkLogs
+                .Where(w => w.EmployeeId == employeeId)
+                .Where(w => w.LogDate.Date >= startDate.Date && w.LogDate.Date <= endDate.Date)
+                .Where(w => w.Status == "auto_approved" || w.Status == "approved" || w.Status == "submitted")
+                .Select(w => w.LogDate.Date)
+                .Distinct()
+                .CountAsync();
+
+            return distinctDays;
+        }
+
+        // 新增方法：檢查工作日誌是否可以編輯
+        public async Task<bool> CanEditWorkLogAsync(int workLogId, int currentUserId)
+        {
+            var workLog = await _context.WorkLogs.FindAsync(workLogId);
+            if (workLog == null) return false;
+
+            // 只有作者本人可以編輯，且狀態不是待審核編輯
+            return workLog.EmployeeId == currentUserId && workLog.Status != "edit_pending";
         }
 
         public async Task<bool> DeleteWorkLogAsync(int id)
@@ -124,10 +336,21 @@ namespace PointsManagementAPI.Services
 
             // 計算已填寫的天數（按日期去重，一天可能有多條記錄）
             var filledDays = workLogs
-                .Where(log => log.Status == "submitted" || log.Status == "approved" || log.Status == "reviewed")
+                .Where(log => log.Status == "submitted" || 
+                            log.Status == "approved" || 
+                            log.Status == "reviewed" || 
+                            log.Status == "auto_approved")
+                .Where(log => log.LogDate.Year == year && log.LogDate.Month == month)  // 確保只計算指定年月的記錄
                 .Select(log => log.LogDate.Date)
                 .Distinct()
                 .Count();
+
+            // 添加日誌記錄
+            Console.WriteLine($"Employee {employeeName} attendance calculation:");
+            Console.WriteLine($"Year: {year}, Month: {month}");
+            Console.WriteLine($"Total work logs: {workLogs.Count()}");
+            Console.WriteLine($"Filled days: {filledDays}");
+            Console.WriteLine($"Work days: {workDays}");
 
             // 計算出勤率
             var attendanceRate = workDays > 0 ? Math.Round((double)filledDays / workDays * 100, 1) : 0;
@@ -220,6 +443,76 @@ namespace PointsManagementAPI.Services
 
             await _context.SaveChangesAsync();
             return workLog;
+        }
+        /// <summary>
+        /// 獲取待審核工作日誌列表（分頁）
+        /// </summary>
+        public async Task<object> GetWorkLogsForApprovalAsync(int page, int pageSize, string keyword, string status, DateTime? startDate, DateTime? endDate)
+        {
+            var query = _context.WorkLogs
+                .Include(w => w.Employee)
+                .Include(w => w.Category)
+                .AsQueryable();
+
+            // 篩選條件
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(w => w.Title.Contains(keyword) ||
+                                        w.Content!.Contains(keyword) ||
+                                        w.Employee.Name.Contains(keyword));
+            }
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(w => w.Status == status);
+            }
+            else
+            {
+                // 預設只顯示待審核的項目
+                query = query.Where(w => w.Status == "submitted" || w.Status == "edit_pending");
+            }
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(w => w.LogDate >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(w => w.LogDate <= endDate.Value);
+            }
+
+            // 計算總數
+            var total = await query.CountAsync();
+
+            // 分頁查詢
+            var items = await query
+                .OrderByDescending(w => w.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(w => new
+                {
+                    w.Id,
+                    w.Title,
+                    w.Content,
+                    w.LogDate,
+                    w.Status,
+                    w.CreatedAt,
+                    w.ReviewComments,
+                    EmployeeName = w.Employee.Name,
+                    EmployeeId = w.EmployeeId,
+                    CategoryName = w.Category != null ? w.Category.Name : null
+                })
+                .ToListAsync();
+
+            return new
+            {
+                Items = items,
+                Total = total,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)total / pageSize)
+            };
         }
     }
 }

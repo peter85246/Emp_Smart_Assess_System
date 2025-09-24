@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.IIS;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using PointsManagementAPI.Data;
 using PointsManagementAPI.Services;
 using System.Net;
@@ -8,6 +12,13 @@ using System.Net.NetworkInformation;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 配置 Kestrel
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxRequestBodySize = 104857600; // 設置為 100MB
+    serverOptions.Limits.MaxRequestBufferSize = 104857600;
+});
 
 // 動態端口配置
 if (builder.Environment.IsDevelopment())
@@ -50,7 +61,36 @@ if (builder.Environment.IsDevelopment())
 }
 
 // Add services to the container.
-builder.Services.AddControllers()
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 104857600; // 設置為 100MB
+});
+
+// 設置請求大小限制
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 104857600; // 設置為 100MB
+    options.ValueLengthLimit = 104857600;
+    options.MultipartHeadersLengthLimit = 104857600;
+});
+
+builder.Services.AddControllers(options =>
+{
+    options.MaxValidationDepth = 32;
+}).ConfigureApiBehaviorOptions(options =>
+{
+    options.SuppressModelStateInvalidFilter = false;
+    options.InvalidModelStateResponseFactory = actionContext =>
+        new BadRequestObjectResult(new
+        {
+            Status = 400,
+            Errors = actionContext.ModelState.Where(e => e.Value.Errors.Count > 0)
+                .ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                )
+        });
+})
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;

@@ -14,9 +14,6 @@ const EmployeePanel = ({ currentUser }) => {
     currentMonthPoints: 0,
     targetPoints: 100,
     achievementRate: 0,
-    rank: 0,
-    totalEmployees: 0,
-    departmentName: '',
     pendingEntries: 0,
     approvedEntries: 0,
     rejectedEntries: 0,
@@ -164,40 +161,15 @@ const EmployeePanel = ({ currentUser }) => {
       
       const totalEntries = pendingEntries + approvedEntries + rejectedEntries;
 
-      // 獲取員工部門排名
-      let departmentRank = 0;
-      let totalEmployees = 0;
-      let departmentName = '';
-      
-      try {
-        console.log('正在獲取部門排名...');
-        const rankResponse = await pointsAPI.getEmployeeDepartmentRank(employeeId);
-        const rankData = rankResponse.data || rankResponse;
-        
-        departmentRank = rankData.rank || 0;
-        totalEmployees = rankData.totalEmployees || 0;
-        departmentName = rankData.departmentName || '';
-        
-        console.log('部門排名數據獲取成功:', {
-          rank: departmentRank,
-          totalEmployees: totalEmployees,
-          departmentName: departmentName
-        });
-      } catch (rankError) {
-        console.warn('獲取部門排名失敗，使用預設值:', rankError);
-        // API失敗時使用預設值，不影響其他功能
-        departmentRank = 0;
-        totalEmployees = 0;
-        departmentName = '部門未知';
-      }
+      // 部門排名功能已移除
+      const departmentRank = 0;
+      const totalEmployees = 0;
+      const departmentName = '';
 
       setEmployeeStats({
         currentMonthPoints: Math.round(currentMonthPoints * 10) / 10, // 保留一位小數
         targetPoints: targetPoints,
         achievementRate: Math.min(achievementRate, 100), // 最大100%
-        rank: departmentRank, // 使用真實排名數據
-        totalEmployees: totalEmployees,
-        departmentName: departmentName,
         pendingEntries: pendingEntries,
         approvedEntries: approvedEntries,
         rejectedEntries: rejectedEntries,
@@ -211,9 +183,6 @@ const EmployeePanel = ({ currentUser }) => {
         currentMonthPoints: 0,
         targetPoints: 100,
         achievementRate: 0,
-        rank: 0,
-        totalEmployees: 0,
-        departmentName: '部門未知',
         pendingEntries: 0,
         approvedEntries: 0,
         rejectedEntries: 0,
@@ -335,15 +304,6 @@ const EmployeePanel = ({ currentUser }) => {
             <div className="flex items-center">
               <span className="text-red-400 mr-1">❌</span>
               已拒絕項目: {employeeStats.rejectedEntries}
-            </div>
-            <div>
-              {employeeStats.rank > 0 && employeeStats.totalEmployees > 0 ? (
-                `• 部門排名: 第 ${employeeStats.rank} 名 (共 ${employeeStats.totalEmployees} 人)`
-              ) : employeeStats.rank === 0 && employeeStats.totalEmployees > 0 ? (
-                `• 部門排名: 尚未排名 (共 ${employeeStats.totalEmployees} 人)`
-              ) : (
-                '• 部門排名: 計算中...'
-              )}
             </div>
           </div>
         </div>

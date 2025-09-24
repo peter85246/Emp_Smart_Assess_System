@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, Calendar, Tag, FileText, Edit, Trash2, X, Download, Eye, Image, Loader, Save } from 'lucide-react';
 import { workLogAPI, fileUploadAPI } from '../../../services/pointsAPI';
 import { pointsConfig } from '../../../config/pointsConfig';
@@ -55,10 +55,88 @@ const WorkLogEntry = () => {
     type: 'image'
   });
 
+  // 新增所有需要的狀態變數
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState([]);
+
   const { notification, showNotification, hideNotification } = useNotification();
   const { dialogState, showConfirmDialog, handleCancel } = useConfirmDialog();
 
   const employeeId = JSON.parse(localStorage.getItem('user'))?.id;
+
+  // 從 pointsConfig 中獲取分類ID的函數
+  // 修復獲取分類ID的函數
+  const getCategoryId = useCallback((categoryName) => {
+    console.log('查找分類ID，分類名稱:', categoryName);
+    console.log('可用的工作日誌分類:', pointsConfig.workLogCategories);
+    console.log('可用的積分類型:', pointsConfig.pointsTypes);
+    
+    // 首先在工作日誌分類中查找
+    const workLogCategory = pointsConfig.workLogCategories.find(cat => cat.name === categoryName);
+    if (workLogCategory) {
+      console.log('在工作日誌分類中找到:', workLogCategory);
+      return workLogCategory.id;
+    }
+    
+    // 如果在工作日誌分類中找不到，嘗試在積分類型中查找
+    const pointsTypeEntry = Object.entries(pointsConfig.pointsTypes).find(([key, type]) => type.name === categoryName);
+    if (pointsTypeEntry) {
+      const [key, type] = pointsTypeEntry;
+      console.log('在積分類型中找到:', type, '鍵值:', key);
+      // 根據鍵值映射到對應的ID
+      const keyToIdMap = {
+        'management': 1,
+        'production': 2, 
+        'quality': 3,
+        'maintenance': 4,
+        'improvement': 5,
+        'training': 6,
+        'general': 6
+      };
+      const mappedId = keyToIdMap[key] || 6; // 預設為6（其他事項）
+      console.log('映射的ID:', mappedId);
+      return mappedId;
+    }
+    
+    console.warn('找不到分類ID，使用預設值6');
+    return 6; // 預設為「其他事項」
+  }, []);
+
+  // 檔案上傳函數
+  const uploadFiles = useCallback(async (files) => {
+    const uploadedFiles = [];
+    setUploadingFiles(true);
+    
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fileUploadAPI.uploadFile(formData);
+        
+        if (response.success) {
+          uploadedFiles.push({
+            id: response.fileId,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            url: response.fileUrl,
+            uploadDate: new Date().toISOString(),
+            isNew: true
+          });
+        } else {
+          throw new Error(`檔案 ${file.name} 上傳失敗`);
+        }
+      }
+      return uploadedFiles;
+    } catch (error) {
+      console.error('檔案上傳失敗:', error);
+      showNotification('檔案上傳失敗', 'error');
+      return [];
+    } finally {
+      setUploadingFiles(false);
+    }
+  }, [showNotification]);
 
   useEffect(() => {
     if (employeeId) {
@@ -254,31 +332,47 @@ const WorkLogEntry = () => {
   const getFilePreviewUrl = (file) => {
     console.log('生成檔案預覽URL:', file);
 
-    if (file.id && !file.isNew) {
-      // 現有檔案：通過API端點，確保ID是整數
-      const intFileId = parseInt(file.id);
-      if (!isNaN(intFileId)) {
-        const url = `${pointsConfig.apiEndpoints.base}/fileupload/download/${intFileId}`;
-        console.log('生成API下載URL:', url);
-        return url;
+    try {
+      // 如果已經有 url 且是 blob url，直接返回
+      if (file.url && typeof file.url === 'string' && file.url.startsWith('blob:')) {
+        console.log('使用現有Blob URL:', file.url);
+        return file.url;
       }
-    }
 
-    if (file.file && file.isNew) {
-      // 新檔案：使用Blob URL
-      const url = URL.createObjectURL(file.file);
-      console.log('生成Blob URL:', url);
-      return url;
-    }
+      // 如果是已保存的檔案（有ID）
+      if (file.id && !file.isNew) {
+        const intFileId = parseInt(file.id);
+        if (!isNaN(intFileId)) {
+          const url = `${pointsConfig.apiEndpoints.base}/fileupload/download/${intFileId}`;
+          console.log('生成API下載URL:', url);
+          return url;
+        }
+      }
 
-    if (file.url) {
-      // 已有URL
-      console.log('使用現有URL:', file.url);
-      return file.url;
-    }
+      // 如果有 file 對象（新上傳的檔案）
+      if (file.file instanceof Blob) {
+        console.log('從file對象生成Blob URL');
+        return URL.createObjectURL(file.file);
+      }
 
-    console.warn('無法生成檔案預覽URL:', file);
-    return null;
+      // 如果直接是 Blob 對象
+      if (file instanceof Blob) {
+        console.log('從Blob對象生成URL');
+        return URL.createObjectURL(file);
+      }
+
+      // 如果有其他類型的 URL
+      if (file.url && typeof file.url === 'string') {
+        console.log('使用現有URL:', file.url);
+        return file.url;
+      }
+
+      console.warn('無法生成檔案預覽URL:', file);
+      return null;
+    } catch (error) {
+      console.error('生成預覽URL錯誤:', error);
+      return null;
+    }
   };
 
   // 預覽檔案（帶loading效果）
@@ -344,50 +438,58 @@ const WorkLogEntry = () => {
         fileInfo: file
       });
 
+      let blob = null;
+
+      // 如果是已保存的檔案（有ID）
       if (file.id && !file.isNew) {
-        // 現有檔案：使用API下載，確保ID是整數
         const intFileId = parseInt(file.id);
         if (isNaN(intFileId)) {
           throw new Error(`無效的檔案ID: ${file.id}`);
         }
-
         console.log('通過API下載檔案，ID:', intFileId);
         const response = await fileUploadAPI.downloadFile(intFileId);
-        console.log('下載響應:', response);
-
-        // 創建下載連結
-        const url = window.URL.createObjectURL(new Blob([response]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', fileName);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-      } else if (file.file && file.isNew) {
-        // 新檔案：直接下載Blob
-        console.log('下載新檔案Blob');
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(file.file);
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        // 其他情況：嘗試使用預覽URL
-        const downloadUrl = getFilePreviewUrl(file);
-        if (downloadUrl) {
-          console.log('使用預覽URL下載:', downloadUrl);
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        } else {
-          throw new Error('無法獲取檔案下載URL');
-        }
+        blob = new Blob([response], { type: file.type });
       }
+      // 如果有 file 對象（新上傳的檔案）
+      else if (file.file instanceof Blob) {
+        console.log('使用file對象下載');
+        blob = file.file;
+      }
+      // 如果有 blob URL
+      else if (file.url && file.url.startsWith('blob:')) {
+        console.log('從Blob URL獲取數據');
+        const response = await fetch(file.url);
+        blob = await response.blob();
+      }
+      // 如果直接是 Blob 對象
+      else if (file instanceof Blob) {
+        console.log('直接使用Blob對象');
+        blob = file;
+      }
+      // 如果有其他類型的 URL
+      else if (file.url && typeof file.url === 'string') {
+        console.log('從URL下載數據');
+        const response = await fetch(file.url);
+        blob = await response.blob();
+      }
+
+      if (!blob) {
+        throw new Error('無法獲取檔案數據');
+      }
+
+      // 創建新的 blob URL
+      const downloadUrl = URL.createObjectURL(blob);
+      
+      // 創建下載連結
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // 釋放 blob URL
+      URL.revokeObjectURL(downloadUrl);
 
       showNotification(`正在下載 ${fileName}`, 'success');
     } catch (error) {
@@ -416,223 +518,138 @@ const WorkLogEntry = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
+  setIsSubmitting(true);
+
+  try {
+    // 驗證表單
     if (!formData.title.trim()) {
-      showNotification('請填寫標題', 'error');
+      showNotification('請輸入標題', 'error');
       return;
     }
 
-    const startTime = Date.now();
-    const minimumLoadingTime = 2000; // 2秒最小加載時間
-    setLoading(true);
+    if (!formData.category) {
+      showNotification('請選擇分類', 'error');
+      return;
+    }
 
-    // 追蹤操作結果狀態
+    // 處理附件上傳
+    let finalAttachments = [...(formData.attachments || [])];
+    
+    if (pendingFiles.length > 0) {
+      const uploadedFiles = await uploadFiles(pendingFiles);
+      finalAttachments = [...finalAttachments, ...uploadedFiles];
+    }
+
+    const categoryId = getCategoryId(formData.category);
+    if (!categoryId) {
+      throw new Error('無效的分類選擇');
+    }
+
+    const now = new Date();
+    const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+    
+    const workLogData = {
+      EmployeeId: parseInt(employeeId),
+      Title: formData.title?.toString() || '',
+      Content: formData.content?.toString() || '',
+      CategoryId: parseInt(categoryId),
+      Tags: formData.tags?.toString() || '',
+      LogDate: localDate.toISOString(),
+      Attachments: finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null,
+      UpdatedAt: localDate.toISOString()
+    };
+
+    // 驗證必要字段
+    if (!workLogData.EmployeeId || isNaN(workLogData.EmployeeId)) {
+      throw new Error('員工ID無效');
+    }
+    if (!workLogData.Title || workLogData.Title.trim() === '') {
+      throw new Error('標題不能為空');
+    }
+    if (!workLogData.CategoryId || isNaN(workLogData.CategoryId)) {
+      throw new Error('分類ID無效');
+    }
+
+    console.log('提交的工作日誌數據:', workLogData);
+
     let isSuccess = false;
     let resultMessage = '';
 
-    try {
-      // 修復分類ID計算（根據md指南）
-      const selectedCategoryEntry = Object.entries(pointsConfig.pointsTypes).find(
-        ([key, config]) => config.name === formData.category
-      );
-      const categoryType = selectedCategoryEntry ? selectedCategoryEntry[0] : 'general';
-      const categoryId = categoryType ? Object.keys(pointsConfig.pointsTypes).indexOf(categoryType) + 1 : 1;
-
-      console.log('分類處理調試:', {
-        選擇的分類名稱: formData.category,
-        分類類型: categoryType,
-        計算的CategoryId: categoryId
-      });
-
-      // 處理檔案上傳 - 先上傳新檔案，然後合併現有檔案
-      let finalAttachments = [];
-
-      // 處理現有檔案（編輯模式）
-      const existingFiles = formData.attachments.filter(file => !file.isNew && file.id);
-      if (existingFiles.length > 0) {
-        finalAttachments.push(...existingFiles.map(file => ({
-          id: parseInt(file.id), // 確保ID是整數
-          name: file.name || file.FileName,
-          size: file.size || file.FileSize,
-          type: file.type || file.ContentType
-        })));
-      }
-
-      // 上傳新檔案
-      const newFiles = formData.attachments.filter(file => file.isNew && file.file);
-      if (newFiles.length > 0) {
-        console.log('開始上傳新檔案:', newFiles.length, '個');
-        for (const fileItem of newFiles) {
-          try {
-            const response = await fileUploadAPI.uploadFile(
-              fileItem.file,
-              'WorkLog',
-              editingLog?.id || 0,
-              employeeId
-            );
-            console.log('檔案上傳成功:', response);
-            finalAttachments.push({
-              id: response.id,
-              name: response.fileName,
-              size: response.fileSize,
-              type: fileItem.type
-            });
-          } catch (uploadError) {
-            console.error('檔案上傳失敗:', uploadError);
-            showNotification(`檔案 ${fileItem.name} 上傳失敗`, 'error');
-            return; // 上傳失敗時停止
-          }
-        }
-      }
-
-      // ===== 重要：日期處理邏輯 =====
-      // 確保數據格式正確，匹配數據庫表結構
-      // 【修復】使用本地時間日期，避免時區問題
-      // 問題：直接使用 new Date().toISOString() 會產生UTC時間，導致日期顯示錯誤
-      // 解決：計算時區偏移量，調整為本地時間後再轉ISO格式
-      const now = new Date();
-      const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
-      
-      const workLogData = {
-        EmployeeId: parseInt(employeeId), // 確保是整數
-        Title: formData.title?.toString() || '', // 確保是字符串
-        Content: formData.content?.toString() || '', // 確保是字符串
-        CategoryId: parseInt(categoryId), // 確保是整數
-        Tags: formData.tags?.toString() || '', // 確保是字符串
-        LogDate: localDate.toISOString(), // 使用調整後的本地時間
-        Status: 'submitted',
-        PointsClaimed: 0,
-        Attachments: finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null,
-        UpdatedAt: localDate.toISOString() // 添加更新時間
-      };
-
-      // 如果是編輯模式，不要發送某些只讀字段
-      if (editingLog) {
-        // 保持原有的創建時間和ID
-        delete workLogData.LogDate; // 編輯時不更新LogDate
-      }
-
-      // 驗證必要字段
-      if (!workLogData.EmployeeId || isNaN(workLogData.EmployeeId)) {
-        throw new Error('員工ID無效');
-      }
-      if (!workLogData.Title || workLogData.Title.trim() === '') {
-        throw new Error('標題不能為空');
-      }
-      if (!workLogData.CategoryId || isNaN(workLogData.CategoryId)) {
-        throw new Error('分類ID無效');
-      }
-
-      console.log('提交的工作日誌數據:', workLogData);
-      console.log('最終附件列表:', finalAttachments);
-
-      if (editingLog) {
-        // 嘗試不同的數據格式，看看後端期望什麼
-        // 方案1: Pascal Case (數據庫格式)
-        const updateDataPascal = {
+    if (editingLog) {
+      // 編輯模式：檢查是否需要審核
+      try {
+        // 添加 ID 到更新數據中
+        const updateData = {
           ...workLogData,
           Id: editingLog.id
         };
-
-        // 方案2: camelCase (常見API格式)
-        const updateDataCamel = {
-          id: editingLog.id,
-          employeeId: parseInt(employeeId),
-          title: formData.title?.toString() || '',
-          content: formData.content?.toString() || '',
-          categoryId: parseInt(categoryId),
-          tags: formData.tags?.toString() || '',
-          status: 'submitted',
-          pointsClaimed: 0,
-          attachments: finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null
-        };
-
-        // 方案3: 最小化數據 (只發送變更的字段)
-        const updateDataMinimal = {
-          title: formData.title?.toString() || '',
-          content: formData.content?.toString() || '',
-          tags: formData.tags?.toString() || '',
-          attachments: finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null
-        };
-
-        console.log('更新數據（Pascal Case）:', updateDataPascal);
-        console.log('更新數據（camelCase）:', updateDataCamel);
-        console.log('更新數據（最小化）:', updateDataMinimal);
-
-        try {
-          // 先嘗試最小化數據
-          console.log('嘗試最小化數據格式...');
-          await workLogAPI.updateWorkLog(editingLog.id, updateDataMinimal);
-          isSuccess = true;
+        
+        const response = await workLogAPI.updateWorkLog(editingLog.id, updateData);
+        
+        /* 審核功能設計（目前停用）
+        // 根據返回狀態顯示不同提示
+        if (response.status === 'edit_pending') {
+          resultMessage = '工作記錄已提交編輯申請，等待主管審核！';
+          showNotification(resultMessage, 'info');
+        } else {
           resultMessage = '工作記錄更新成功！';
+          showNotification(resultMessage, 'success');
+        }
+        */
+
+        // 直接顯示編輯成功提示
+        resultMessage = '工作日誌編輯成功！';
+        showNotification(resultMessage, 'success');
+        isSuccess = true;
+      } catch (error) {
+        console.error('更新工作日誌失敗:', error);
+        throw error;
+      }
+    } else {
+      // 新增模式
+      const response = await workLogAPI.createWorkLog(workLogData);
+      
+      if (response.pointsClaimed > 0) {
+        resultMessage = `工作記錄儲存成功！獲得 ${response.pointsClaimed} 積分！`;
+        showNotification(resultMessage, 'success');
+        
+        // 同步更新積分到積分管理系統
+        try {
+          await fetch('/api/points/add', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              employeeId: workLogData.EmployeeId,
+              points: response.pointsClaimed,
+              type: 'worklog_submission',
+              description: `工作日誌：${workLogData.Title}`,
+              date: workLogData.LogDate
+            })
+          });
         } catch (error) {
-          console.log('最小化格式失敗，嘗試 Pascal Case:', error.message);
-          try {
-            // 如果失敗，嘗試 Pascal Case
-            await workLogAPI.updateWorkLog(editingLog.id, updateDataPascal);
-            isSuccess = true;
-            resultMessage = '工作記錄更新成功！';
-          } catch (error2) {
-            console.log('Pascal Case 失敗，嘗試 camelCase:', error2.message);
-            try {
-              // 最後嘗試 camelCase
-              await workLogAPI.updateWorkLog(editingLog.id, updateDataCamel);
-              isSuccess = true;
-              resultMessage = '工作記錄更新成功！';
-            } catch (error3) {
-              console.error('所有格式都失敗:', error3);
-              throw error3;
-            }
-          }
+          console.error('同步積分失敗:', error);
         }
       } else {
-        await workLogAPI.createWorkLog(workLogData);
-        isSuccess = true;
-        resultMessage = '工作記錄儲存成功！';
+        resultMessage = '工作記錄儲存成功！（今日已填寫過工作日誌）';
+        showNotification(resultMessage, 'success');
       }
+      isSuccess = true;
+    }
 
-      // 重新載入工作日誌數據
+    if (isSuccess) {
+      resetForm();
+      setPendingFiles([]);
       await loadWorkLogs();
+    }
 
     } catch (error) {
       console.error('提交工作日誌失敗:', error);
-      isSuccess = false;
-      resultMessage = '工作記錄儲存失敗，請重試';
+      showNotification(error.message || '操作失敗，請稍後再試', 'error');
     } finally {
-      // 計算已經過的時間
-      const elapsedTime = Date.now() - startTime;
-      
-      if (elapsedTime < minimumLoadingTime) {
-        // 延遲UI更新到2秒loading完成後
-        setTimeout(() => {
-          setLoading(false);
-          
-          if (isSuccess) {
-            // 成功：重置表單並關閉
-            setFormData({ title: '', content: '', category: '', tags: '', attachments: [] });
-            setShowForm(false);
-            setEditingLog(null);
-            showNotification(resultMessage, 'success');
-          } else {
-            // 失敗：只顯示錯誤訊息，保持表單開啟
-            showNotification(resultMessage, 'error');
-          }
-        }, minimumLoadingTime - elapsedTime);
-      } else {
-        // 如果已經超過2秒，立即執行UI更新
-        setLoading(false);
-        
-        if (isSuccess) {
-          // 成功：重置表單並關閉
-          setFormData({ title: '', content: '', category: '', tags: '', attachments: [] });
-          setShowForm(false);
-          setEditingLog(null);
-          showNotification(resultMessage, 'success');
-        } else {
-          // 失敗：只顯示錯誤訊息，保持表單開啟
-          showNotification(resultMessage, 'error');
-        }
-      }
+      setIsSubmitting(false);
     }
   };
 
@@ -648,7 +665,14 @@ const WorkLogEntry = () => {
     setEditingLog(null);
   };
 
+  // 修改編輯處理函數
   const handleEdit = (log) => {
+    // 檢查是否可以編輯
+    if (log.status === 'edit_pending') {
+      showNotification('此工作日誌正在等待編輯審核，暫時無法再次編輯', 'warning');
+      return;
+    }
+
     setEditingLog(log);
     setFormData({
       title: log.title,
@@ -659,9 +683,8 @@ const WorkLogEntry = () => {
     });
     setShowForm(true);
     
-    // 自動滾動到表單區域 - 根據md指南實現
+    // 自動滾動到表單區域
     setTimeout(() => {
-      // 嘗試滾動到表單元素，如果找不到則滾動到頁面頂部
       const formElement = document.querySelector('.bg-slate-800\\/50');
       if (formElement) {
         formElement.scrollIntoView({
@@ -669,13 +692,12 @@ const WorkLogEntry = () => {
           block: 'start'
         });
       } else {
-        // 降級方案：滾動到頁面頂部
         window.scrollTo({
           top: 0,
           behavior: 'smooth'
         });
       }
-    }, 300); // 300ms 延遲確保表單完全渲染
+    }, 300);
   };
 
   const handleDelete = async (id) => {
@@ -710,8 +732,27 @@ const WorkLogEntry = () => {
     return matchesSearch && matchesCategory;
   });
 
-  // 獲取所有分類選項
-  const categoryOptions = Object.values(pointsConfig.pointsTypes).map(type => type.name);
+  // 使用積分類型作為分類選項
+  const categoryOptions = useMemo(() => {
+    const standardTypes = [
+      '一般積分項目',
+      '專業積分項目',
+      '管理積分項目',
+      '臨時工作項目',
+      '雜項事件'
+    ];
+    return standardTypes;
+  }, []);
+
+  // 設置預設分類
+  useEffect(() => {
+    if (!formData.category && !editingLog) {
+      setFormData(prev => ({
+        ...prev,
+        category: '雜項事件' // 預設選擇一般積分項目
+      }));
+    }
+  }, [formData.category, editingLog]);
 
   return (
     <div className="p-6 space-y-6 min-h-full">

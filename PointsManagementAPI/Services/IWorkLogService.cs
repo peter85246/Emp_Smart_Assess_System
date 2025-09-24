@@ -20,5 +20,9 @@ namespace PointsManagementAPI.Services
 
         // 出勤率計算方法
         Task<object> GetEmployeeAttendanceByNameAsync(string employeeName, int year, int month);
+
+        // 新增缺少的方法
+        Task<int> GetWorkLogDaysCountAsync(int employeeId, int year, int month);
+        Task<object> GetWorkLogsForApprovalAsync(int page, int pageSize, string keyword, string status, DateTime? startDate, DateTime? endDate);
     }
 }

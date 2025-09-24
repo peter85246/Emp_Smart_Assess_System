@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Settings, Users, BarChart3, FileText, Target, Award, Info } from 'lucide-react';
+import WorkLogApproval from '../../worklog/WorkLogApproval';
+import WorkLogHistory from '../../worklog/WorkLogHistory';
 import ManagerReviewForm from './ManagerReviewForm';
 import { pointsAPI } from '../../../services/pointsAPI';
 import { getApiUrl } from '../../../config/apiConfig';
@@ -218,18 +220,48 @@ const TargetScoreView = ({ currentUser }) => (
   </div>
 );
 
-const WorkLogManagement = ({ currentUser }) => (
-  <div className="min-h-screen p-6 flex flex-col">
-    <h3 className="text-xl font-bold text-white mb-4">工作日誌管理</h3>
-    <div className="flex-1 bg-slate-700/30 backdrop-blur-sm rounded-lg p-8 flex items-center justify-center border border-slate-600/50">
-      <div className="text-center">
-        <FileText className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-        <p className="text-slate-300">工作日誌管理功能開發中...</p>
-        <p className="text-sm text-slate-400 mt-2">此功能將允許搜索與分類管理工作日誌</p>
+const WorkLogManagement = ({ currentUser }) => {
+  const [activeTab, setActiveTab] = useState('approval');
+
+  return (
+    <div className="min-h-screen p-6 flex flex-col">
+      <h3 className="text-xl font-bold text-white mb-4">工作日誌管理</h3>
+      <div className="flex-1 bg-slate-700/30 backdrop-blur-sm rounded-lg border border-slate-600/50">
+        <div className="border-b border-slate-600/50">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('approval')}
+              className={`px-6 py-3 font-medium text-sm transition-colors ${
+                activeTab === 'approval'
+                  ? 'border-b-2 border-blue-400 text-blue-300 bg-slate-600/50'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-600/30'
+              }`}
+            >
+              審核管理
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-3 font-medium text-sm transition-colors ${
+                activeTab === 'history'
+                  ? 'border-b-2 border-blue-400 text-blue-300 bg-slate-600/50'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-600/30'
+              }`}
+            >
+              編輯歷史
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          {activeTab === 'approval' ? (
+            <WorkLogApproval currentUser={currentUser} />
+          ) : (
+            <WorkLogHistory currentUser={currentUser} />
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const PointsSystemConfig = ({ currentUser }) => (
   <div className="min-h-screen p-6 flex flex-col">
@@ -745,34 +777,34 @@ const AdminPanel = ({ currentUser }) => {
       description: '審核和評分員工積分表單',
       component: ManagerReviewForm
     },
-    {
-      id: 'standards',
-      name: '評分標準設定',
-      icon: Settings,
-      description: '定義與選擇評分標準欄位',
-      component: StandardSettingsPanel
-    },
-    {
-      id: 'system',
-      name: '積分制度定義',
-      icon: Award,
-      description: '設計與整理積分制度表',
-      component: PointsSystemConfig
-    },
-    {
-      id: 'targets',
-      name: '目標分數顯示',
-      icon: Target,
-      description: '查看所有員工的目標達成率',
-      component: TargetScoreView
-    },
-    {
-      id: 'worklog',
-      name: '工作日誌管理',
-      icon: Users,
-      description: '搜索與分類管理工作日誌',
-      component: WorkLogManagement
-    }
+    // {
+    //   id: 'standards',
+    //   name: '評分標準設定',
+    //   icon: Settings,
+    //   description: '定義與選擇評分標準欄位',
+    //   component: StandardSettingsPanel
+    // },
+    // {
+    //   id: 'system',
+    //   name: '積分制度定義',
+    //   icon: Award,
+    //   description: '設計與整理積分制度表',
+    //   component: PointsSystemConfig
+    // },
+    // {
+    //   id: 'targets',
+    //   name: '目標分數顯示',
+    //   icon: Target,
+    //   description: '查看所有員工的目標達成率',
+    //   component: TargetScoreView
+    // },
+    // {
+    //   id: 'worklog',
+    //   name: '工作日誌管理',
+    //   icon: Users,
+    //   description: '搜索與分類管理工作日誌',
+    //   component: WorkLogManagement
+    // }
   ];
 
   const ActiveComponent = menuItems.find(item => item.id === activeView)?.component || StandardSettingsPanel;
@@ -787,7 +819,7 @@ const AdminPanel = ({ currentUser }) => {
             管理功能
           </h3>
           <p className="text-sm text-slate-300">
-            管理員專用功能，可以設定評分標準、查看整體統計等
+            管理員專用功能，可以審核員工積分項目做評分、查看整體統計等
           </p>
         </div>
 

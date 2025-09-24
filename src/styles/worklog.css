@@ -1,0 +1,692 @@
+/* 工作日誌管理樣式 */
+.worklog-approval-container {
+  height: 100%;
+  background: transparent;
+}
+
+.worklog-content {
+  height: 100%;
+  padding: 24px;
+}
+
+.worklog-card {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+.worklog-card .ant-card-head {
+  background: rgba(15, 23, 42, 0.5) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.worklog-card .ant-card-head-title {
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-card-body {
+  background: transparent !important;
+}
+
+/* 表格樣式 */
+.worklog-card .ant-table {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-table-thead > tr > th {
+  background: rgba(15, 23, 42, 0.6) !important;
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
+}
+
+.worklog-card .ant-table-tbody > tr > td {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-table-tbody > tr:hover > td {
+  background: rgba(30, 41, 59, 0.5) !important;
+}
+
+.worklog-card .ant-table-placeholder {
+  background: transparent !important;
+}
+
+.worklog-card .ant-table-placeholder .ant-table-cell {
+  background: transparent !important;
+  border-bottom: none !important;
+}
+
+.worklog-card .ant-empty-description {
+  color: #94a3b8 !important;
+}
+
+/* 輸入框和選擇器樣式 */
+.worklog-card .ant-input,
+.worklog-card .ant-select-selector,
+.worklog-card .ant-picker {
+  background: rgba(15, 23, 42, 0.5) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-input-search-button {
+  background: rgba(37, 99, 235, 0.1) !important;
+  border-color: rgba(37, 99, 235, 0.2) !important;
+  color: #60a5fa !important;
+}
+
+.worklog-card .ant-input::placeholder,
+.worklog-card .ant-select-selection-placeholder {
+  color: rgba(148, 163, 184, 0.5) !important;
+}
+
+/* 按鈕樣式 */
+.worklog-card .ant-btn {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.2);
+  color: #60a5fa;
+}
+
+.worklog-card .ant-btn:hover {
+  background: rgba(37, 99, 235, 0.2) !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+  color: #93c5fd !important;
+}
+
+.worklog-card .ant-btn-primary {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: white !important;
+}
+
+.worklog-card .ant-btn-primary:hover {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+
+.worklog-card .ant-btn-dangerous {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+}
+
+.worklog-card .ant-btn-dangerous:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #fca5a5 !important;
+}
+
+/* 分頁器樣式 */
+.worklog-card .ant-pagination {
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-pagination-item {
+  background: rgba(15, 23, 42, 0.5) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.worklog-card .ant-pagination-item a {
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-pagination-item-active {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+/* 空狀態樣式 */
+.worklog-card .ant-empty {
+  color: #94a3b8 !important;
+}
+
+.worklog-card .ant-empty-img-default {
+  filter: brightness(0.8) grayscale(0.2);
+}
+
+/* Modal 樣式 */
+.ant-modal-content {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.ant-modal-title {
+  color: #e2e8f0 !important;
+}
+
+.ant-modal-close {
+  color: #e2e8f0 !important;
+}
+
+.ant-modal-body {
+  color: #e2e8f0 !important;
+}
+
+.ant-modal-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.1) !important;
+  background: transparent !important;
+}
+
+/* 下拉選單樣式 */
+.ant-select-dropdown {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.ant-select-item {
+  color: #e2e8f0 !important;
+}
+
+.ant-select-item-option-active {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+.ant-select-item-option-selected {
+  background: rgba(37, 99, 235, 0.2) !important;
+}
+
+/* 日期選擇器樣式 */
+.worklog-card .ant-picker {
+  width: 280px !important;
+  color: #e2e8f0 !important;
+}
+
+/* 日期選擇器內的箭頭圖標 */
+.worklog-card .ant-picker .anticon {
+  color: #e2e8f0 !important;
+}
+
+/* 日期選擇器的輸入框 */
+.worklog-card .ant-picker input {
+  color: #e2e8f0 !important;
+}
+
+/* 日期選擇器的佔位符文字 */
+.worklog-card .ant-picker input::placeholder {
+  color: rgba(226, 232, 240, 0.5) !important;
+}
+
+/* 日期範圍選擇器的起始和結束文字 */
+.worklog-card .ant-picker-range .ant-picker-active-bar {
+  background: #3b82f6 !important;
+}
+
+.worklog-card .ant-picker .ant-picker-suffix {
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-picker-range-separator {
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-picker .ant-picker-input > input:-internal-autofill-selected {
+  -webkit-text-fill-color: #e2e8f0 !important;
+  box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.3) inset !important;
+}
+
+/* Start date 和 End date 文字顏色 */
+.worklog-card .ant-picker-input > input:-webkit-input-placeholder,
+.worklog-card .ant-picker-input > input::-webkit-input-placeholder,
+.worklog-card .ant-picker-input > input::placeholder {
+  color: rgba(226, 232, 240, 0.7) !important;
+}
+
+/* 日期選擇器的分隔符 */
+.worklog-card .ant-picker .ant-picker-separator {
+  color: #e2e8f0 !important;
+}
+
+.worklog-card .ant-picker-dropdown {
+  max-width: 280px !important;
+}
+
+/* 日期選擇器面板容器 */
+.ant-picker-dropdown {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  border-radius: 8px !important;
+  padding: 8px !important;
+}
+
+/* 箭頭樣式 */
+.ant-picker-header > button {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #e2e8f0 !important;
+  transition: all 0.2s !important;
+}
+
+/* 箭頭圖標顏色 */
+.ant-picker-header > button .anticon {
+  color: #e2e8f0 !important;
+  font-size: 12px !important;
+}
+
+/* 所有箭頭按鈕顯示 */
+.ant-picker-header-super-prev-btn,
+.ant-picker-header-prev-btn,
+.ant-picker-header-next-btn,
+.ant-picker-header-super-next-btn {
+  display: inline-flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.ant-picker-header > button:hover {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: #60a5fa !important;
+}
+
+.ant-picker-header > button:hover .anticon {
+  color: #60a5fa !important;
+}
+
+/* 確保所有箭頭按鈕都可以點擊 */
+.ant-picker-header > button {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* 修正箭頭按鈕的位置 */
+.ant-picker-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  padding: 0 8px !important;
+}
+
+.ant-picker-header > button.ant-picker-header-super-prev-btn,
+.ant-picker-header > button.ant-picker-header-prev-btn {
+  margin-right: 4px !important;
+}
+
+.ant-picker-header > button.ant-picker-header-super-next-btn,
+.ant-picker-header > button.ant-picker-header-next-btn {
+  margin-left: 4px !important;
+}
+
+.ant-picker-header > button.ant-picker-header-super-prev-btn,
+.ant-picker-header > button.ant-picker-header-super-next-btn {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.ant-picker-header-view {
+  flex: auto !important;
+  text-align: center !important;
+  color: #e2e8f0 !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 24px !important;
+  line-height: 24px !important;
+}
+
+/* 調整標題區域的整體佈局 */
+.ant-picker-header {
+  display: flex !important;
+  align-items: center !important;
+  height: 40px !important;
+  padding: 0 8px !important;
+  line-height: 40px !important;
+}
+
+/* 確保所有按鈕垂直居中 */
+.ant-picker-header > button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 24px !important;
+  margin-top: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+/* 調整年月標題的容器 */
+.ant-picker-header > div {
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
+}
+
+/* 隱藏第二個月份面板 */
+.ant-picker-panel-container {
+  background: transparent !important;
+}
+
+.ant-picker-panel-container .ant-picker-panel:nth-child(2) {
+  display: none !important;
+}
+
+/* 調整日期面板寬度 */
+.ant-picker-panel {
+  width: 280px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 月份選擇器背景 */
+.ant-picker-month-panel,
+.ant-picker-year-panel,
+.ant-picker-decade-panel {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+
+/* 日期格子樣式 */
+.ant-picker-cell {
+  padding: 3px 0 !important;
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-cell-inner {
+  min-width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  border-radius: 4px !important;
+  transition: all 0.2s !important;
+}
+
+/* 今天日期的樣式 */
+.ant-picker-cell-today .ant-picker-cell-inner {
+  border: 1px solid #3b82f6 !important;
+  color: #3b82f6 !important;
+}
+
+/* 選中日期的樣式 */
+.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+/* 範圍內日期的樣式 */
+.ant-picker-cell-in-range::before {
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* 範圍邊界日期的樣式 */
+.ant-picker-cell-range-start .ant-picker-cell-inner,
+.ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+/* 禁用日期的樣式 */
+.ant-picker-cell-disabled {
+  color: rgba(148, 163, 184, 0.3) !important;
+  cursor: not-allowed !important;
+}
+
+/* 頭部導航樣式 */
+.ant-picker-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+  padding: 8px !important;
+}
+
+.ant-picker-header button {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-header-view {
+  color: #e2e8f0 !important;
+}
+
+/* 星期列樣式 */
+.ant-picker-content th {
+  color: #94a3b8 !important;
+  font-weight: normal !important;
+}
+
+/* 底部操作欄樣式 */
+.ant-picker-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.1) !important;
+  padding: 8px !important;
+}
+
+.ant-picker-today-btn {
+  color: #3b82f6 !important;
+}
+
+.ant-picker-ok button {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+/* 時間選擇面板樣式 */
+.ant-picker-time-panel {
+  border-left: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.ant-picker-time-panel-column > li.ant-picker-time-panel-cell .ant-picker-time-panel-cell-inner {
+  color: #e2e8f0 !important;
+  padding: 0 8px !important;
+}
+
+/* 日期選擇器下拉面板樣式 */
+.ant-picker-dropdown {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  padding: 8px !important;
+}
+
+.ant-picker-panel {
+  background: transparent !important;
+  border: none !important;
+}
+
+.ant-picker-date-panel {
+  width: 280px !important;
+}
+
+.ant-picker-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+  padding: 8px 8px !important;
+}
+
+.ant-picker-header button {
+  color: #e2e8f0 !important;
+  padding: 0 4px !important;
+}
+
+.ant-picker-header button:hover {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+.ant-picker-header-view {
+  color: #e2e8f0 !important;
+  font-size: 14px !important;
+}
+
+.ant-picker-content {
+  padding: 8px 0 !important;
+}
+
+.ant-picker-content th {
+  color: #94a3b8 !important;
+  font-weight: normal !important;
+  height: 24px !important;
+  padding: 0 !important;
+}
+
+.ant-picker-content td {
+  height: 24px !important;
+  padding: 0 !important;
+}
+
+.ant-picker-cell {
+  color: #e2e8f0 !important;
+  font-size: 13px !important;
+}
+
+.ant-picker-cell-inner {
+  height: 24px !important;
+  width: 24px !important;
+  line-height: 24px !important;
+  margin: auto !important;
+  border-radius: 4px !important;
+}
+
+.ant-picker-cell:hover .ant-picker-cell-inner {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: #2563eb !important;
+  color: white !important;
+}
+
+.ant-picker-cell-today .ant-picker-cell-inner::before {
+  border: 1px solid #2563eb !important;
+}
+
+.ant-picker-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.1) !important;
+  padding: 8px 8px !important;
+}
+
+.ant-picker-today-btn {
+  color: #60a5fa !important;
+}
+
+.ant-picker-today-btn:hover {
+  color: #93c5fd !important;
+}
+
+.ant-picker-cell-disabled {
+  color: rgba(148, 163, 184, 0.3) !important;
+  cursor: not-allowed !important;
+}
+
+.ant-picker-cell-disabled .ant-picker-cell-inner {
+  background: transparent !important;
+}
+
+.ant-picker-cell-disabled:hover .ant-picker-cell-inner {
+  background: transparent !important;
+}
+.ant-picker-dropdown {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.ant-picker-panel {
+  background: transparent !important;
+}
+
+.ant-picker-header {
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.ant-picker-header button {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-content th,
+.ant-picker-content td {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-cell:hover .ant-picker-cell-inner {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: #2563eb !important;
+  color: white !important;
+}
+
+.ant-picker-cell {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-header button {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-header-view {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-content th {
+  color: #94a3b8 !important;
+}
+
+.ant-picker-time-panel-column > li.ant-picker-time-panel-cell .ant-picker-time-panel-cell-inner {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-time-panel {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+
+.ant-picker-ranges {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+
+.ant-picker-today-btn {
+  color: #60a5fa !important;
+}
+
+.ant-picker-now-btn {
+  color: #60a5fa !important;
+}
+
+.ant-picker-ok button {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: white !important;
+}
+
+.ant-picker-cell-disabled {
+  color: rgba(148, 163, 184, 0.3) !important;
+  background: transparent !important;
+}
+
+.ant-picker-cell-in-view {
+  color: #e2e8f0 !important;
+}
+
+.ant-picker-cell:before {
+  background: transparent !important;
+}
+
+/* 空狀態圖標樣式 */
+.ant-empty-img-default {
+  filter: invert(0.8) brightness(0.8) !important;
+}
+
+.ant-empty-img-simple {
+  filter: invert(0.8) brightness(0.8) !important;
+}
+
+/* 表格空狀態背景 */
+.ant-table-placeholder {
+  background: transparent !important;
+}
+
+.ant-table-placeholder .ant-table-cell {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 表格行背景 */
+.ant-table-tbody > tr.ant-table-placeholder:hover > td {
+  background: transparent !important;
+}
