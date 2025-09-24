@@ -105,10 +105,9 @@ namespace PointsManagementAPI.Services
             if (reviewer.Role == "president")
                 return entryOwner.Role != "boss" && entryOwner.Role != "president";
             
-            // 管理員可以審核同部門的員工和主管
+            // 管理員擁有與董事長相同的權限
             if (reviewer.Role == "admin")
-                return (entryOwner.Role == "employee" || entryOwner.Role == "manager") &&
-                       entryOwner.DepartmentId == reviewer.DepartmentId;
+                return true; // 可以審核所有人
             
             // 主管可以審核同部門的員工 (保持原邏輯)
             if (reviewer.Role == "manager")
@@ -133,14 +132,14 @@ namespace PointsManagementAPI.Services
                     return new List<int>(); // 無權限
                 }
 
-                // 董事長和總經理可以審核所有部門
-                if (reviewer.Role == "boss" || reviewer.Role == "president")
+                // 董事長、總經理和管理員可以審核所有部門
+                if (reviewer.Role == "boss" || reviewer.Role == "president" || reviewer.Role == "admin")
                 {
                     return null; // null 表示所有部門
                 }
                 
-                // 管理員和主管審核自己部門
-                if (reviewer.Role == "admin" || reviewer.Role == "manager")
+                // 主管只能審核自己部門
+                if (reviewer.Role == "manager")
                 {
                     return new List<int> { reviewer.DepartmentId };
                 }

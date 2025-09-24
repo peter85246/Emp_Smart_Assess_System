@@ -1014,10 +1014,9 @@ namespace PointsManagementAPI.Controllers
                                 
                                 var departmentManagers = departmentManagersDebug.Select(m => m.Id).ToList();
                                 
-                                // 獲取部門管理員 (admin)
+                                // 獲取所有管理員 (admin) - 不再限制部門
                                 var departmentAdminsDebug = await _context.Employees
-                                    .Where(e => e.DepartmentId == submitter.DepartmentId && 
-                                               e.Role == "admin" && 
+                                    .Where(e => e.Role == "admin" && 
                                                e.IsActive && 
                                                e.Id != submitter.Id)
                                     .Select(e => new { e.Id, e.Name, e.Role, e.DepartmentId })
