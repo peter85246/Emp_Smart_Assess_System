@@ -798,13 +798,13 @@ const AdminPanel = ({ currentUser }) => {
     //   description: '查看所有員工的目標達成率',
     //   component: TargetScoreView
     // },
-    // {
-    //   id: 'worklog',
-    //   name: '工作日誌管理',
-    //   icon: Users,
-    //   description: '搜索與分類管理工作日誌',
-    //   component: WorkLogManagement
-    // }
+    {
+      id: 'worklog',
+      name: '工作日誌管理',
+      icon: Users,
+      description: '搜索與分類管理工作日誌',
+      component: WorkLogManagement
+    }
   ];
 
   const ActiveComponent = menuItems.find(item => item.id === activeView)?.component || StandardSettingsPanel;

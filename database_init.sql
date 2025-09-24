@@ -16,6 +16,63 @@ BEGIN
     RAISE NOTICE '📊 支援完整的 184 項積分項目';
 END $$;
 
+-- 創建基礎表格（如果不存在）
+CREATE TABLE IF NOT EXISTS "Departments" (
+    "Id" SERIAL PRIMARY KEY,
+    "Name" VARCHAR(100) NOT NULL,
+    "Description" VARCHAR(500),
+    "ManagerId" INTEGER,
+    "IsActive" BOOLEAN DEFAULT TRUE,
+    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "Employees" (
+    "Id" SERIAL PRIMARY KEY,
+    "Name" VARCHAR(50) NOT NULL,
+    "EmployeeNumber" VARCHAR(20) NOT NULL UNIQUE,
+    "Username" VARCHAR(50) UNIQUE NOT NULL,
+    "Password" VARCHAR(255) NOT NULL,
+    "Email" VARCHAR(100),
+    "Phone" VARCHAR(20),
+    "DepartmentId" INTEGER REFERENCES "Departments"("Id"),
+    "Position" VARCHAR(100),
+    "Level" VARCHAR(50) DEFAULT 'employee',
+    "Role" VARCHAR(50) DEFAULT 'employee',
+    "IsActive" BOOLEAN DEFAULT TRUE,
+    "HireDate" TIMESTAMP,
+    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "PointsCategories" (
+    "Id" SERIAL PRIMARY KEY,
+    "Name" VARCHAR(100) NOT NULL,
+    "Type" VARCHAR(50) NOT NULL,
+    "Description" VARCHAR(500),
+    "Multiplier" DECIMAL(3,2) DEFAULT 1.0,
+    "IsActive" BOOLEAN DEFAULT TRUE,
+    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "StandardSettings" (
+    "Id" SERIAL PRIMARY KEY,
+    "CategoryName" VARCHAR(100) NOT NULL,
+    "PointsValue" DECIMAL(6,2) NOT NULL,
+    "PointsType" VARCHAR(50) NOT NULL DEFAULT 'general',
+    "SubCategory" VARCHAR(50),
+    "DepartmentFilter" VARCHAR(50),
+    "InputType" VARCHAR(20) DEFAULT 'number',
+    "Unit" VARCHAR(20),
+    "StepValue" DECIMAL(3,2) DEFAULT 1.0,
+    "Description" TEXT,
+    "SortOrder" INTEGER DEFAULT 0,
+    "CalculationFormula" TEXT,
+    "DepartmentId" INTEGER REFERENCES "Departments"("Id"),
+    "PositionId" INTEGER,
+    "IsActive" BOOLEAN DEFAULT TRUE,
+    "ParentId" INTEGER REFERENCES "StandardSettings"("Id"),
+    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 為 StandardSettings 表添加缺少的欄位（智能遷移）
 DO $$
 BEGIN
@@ -73,71 +130,31 @@ BEGIN
     RAISE NOTICE '🧹 清理現有數據...';
 END $$;
 
-TRUNCATE TABLE "PointsEntries" RESTART IDENTITY CASCADE;
+-- 只清除已創建的基礎表格
 TRUNCATE TABLE "StandardSettings" RESTART IDENTITY CASCADE;
 TRUNCATE TABLE "PointsCategories" RESTART IDENTITY CASCADE;
-TRUNCATE TABLE "LogCategories" RESTART IDENTITY CASCADE;
-TRUNCATE TABLE "Notifications" RESTART IDENTITY CASCADE;
 TRUNCATE TABLE "Employees" RESTART IDENTITY CASCADE;
 TRUNCATE TABLE "Departments" RESTART IDENTITY CASCADE;
-TRUNCATE TABLE "FileAttachments" RESTART IDENTITY CASCADE;
 
--- 創建基礎表格（如果不存在）
-CREATE TABLE IF NOT EXISTS "Departments" (
-    "Id" SERIAL PRIMARY KEY,
-    "Name" VARCHAR(100) NOT NULL,
-    "Description" VARCHAR(500),
-    "ManagerId" INTEGER,
-    "IsActive" BOOLEAN DEFAULT TRUE,
-    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS "Employees" (
-    "Id" SERIAL PRIMARY KEY,
-    "Name" VARCHAR(50) NOT NULL,
-    "EmployeeNumber" VARCHAR(20) NOT NULL UNIQUE,
-    "Username" VARCHAR(50) UNIQUE NOT NULL,
-    "Password" VARCHAR(255) NOT NULL,
-    "Email" VARCHAR(100),
-    "Phone" VARCHAR(20),
-    "DepartmentId" INTEGER REFERENCES "Departments"("Id"),
-    "Position" VARCHAR(100),
-    "Level" VARCHAR(50) DEFAULT 'employee',
-    "Role" VARCHAR(50) DEFAULT 'employee',
-    "IsActive" BOOLEAN DEFAULT TRUE,
-    "HireDate" TIMESTAMP,
-    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS "PointsCategories" (
-    "Id" SERIAL PRIMARY KEY,
-    "Name" VARCHAR(100) NOT NULL,
-    "Type" VARCHAR(50) NOT NULL,
-    "Description" VARCHAR(500),
-    "Multiplier" DECIMAL(3,2) DEFAULT 1.0,
-    "IsActive" BOOLEAN DEFAULT TRUE,
-    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS "StandardSettings" (
-    "Id" SERIAL PRIMARY KEY,
-    "CategoryName" VARCHAR(100) NOT NULL,
-    "PointsValue" DECIMAL(6,2) NOT NULL,
-    "PointsType" VARCHAR(50) NOT NULL DEFAULT 'general',
-    "SubCategory" VARCHAR(50),
-    "DepartmentFilter" VARCHAR(50),
-    "InputType" VARCHAR(20) DEFAULT 'number',
-    "Unit" VARCHAR(20),
-    "StepValue" DECIMAL(3,2) DEFAULT 1.0,
-    "Description" TEXT,
-    "SortOrder" INTEGER DEFAULT 0,
-    "CalculationFormula" TEXT,
-    "DepartmentId" INTEGER REFERENCES "Departments"("Id"),
-    "PositionId" INTEGER,
-    "IsActive" BOOLEAN DEFAULT TRUE,
-    "ParentId" INTEGER REFERENCES "StandardSettings"("Id"),
-    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- 清除其他表格（如果存在）
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PointsEntries') THEN
+        TRUNCATE TABLE "PointsEntries" RESTART IDENTITY CASCADE;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'LogCategories') THEN
+        TRUNCATE TABLE "LogCategories" RESTART IDENTITY CASCADE;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Notifications') THEN
+        TRUNCATE TABLE "Notifications" RESTART IDENTITY CASCADE;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'FileAttachments') THEN
+        TRUNCATE TABLE "FileAttachments" RESTART IDENTITY CASCADE;
+    END IF;
+END $$;
 
 -- 智能添加StandardSettings表的額外欄位（相容database_init.sql）
 DO $$
@@ -703,7 +720,7 @@ BEGIN
     RAISE NOTICE '已插入雜項事件 2項';
     
     -- 最終統計計算
-    SELECT 
+    PERFORM 
         COUNT(*) as "總積分項目數",
         COUNT(CASE WHEN "PointsType" = 'general' THEN 1 END) as "一般積分",
         COUNT(CASE WHEN "PointsType" = 'professional' THEN 1 END) as "專業積分",
@@ -716,5 +733,5 @@ BEGIN
     
 END $$;
 
--- 顯示創建結果
-SELECT 'Database V2.0 initialization starting (184 items total)' as status;
+-- 顯示創建結果（移到 DO 區塊外）
+SELECT 'Database V2.0 initialization completed (184 items total)' as status;
