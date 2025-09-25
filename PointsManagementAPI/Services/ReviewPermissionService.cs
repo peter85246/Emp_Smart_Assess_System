@@ -82,13 +82,13 @@ namespace PointsManagementAPI.Services
         /// </summary>
         private bool CanReviewByHierarchy(Employee reviewer, Employee entryOwner)
         {
-            // 自審檢查：只有董事長可以審核自己提交的積分
+            // 自審檢查：董事長和管理員可以審核自己提交的積分
             if (reviewer.Id == entryOwner.Id)
             {
-                if (reviewer.Role == "boss")
+                if (reviewer.Role == "boss" || reviewer.Role == "admin")
                 {
-                    _logger.LogInformation("董事長自審: ID={UserId}, 角色={Role}", reviewer.Id, reviewer.Role);
-                    return true; // 董事長可以自審
+                    _logger.LogInformation("高級管理層自審: ID={UserId}, 角色={Role}", reviewer.Id, reviewer.Role);
+                    return true; // 董事長和管理員可以自審
                 }
                 else
                 {

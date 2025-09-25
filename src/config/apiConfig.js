@@ -26,7 +26,7 @@ export const REPORT_API = {
 
 export const API_CONFIG = {
   // 基礎URL配置 - 後端API服務地址 (後端運行Port修改處)
-  BASE_URL: 'https://localhost:7001/api',
+  BASE_URL: 'http://localhost:5001/api',
   
   // API端點配置 - 按功能模組分類組織
   ENDPOINTS: {

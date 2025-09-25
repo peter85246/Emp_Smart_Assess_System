@@ -189,35 +189,49 @@ builder.Services.AddDbContext<PointsDbContext>(options =>
 });
 
 // Add CORS - 支持動態端口配置
+// builder.Services.AddCors(options =>
+// {
+//     options.AddPolicy("AllowReactApp", policy =>
+//     {
+//         if (builder.Environment.IsDevelopment())
+//         {
+//             // 開發環境：允許來自任何本地端口的請求
+//             policy.SetIsOriginAllowed(origin =>
+//             {
+//                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+//                 {
+//                     return uri.Host == "localhost" || 
+//                            uri.Host == "127.0.0.1" || 
+//                            uri.Host == "::1";
+//                 }
+//                 return false;
+//             })
+//             .AllowAnyHeader()
+//             .AllowAnyMethod()
+//             .AllowCredentials();
+//         }
+//         else
+//         {
+//             // 生產環境：限制特定來源
+//             policy.WithOrigins("https://yourdomain.com")
+//                   .AllowAnyHeader()
+//                   .AllowAnyMethod()
+//                   .AllowCredentials();
+//         }
+//     });
+// });
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        if (builder.Environment.IsDevelopment())
-        {
-            // 開發環境：允許來自任何本地端口的請求
-            policy.SetIsOriginAllowed(origin =>
-            {
-                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                {
-                    return uri.Host == "localhost" || 
-                           uri.Host == "127.0.0.1" || 
-                           uri.Host == "::1";
-                }
-                return false;
-            })
+        policy.WithOrigins(
+                "http://localhost:3000",   // React 開發環境
+                "https://yourdomain.com"   // 正式上線網域
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
-        }
-        else
-        {
-            // 生產環境：限制特定來源
-            policy.WithOrigins("https://yourdomain.com")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        }
     });
 });
 
@@ -242,25 +256,25 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();   // <-- 必須有這行
+
 // 在開發環境中先使用CORS，避免HTTPS重定向干擾preflight請求
 app.UseCors("AllowReactApp");
 
-// 僅在非開發環境使用HTTPS重定向
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// 僅在非開發環境使用HTTPS重定向 - 後端使用 http://localhost:5001，不要重定向到 https://localhost:7001
+// if (!app.Environment.IsDevelopment())
+// {
+//     app.UseHttpsRedirection();
+// }
 
 app.UseAuthorization();
 
 // 添加根路徑重定向到Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
-// 服務器配置端點已移至 ApiController，避免重複路由
-
-// Map health checks
-app.MapHealthChecks("/health");
+// 不需要再 Map OPTIONS，UseCors 會自動處理
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 // Ensure database is created and seeded
 try

@@ -1,0 +1,923 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>PointsManagementAPI</name>
+    </assembly>
+    <members>
+        <member name="T:PointsManagementAPI.Controllers.AuthController">
+            <summary>
+            🔐 帳號認證管理
+            </summary>
+            <remarks>
+            提供員工帳號註冊、登入驗證、部門查詢、職位可用性檢查等功能。
+            包含自動職位驗證和智慧部門分配機制，確保高階職位的唯一性。
+            </remarks>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.AuthController.Register(PointsManagementAPI.Models.AuthModels.RegisterRequest)">
+            <summary>
+            員工帳號註冊
+            </summary>
+            <remarks>
+            建立新的員工帳號，具備以下功能：
+            
+            **主要特色：**
+            - ✅ 自動職位權限分配
+            - ✅ 高階職位唯一性驗證（董事長、負責人、總經理、執行長）
+            - ✅ 智慧部門自動分配
+            - ✅ 密碼安全加密存儲
+            - ✅ 重複資料檢查（員工編號、Email）
+            
+            **高階職位處理：**
+            - 董事長、負責人 → 自動分配到「董事會」
+            - 總經理、執行長 → 自動分配到「經營管理層」
+            
+            **回應說明：**
+            - 成功：返回用戶資訊和臨時授權令牌
+            - 409衝突：職位已被佔用（僅限高階職位）
+            - 400錯誤：資料驗證失敗或重複
+            </remarks>
+            <param name="request">註冊請求資料，包含員工基本資訊、職位、部門等</param>
+            <returns>註冊結果，包含用戶資訊和授權令牌</returns>
+            <response code="200">註冊成功，返回用戶資訊</response>
+            <response code="400">請求資料錯誤或重複（員工編號/Email已存在）</response>
+            <response code="409">職位衝突（高階職位已被佔用）</response>
+            <response code="500">伺服器內部錯誤</response>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.AuthController.ResetPassword(PointsManagementAPI.Models.AuthModels.ResetPasswordRequest)">
+            <summary>
+            密碼重置
+            </summary>
+            <remarks>
+            重置員工帳號密碼：
+            
+            **重置流程：**
+            1. 驗證員工編號存在性
+            2. 檢查帳號狀態（是否啟用）
+            3. 加密新密碼（BCrypt）
+            4. 更新資料庫記錄
+            5. 記錄操作日誌
+            
+            **安全機制：**
+            - ✅ 新密碼安全加密存儲
+            - ✅ 驗證員工編號有效性
+            - ✅ 檢查帳號啟用狀態
+            - 📝 完整操作日誌記錄
+            
+            **使用場景：**
+            - 員工忘記密碼
+            - 管理員協助重置
+            - 安全策略要求更新
+            
+            **注意事項：**
+            - 重置後建議用戶立即更改密碼
+            - 需要適當的權限控制
+            </remarks>
+            <param name="request">密碼重置請求，包含員工編號和新密碼</param>
+            <returns>重置結果訊息</returns>
+            <response code="200">密碼重置成功</response>
+            <response code="404">員工不存在</response>
+            <response code="400">帳號已停用</response>
+            <response code="500">伺服器內部錯誤</response>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.AuthController.Login(PointsManagementAPI.Models.AuthModels.LoginRequest)">
+            <summary>
+            員工登入驗證
+            </summary>
+            <remarks>
+            驗證員工帳號密碼並建立登入會話：
+            
+            **登入方式：**
+            - ✅ 支援員工編號登入
+            - ✅ 支援用戶名稱登入
+            - ✅ 密碼安全驗證（BCrypt）
+            
+            **驗證流程：**
+            1. 查找員工資料（編號或姓名）
+            2. 檢查帳號狀態（是否停用）
+            3. 驗證密碼正確性
+            4. 更新最後登入時間
+            5. 返回用戶資訊（包含部門）
+            
+            **安全機制：**
+            - 密碼錯誤時記錄警告日誌
+            - 自動處理首次登入標記
+            - 返回完整的用戶權限資訊
+            </remarks>
+            <param name="request">登入請求，包含員工編號/姓名和密碼</param>
+            <returns>登入成功返回用戶資訊，失敗返回錯誤訊息</returns>
+            <response code="200">登入成功，返回用戶資訊</response>
+            <response code="401">帳號密碼錯誤或帳號已停用</response>
+            <response code="500">伺服器內部錯誤</response>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.AuthController.Logout">
+            <summary>
+            員工登出
+            </summary>
+            <remarks>
+            處理員工登出操作：
+            
+            **目前實作：**
+            - ✅ 簡化版本登出處理
+            - ✅ 返回成功訊息
+            
+            **未來規劃：**
+            - 🔄 JWT Token 無效化處理
+            - 🔄 登出時間記錄
+            - 🔄 會話清理機制
+            
+            **使用說明：**
+            - 前端清除本地存儲的Token
+            - 導向登入頁面
+            - 清除用戶狀態資訊
+            </remarks>
+            <returns>登出成功訊息</returns>
+            <response code="200">登出成功</response>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.AuthController.GetDepartments">
+            <summary>
+            取得部門清單
+            </summary>
+            <remarks>
+            獲取系統中所有可用的部門選項，供註冊時選擇：
+            
+            **回傳資料：**
+            - 部門ID（用於資料庫關聯）
+            - 部門名稱（顯示給用戶）
+            
+            **過濾條件：**
+            - 僅顯示啟用狀態的部門 (IsActive = true)
+            - 按部門ID排序顯示
+            
+            **用途說明：**
+            - 註冊頁面部門下拉選單
+            - 管理後台部門選擇
+            - 高階職位會自動分配，不受此清單限制
+            </remarks>
+            <returns>部門清單，包含ID和名稱</returns>
+            <response code="200">成功取得部門清單</response>
+            <response code="500">伺服器內部錯誤</response>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.AuthController.CheckPositionAvailability(System.String)">
+            <summary>
+            職位可用性檢查
+            </summary>
+            <remarks>
+            檢查指定職位是否可以註冊，特別針對高階職位的唯一性驗證：
+            
+            **檢查範圍：**
+            - 🎯 高階職位：董事長、負責人、總經理、執行長（唯一性限制）
+            - ✅ 一般職位：無限制，可重複註冊
+            
+            **回應內容：**
+            - `isAvailable`: 職位是否可用
+            - `isExclusivePosition`: 是否為獨一職位
+            - `message`: 狀態說明訊息
+            - `suggestion`: 替代職位建議（職位被佔用時）
+            
+            **智能建議：**
+            - 董事長 ↔ 負責人
+            - 總經理 ↔ 副總經理、執行長
+            - 執行長 ↔ 副總經理、總經理
+            
+            **前端整合：**
+            - 即時驗證：選擇職位時自動檢查
+            - UI提示：動態顯示可用性狀態
+            - 智能禁用：不可用時禁用註冊按鈕
+            </remarks>
+            <param name="position">要檢查的職位名稱</param>
+            <returns>職位可用性資訊和建議</returns>
+            <response code="200">檢查完成，返回可用性資訊</response>
+            <response code="500">伺服器內部錯誤</response>
+        </member>
+        <member name="T:PointsManagementAPI.Controllers.FileUploadController">
+            <summary>
+            📁 檔案上傳管理
+            </summary>
+            <remarks>
+            處理積分系統相關的檔案上傳、下載、預覽等功能：
+            
+            **支援檔案格式：**
+            - 📷 圖片：JPG, PNG, GIF, BMP（證明照片）
+            - 📄 文件：PDF, DOC, DOCX（證明文件）
+            - 📊 試算表：XLS, XLSX（數據表格）
+            - 📝 文字：TXT, RTF（說明文件）
+            
+            **主要功能：**
+            - 🔄 單一檔案上傳
+            - 📚 批量檔案上傳
+            - 💾 檔案下載
+            - 👁️ 檔案預覽
+            - 🗑️ 檔案刪除管理
+            
+            **安全機制：**
+            - 檔案類型驗證
+            - 檔案大小限制
+            - 安全掃描檢查
+            - 權限存取控制
+            
+            **存儲管理：**
+            - 自動分類存放
+            - 檔案命名規範
+            - 空間使用統計
+            </remarks>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.FileUploadController.#ctor(PointsManagementAPI.Services.IFileStorageService)">
+            <summary>
+            檔案上傳控制器建構函數
+            </summary>
+            <param name="fileStorageService">檔案存儲服務</param>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.FileUploadController.UploadFile(Microsoft.AspNetCore.Http.IFormFile,System.String,System.Int32,System.Int32)">
+            <summary>
+            【POST】 /api/fileupload/upload - 上傳檔案並存儲到指定實體
+            功能：處理檔案上傳，存儲檔案並記錄到資料庫
+            前端使用：各種檔案上傳功能（積分證明、工作日誌附件等）
+            支援：自動檔案驗證、路徑管理、資料庫記錄
+            </summary>
+            <param name="file">上傳的檔案</param>
+            <param name="entityType">實體類型（如PointsEntry、WorkLog）</param>
+            <param name="entityId">實體ID</param>
+            <param name="uploadedBy">上傳者ID，預設為1</param>
+            <returns>檔案上傳結果，包含檔案ID和基本信息</returns>
+        </member>
+        <member name="T:PointsManagementAPI.Controllers.HealthController">
+            <summary>
+            🏥 系統健康監控
+            </summary>
+            <remarks>
+            提供系統健康狀態檢查和監控功能，確保服務穩定運行：
+            
+            **監控項目：**
+            - 🗄️ 資料庫連線狀態
+            - 💾 檔案系統可用性
+            - 🧠 記憶體使用情況
+            - ⚡ 系統回應速度
+            - 🔗 外部服務連接
+            
+            **健康指標：**
+            - 服務啟動時間
+            - 系統版本資訊
+            - 環境配置狀態
+            - 資源使用統計
+            
+            **監控等級：**
+            - ✅ Healthy: 所有服務正常
+            - ⚠️ Warning: 部分服務異常
+            - ❌ Critical: 核心服務失效
+            
+            **運維支援：**
+            - 詳細健康報告
+            - 錯誤診斷資訊
+            - 效能指標監控
+            - 自動化檢查機制
+            </remarks>
+        </member>
+        <member name="T:PointsManagementAPI.Controllers.NotificationController">
+            <summary>
+            🔔 通知訊息管理
+            </summary>
+            <remarks>
+            處理系統內各種通知訊息的發送、接收和管理：
+            
+            **通知類型：**
+            - 📬 積分審核通知（通過/駁回）
+            - 🎯 任務指派通知
+            - ⏰ 截止日期提醒
+            - 🏆 成就達成通知
+            - 📊 統計報表通知
+            
+            **發送方式：**
+            - 系統內即時通知
+            - 電子郵件通知
+            - 手機推播通知
+            - 瀏覽器桌面通知
+            
+            **管理功能：**
+            - 通知歷史查詢
+            - 已讀狀態管理
+            - 通知偏好設定
+            - 批量操作處理
+            
+            **智能特色：**
+            - 通知去重機制
+            - 優先級排序
+            - 自動失效清理
+            - 個人化推薦
+            </remarks>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.NotificationController.GetUserNotifications(System.Int32,System.Boolean,System.Int32)">
+            <summary>
+            獲取用戶通知列表
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.NotificationController.GetUnreadCount(System.Int32)">
+            <summary>
+            獲取用戶未讀通知數量
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.NotificationController.MarkAsRead(System.Int32,PointsManagementAPI.Controllers.MarkReadRequest)">
+            <summary>
+            標記通知為已讀
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.NotificationController.MarkAllAsRead(System.Int32)">
+            <summary>
+            標記用戶所有通知為已讀
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.NotificationController.CreateNotification(PointsManagementAPI.Controllers.CreateNotificationRequest)">
+            <summary>
+            創建新通知（內部API，通常由其他服務調用）
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Controllers.MarkReadRequest">
+            <summary>
+            標記已讀請求模型
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Controllers.CreateNotificationRequest">
+            <summary>
+            創建通知請求模型
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Controllers.PointsController">
+            <summary>
+            📊 積分管理系統
+            </summary>
+            <remarks>
+            處理員工積分相關的所有操作，包含積分提交、審核、查詢、統計分析等核心功能。
+            
+            **主要功能模組：**
+            - 🎯 積分項目提交與管理
+            - 👥 多層級審核流程
+            - 📈 積分統計與分析
+            - 🔍 積分記錄查詢
+            - 📁 附件檔案管理
+            - 🏆 排行榜與績效評估
+            
+            **權限控制：**
+            - 員工：提交積分、查看個人記錄
+            - 管理員：審核積分、查看部門統計  
+            - 高階主管：全系統數據查看
+            </remarks>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.#ctor(PointsManagementAPI.Data.PointsDbContext,PointsManagementAPI.Services.IPointsCalculationService,Microsoft.Extensions.Logging.ILogger{PointsManagementAPI.Controllers.PointsController},PointsManagementAPI.Services.IFileStorageService,PointsManagementAPI.Services.IReviewPermissionService,PointsManagementAPI.Services.INotificationService)">
+            <summary>
+            積分控制器建構函數 - 注入必要的服務依賴
+            </summary>
+            <param name="context">資料庫上下文</param>
+            <param name="calculationService">積分計算服務</param>
+            <param name="logger">日誌記錄器</param>
+            <param name="fileStorageService">檔案存儲服務</param>
+            <param name="reviewPermissionService">審核權限檢查服務</param>
+            <param name="notificationService">通知服務</param>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.GetEmployeePoints(System.Int32,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            【GET】 /api/points/employee/{employeeId} - 獲取指定員工的積分記錄
+            功能：查詢員工的所有積分記錄，支援日期範圍篩選
+            前端使用：個人積分查詢、績效報告
+            </summary>
+            <param name="employeeId">員工ID</param>
+            <param name="startDate">開始日期（可選）</param>
+            <param name="endDate">結束日期（可選）</param>
+            <returns>包含積分記錄和檔案詳情的列表</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.CreatePointsEntry(PointsManagementAPI.Models.PointsModels.PointsEntry)">
+            <summary>
+            積分項目提交
+            </summary>
+            <remarks>
+            員工提交新的積分申請項目：
+            
+            **處理流程：**
+            1. ✅ 自動積分計算（根據類別和數值）
+            2. 🔄 工作流程路由（確定審核路徑）
+            3. 📁 附件檔案處理（支援多檔案上傳）
+            4. 🔔 通知機制啟動（通知相關審核人員）
+            5. 📝 完整記錄建立
+            
+            **積分計算特色：**
+            - 依據標準設定自動計算分數
+            - 支援不同積分類別的計算規則
+            - 提供計算結果驗證機制
+            
+            **審核流程：**
+            - 自動判斷審核層級
+            - 智能分配審核人員
+            - 支援多階段審核流程
+            
+            **檔案管理：**
+            - 支援證明文件上傳
+            - 自動檔案安全檢查
+            - 檔案關聯管理
+            </remarks>
+            <param name="entry">積分申請資料，包含類別、描述、數值等資訊</param>
+            <returns>建立的積分項目，包含計算結果和審核狀態</returns>
+            <response code="200">提交成功，返回積分項目資訊</response>
+            <response code="400">請求資料錯誤</response>
+            <response code="500">伺服器內部錯誤</response>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.ApprovePointsEntry(System.Int32,PointsManagementAPI.Controllers.ApprovalRequest)">
+            <summary>
+            積分審核通過
+            </summary>
+            <remarks>
+            主管審核員工積分申請並標記為通過狀態：
+            
+            **審核流程：**
+            1. 🔍 驗證審核權限（確認審核人有權限）
+            2. 📋 檢查積分狀態（僅能審核待審核項目）
+            3. ✅ 更新審核狀態（設為已通過）
+            4. 📝 記錄審核意見（備註和審核人資訊）
+            5. 🔔 發送通知（通知申請人結果）
+            6. 📊 更新統計資料
+            
+            **權限驗證：**
+            - 僅限管理員以上層級
+            - 檢查部門審核權限
+            - 防止重複審核
+            
+            **狀態管理：**
+            - 從「待審核」→「已通過」
+            - 記錄審核時間和人員
+            - 保留完整審核軌跡
+            
+            **通知機制：**
+            - 即時通知申請人
+            - 郵件通知（如設定）
+            - 系統內訊息推送
+            </remarks>
+            <param name="id">積分記錄ID</param>
+            <param name="request">審核請求，包含審核人ID和備註</param>
+            <returns>審核結果和狀態更新</returns>
+            <response code="200">審核成功</response>
+            <response code="400">審核失敗或狀態錯誤</response>
+            <response code="403">權限不足</response>
+            <response code="404">積分記錄不存在</response>
+            <response code="500">伺服器內部錯誤</response>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.BatchApprovePointsEntries(PointsManagementAPI.Models.AuthModels.BatchApprovalRequest)">
+            <summary>
+            【POST】 /api/points/batch/approve - 批量審核通過積分記錄
+            功能：主管批量審核通過多個積分項目
+            前端使用：ManagerReviewForm組件的批量審核通過功能
+            權限：僅限主管角色使用
+            </summary>
+            <param name="request">批量審核請求，包含審核人ID和積分記錄ID列表</param>
+            <returns>批量審核結果</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.BatchRejectPointsEntries(PointsManagementAPI.Models.AuthModels.BatchRejectRequest)">
+            <summary>
+            【POST】 /api/points/batch/reject - 批量審核拒絕積分記錄
+            功能：主管批量審核拒絕多個積分項目
+            前端使用：ManagerReviewForm組件的批量審核拒絕功能
+            權限：僅限主管角色使用
+            </summary>
+            <param name="request">批量拒絕請求，包含拒絕人ID和積分記錄ID列表</param>
+            <returns>批量拒絕結果</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.SubmitBatchPoints(System.String,System.DateTime,System.String,System.Decimal,System.String,System.Collections.Generic.List{Microsoft.AspNetCore.Http.IFormFile},System.Collections.Generic.List{System.String})">
+            <summary>
+            【POST】 /api/points/batch/submit - 批量提交積分項目（支援多項目+檔案上傳）
+            功能：員工一次提交多個積分項目，每個項目可附帶檔案證明
+            前端使用：InteractivePointsForm組件的主要提交功能
+            特色：支援檔案與特定項目的精確關聯
+            </summary>
+            <param name="employeeId">員工ID</param>
+            <param name="submissionDate">提交日期</param>
+            <param name="status">狀態（通常為pending）</param>
+            <param name="totalPoints">總積分</param>
+            <param name="items">積分項目JSON字符串</param>
+            <param name="files">上傳的檔案列表（可選）</param>
+            <param name="fileKeys">檔案關聯鍵（格式：g1_0, g2_0等）</param>
+            <returns>創建的積分記錄摘要</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.GetPendingEntries">
+            <summary>
+            【GET】 /api/points/pending - 獲取所有待審核的積分記錄
+            功能：供主管查看所有員工提交的待審核積分項目
+            前端使用：ManagerReviewForm組件顯示待審核列表
+            特色：包含完整的員工信息、檔案詳情、部門信息
+            </summary>
+            <returns>待審核積分記錄列表，包含員工和檔案詳情</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.GetPendingEntriesByDepartment(System.Int32)">
+            <summary>
+            【GET】 /api/points/pending/department - 根據審核者權限獲取待審核的積分記錄
+            功能：支援部門權限控制的待審核記錄查詢
+            權限：老闆/管理員可查看所有部門，主管只能查看同部門員工
+            前端使用：新版ManagerReviewForm組件的權限控制功能
+            </summary>
+            <param name="reviewerId">審核者員工ID</param>
+            <returns>根據權限過濾後的待審核積分記錄列表</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.RejectPointsEntry(System.Int32,PointsManagementAPI.Models.AuthModels.RejectRequest)">
+            <summary>
+            【POST】 /api/points/{id}/reject - 審核拒絕積分記錄
+            功能：主管審核員工積分提交，標記為拒絕狀態並記錄拒絕原因
+            前端使用：ManagerReviewForm組件的審核拒絕功能
+            權限：僅限主管角色使用
+            </summary>
+            <param name="id">積分記錄ID</param>
+            <param name="request">拒絕請求，包含拒絕人ID和拒絕原因</param>
+            <returns>拒絕結果</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.GetAllEntriesCount">
+            <summary>
+            【GET】 /api/points/all-entries-count - 獲取全公司積分項目統計
+            功能：統計所有積分項目的審核狀態
+            權限：董事長專用
+            </summary>
+            <returns>包含 approved, rejected, pending 數量的統計結果</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.GetExecutiveEntriesCount">
+            <summary>
+            【GET】 /api/points/executive-entries-count - 獲取總經理權限範圍積分項目統計
+            功能：統計除董事長外所有積分項目的審核狀態
+            權限：總經理專用
+            </summary>
+            <returns>包含 approved, rejected, pending 數量的統計結果</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.GetDepartmentEntriesCount(System.Int32)">
+            <summary>
+            【GET】 /api/points/department-entries-count/{departmentId} - 獲取指定部門積分項目統計
+            功能：統計指定部門積分項目的審核狀態
+            權限：部門主管、管理員
+            </summary>
+            <param name="departmentId">部門ID</param>
+            <returns>包含 approved, rejected, pending 數量的統計結果</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.PointsController.GetDepartments">
+            <summary>
+            【GET】 /api/points/departments - 獲取所有部門列表
+            功能：動態獲取系統中所有部門的ID和名稱
+            權限：所有管理級別用戶
+            </summary>
+            <returns>包含 id, name 的部門列表</returns>
+        </member>
+        <member name="T:PointsManagementAPI.Controllers.WorkLogController">
+            <summary>
+            📝 工作日誌記錄
+            </summary>
+            <remarks>
+            管理員工工作日誌的完整生命週期，支援詳細的工作記錄追蹤：
+            
+            **核心功能：**
+            - ✍️ 工作日誌創建與編輯
+            - 🔍 多條件日誌查詢
+            - 📊 工作統計分析
+            - 👥 團隊日誌管理
+            - 📁 附件檔案關聯
+            
+            **記錄內容：**
+            - 工作項目描述
+            - 時間記錄（開始/結束）
+            - 工作類別分類
+            - 成果產出說明
+            - 問題與解決方案
+            
+            **管理機制：**
+            - 分類標籤管理
+            - 審核流程控制
+            - 權限存取控制
+            - 數據匯出功能
+            
+            **整合功能：**
+            - 與積分系統連動
+            - 績效評估數據源
+            - 專案進度追蹤
+            </remarks>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.#ctor(PointsManagementAPI.Services.IWorkLogService)">
+            <summary>
+            工作日誌控制器建構函數
+            </summary>
+            <param name="workLogService">工作日誌業務邏輯服務</param>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.GetEmployeeWorkLogs(System.Int32,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            【GET】 /api/worklog/employee/{employeeId} - 獲取指定員工的工作日誌
+            功能：查詢員工的工作日誌記錄，支援日期範圍篩選
+            前端使用：WorkLogEntry組件載入員工的工作日誌列表
+            </summary>
+            <param name="employeeId">員工ID</param>
+            <param name="startDate">開始日期（可選）</param>
+            <param name="endDate">結束日期（可選）</param>
+            <returns>工作日誌列表</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.GetEmployeeAttendance(System.String,System.Int32,System.Int32)">
+            <summary>
+            【GET】 /api/worklog/attendance/{employeeName} - 獲取員工出勤率數據
+            功能：計算員工指定月份的工作日誌填寫出勤率
+            前端使用：PerformanceDashboard組件計算差勤紀錄指標
+            </summary>
+            <param name="employeeName">員工姓名</param>
+            <param name="year">年份</param>
+            <param name="month">月份</param>
+            <returns>出勤率數據</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.GetWorkLogDaysCount(System.Int32,System.Int32,System.Int32)">
+            <summary>
+            【GET】 /api/worklog/daily-count - 獲取員工當月填寫日誌天數
+            功能：計算員工指定月份的工作日誌填寫天數（去重）
+            前端使用：PerformanceDashboard組件計算出勤率
+            </summary>
+            <param name="employeeId">員工ID</param>
+            <param name="year">年份</param>
+            <param name="month">月份</param>
+            <returns>填寫天數和工作天數</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.GetApprovalList(System.Int32,System.Int32,System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            【GET】 /api/worklog/approval-list - 獲取待審核工作日誌列表
+            功能：分頁查詢待審核的工作日誌，支援關鍵字和狀態篩選
+            前端使用：管理員審核介面
+            </summary>
+            <param name="page">頁碼</param>
+            <param name="pageSize">每頁數量</param>
+            <param name="keyword">關鍵字</param>
+            <param name="status">狀態</param>
+            <param name="startDate">開始日期</param>
+            <param name="endDate">結束日期</param>
+            <returns>分頁的工作日誌列表</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.ApproveWorkLog(System.Int32,PointsManagementAPI.Controllers.ReviewRequest)">
+            <summary>
+            【POST】 /api/worklog/{id}/approval - 審核工作日誌
+            功能：管理員審核工作日誌，設置狀態和評論
+            前端使用：管理員審核介面
+            </summary>
+            <param name="id">工作日誌ID</param>
+            <param name="request">審核請求</param>
+            <returns>審核結果</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.GetWorkDaysInMonth(System.Int32,System.Int32)">
+            <summary>
+            計算指定月份的工作天數（排除週末）
+            </summary>
+            <param name="year">年份</param>
+            <param name="month">月份</param>
+            <returns>工作天數</returns>
+        </member>
+        <member name="T:PointsManagementAPI.Migrations.FixWorkLogAttachments">
+            <inheritdoc />
+        </member>
+        <member name="M:PointsManagementAPI.Migrations.FixWorkLogAttachments.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:PointsManagementAPI.Migrations.FixWorkLogAttachments.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:PointsManagementAPI.Migrations.FixWorkLogAttachments.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:PointsManagementAPI.Models.AuthModels.BatchApprovalRequest">
+            <summary>
+            批量審核通過請求模型
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Models.AuthModels.BatchRejectRequest">
+            <summary>
+            批量審核拒絕請求模型
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Models.AuthModels.BatchReviewResult">
+            <summary>
+            批量審核結果返回模型
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Models.NotificationModels.Notification">
+            <summary>
+            通知實體模型
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.UserId">
+            <summary>
+            接收通知的用戶ID
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.Title">
+            <summary>
+            通知標題
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.Content">
+            <summary>
+            通知內容
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.Type">
+            <summary>
+            通知類型（points_submitted, points_approved, points_rejected, system_notice）
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.RelatedEntityId">
+            <summary>
+            相關實體ID（如積分記錄ID）
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.RelatedEntityType">
+            <summary>
+            相關實體類型（PointsEntry, WorkLog等）
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.IsRead">
+            <summary>
+            是否已讀
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.CreatedAt">
+            <summary>
+            通知創建時間
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.ReadAt">
+            <summary>
+            通知讀取時間
+            </summary>
+        </member>
+        <member name="P:PointsManagementAPI.Models.NotificationModels.Notification.Priority">
+            <summary>
+            通知優先級（low, normal, high, urgent）
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Services.INotificationService">
+            <summary>
+            通知服務接口
+            提供通知的創建、查詢、標記已讀等功能
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.INotificationService.CreateNotificationAsync(System.Int32,System.String,System.String,System.String,System.Nullable{System.Int32},System.String,System.String)">
+            <summary>
+            創建新通知
+            </summary>
+            <param name="userId">接收用戶ID</param>
+            <param name="title">通知標題</param>
+            <param name="content">通知內容</param>
+            <param name="type">通知類型</param>
+            <param name="relatedEntityId">相關實體ID（可選）</param>
+            <param name="relatedEntityType">相關實體類型（可選）</param>
+            <param name="priority">優先級（可選，默認normal）</param>
+            <returns>創建的通知</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.INotificationService.GetUserNotificationsAsync(System.Int32,System.Boolean,System.Int32)">
+            <summary>
+            獲取用戶的通知列表
+            </summary>
+            <param name="userId">用戶ID</param>
+            <param name="unreadOnly">是否只獲取未讀通知</param>
+            <param name="limit">限制數量</param>
+            <returns>通知列表</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.INotificationService.MarkAsReadAsync(System.Int32,System.Int32)">
+            <summary>
+            標記通知為已讀
+            </summary>
+            <param name="notificationId">通知ID</param>
+            <param name="userId">用戶ID（安全檢查）</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.INotificationService.MarkAllAsReadAsync(System.Int32)">
+            <summary>
+            標記用戶所有通知為已讀
+            </summary>
+            <param name="userId">用戶ID</param>
+            <returns>標記為已讀的通知數量</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.INotificationService.GetUnreadCountAsync(System.Int32)">
+            <summary>
+            獲取用戶未讀通知數量
+            </summary>
+            <param name="userId">用戶ID</param>
+            <returns>未讀通知數量</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.INotificationService.DeleteOldNotificationsAsync(System.Int32)">
+            <summary>
+            刪除舊通知（清理功能）
+            </summary>
+            <param name="olderThanDays">刪除多少天前的通知</param>
+            <returns>刪除的通知數量</returns>
+        </member>
+        <member name="T:PointsManagementAPI.Services.IReviewPermissionService">
+            <summary>
+            審核權限檢查服務接口
+            用於控制誰可以審核哪些積分記錄
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.IReviewPermissionService.CanReviewEntryAsync(System.Int32,System.Int32)">
+            <summary>
+            檢查審核者是否有權限審核指定的積分記錄
+            </summary>
+            <param name="reviewerId">審核者ID</param>
+            <param name="entryId">積分記錄ID</param>
+            <returns>是否有權限</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.IReviewPermissionService.GetReviewableDepartmentsAsync(System.Int32)">
+            <summary>
+            根據審核者權限獲取可審核的部門ID列表
+            </summary>
+            <param name="reviewerId">審核者ID</param>
+            <returns>可審核的部門ID列表，null表示可審核所有部門</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.IReviewPermissionService.CanReviewDepartmentAsync(System.Int32,System.Int32)">
+            <summary>
+            檢查審核者是否有權限審核指定部門的積分記錄
+            </summary>
+            <param name="reviewerId">審核者ID</param>
+            <param name="departmentId">部門ID</param>
+            <returns>是否有權限</returns>
+        </member>
+        <member name="T:PointsManagementAPI.Services.NotificationService">
+            <summary>
+            通知服務實現
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.NotificationService.CreateNotificationAsync(System.Int32,System.String,System.String,System.String,System.Nullable{System.Int32},System.String,System.String)">
+            <summary>
+            創建新通知
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.NotificationService.GetUserNotificationsAsync(System.Int32,System.Boolean,System.Int32)">
+            <summary>
+            獲取用戶的通知列表
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.NotificationService.MarkAsReadAsync(System.Int32,System.Int32)">
+            <summary>
+            標記通知為已讀
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.NotificationService.MarkAllAsReadAsync(System.Int32)">
+            <summary>
+            標記用戶所有通知為已讀
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.NotificationService.GetUnreadCountAsync(System.Int32)">
+            <summary>
+            獲取用戶未讀通知數量
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.NotificationService.DeleteOldNotificationsAsync(System.Int32)">
+            <summary>
+            刪除舊通知（清理功能）
+            </summary>
+        </member>
+        <member name="T:PointsManagementAPI.Services.ReviewPermissionService">
+            <summary>
+            審核權限檢查服務實現
+            實現五級角色層級審核邏輯（董事長特權）：
+            - 董事長(boss)：可審核所有人（employee/manager/admin/president），包括可以審核自己
+            - 總經理(president)：可審核員工、主管、管理員（employee/manager/admin），但不能審核總經理級別及以上，不能自審
+            - 管理員(admin)：可審核同部門的員工和主管（employee/manager），不能自審
+            - 主管(manager)：只能審核同部門員工（employee），不能自審
+            - 員工(employee)：無審核權限
+            
+            重要原則：只有董事長可以審核自己提交的積分，其他角色都不能自審
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.ReviewPermissionService.CanReviewEntryAsync(System.Int32,System.Int32)">
+            <summary>
+            檢查審核者是否有權限審核指定的積分記錄
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.ReviewPermissionService.CanReviewByHierarchy(PointsManagementAPI.Models.UserModels.Employee,PointsManagementAPI.Models.UserModels.Employee)">
+            <summary>
+            層級審核邏輯檢查
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.ReviewPermissionService.GetReviewableDepartmentsAsync(System.Int32)">
+            <summary>
+            根據審核者權限獲取可審核的部門ID列表
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.ReviewPermissionService.CanReviewDepartmentAsync(System.Int32,System.Int32)">
+            <summary>
+            檢查審核者是否有權限審核指定部門的積分記錄
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.WorkLogService.GetEmployeeAttendanceByNameAsync(System.String,System.Int32,System.Int32)">
+            <summary>
+            計算員工指定月份的出勤率數據（按員工姓名）
+            基於工作日誌填寫記錄計算：出勤率 = 已填寫日誌天數 / 當月工作天數
+            </summary>
+            <param name="employeeName">員工姓名</param>
+            <param name="year">年份</param>
+            <param name="month">月份</param>
+            <returns>出勤率數據</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.WorkLogService.GetWorkDaysInMonth(System.Int32,System.Int32)">
+            <summary>
+            計算指定月份的工作天數（排除週末）
+            </summary>
+            <param name="year">年份</param>
+            <param name="month">月份</param>
+            <returns>工作天數</returns>
+        </member>
+        <member name="M:PointsManagementAPI.Services.WorkLogService.GetWorkLogsForApprovalAsync(System.Int32,System.Int32,System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            獲取待審核工作日誌列表（分頁）
+            </summary>
+        </member>
+    </members>
+</doc>

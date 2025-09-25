@@ -770,13 +770,14 @@ namespace PointsManagementAPI.Controllers
                 DateTime? approvedAt = null;
                 string? reviewComments = null;
 
-                if (submitter.Role == "boss")
+                if (submitter.Role == "boss" || submitter.Role == "admin")
                 {
                     finalStatus = "approved";
                     approvedBy = empId;
                     approvedAt = DateTime.UtcNow;
-                    reviewComments = "董事長層級自動審核通過";
-                    _logger.LogInformation("董事長 {SubmitterName} 提交的積分自動審核通過", submitter.Name);
+                    reviewComments = submitter.Role == "boss" ? "董事長層級自動審核通過" : "管理員層級自動審核通過";
+                    _logger.LogInformation("{Role} {SubmitterName} 提交的積分自動審核通過", 
+                        submitter.Role == "boss" ? "董事長" : "管理員", submitter.Name);
                 }
                 else
                 {
