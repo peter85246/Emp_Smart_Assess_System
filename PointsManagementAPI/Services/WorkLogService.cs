@@ -41,38 +41,35 @@ namespace PointsManagementAPI.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 基本驗證
-                if (workLog.EmployeeId <= 0)
-                    throw new ArgumentException("員工ID無效");
-        
-                if (string.IsNullOrEmpty(workLog.Title))
-                    throw new ArgumentException("標題不能為空");
-
-                // 設置基本屬性
+                // 設置創建時間
                 workLog.CreatedAt = DateTime.UtcNow;
-                workLog.LogDate = (workLog.LogDate == default(DateTime) ? DateTime.UtcNow : workLog.LogDate).Date;
-                workLog.UpdatedAt = DateTime.UtcNow;
+                if (workLog.LogDate == default(DateTime))
+                {
+                    workLog.LogDate = DateTime.UtcNow;
+                }
 
-                // 檢查當月當天是否已經加過分
+                // 修正日期比較邏輯 - 避免使用 date_trunc
                 var logDate = workLog.LogDate.Date;
-                var monthStart = new DateTime(logDate.Year, logDate.Month, 1);
-                var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+                var startOfDay = new DateTime(logDate.Year, logDate.Month, logDate.Day, 0, 0, 0, DateTimeKind.Utc);
+                var endOfDay = startOfDay.AddDays(1);
 
+                // 檢查當日是否已有通過的工作日誌
                 var existingApprovedLog = await _context.WorkLogs
                     .Where(w => w.EmployeeId == workLog.EmployeeId)
-                    .Where(w => w.LogDate.Date == logDate)
+                    .Where(w => w.LogDate >= startOfDay && w.LogDate < endOfDay)
                     .Where(w => w.Status == "auto_approved" || w.Status == "approved")
                     .AnyAsync();
 
+                // 檢查當日是否已有積分記錄
                 var existingPointsEntry = await _context.PointsEntries
                     .Where(p => p.EmployeeId == workLog.EmployeeId)
-                    .Where(p => p.EntryDate.Date == logDate)
+                    .Where(p => p.EntryDate >= startOfDay && p.EntryDate < endOfDay)
                     .Where(p => p.Description.Contains("工作日誌"))
                     .AnyAsync();
 
                 var existingTodayLog = existingApprovedLog || existingPointsEntry;
 
-                Console.WriteLine($"員工 {workLog.EmployeeId} 在 {workLog.LogDate.Date:yyyy-MM-dd} 是否已有日誌: {existingTodayLog}");
+                Console.WriteLine($"員工 {workLog.EmployeeId} 在 {logDate:yyyy-MM-dd} 是否已有日誌: {existingTodayLog}");
 
                 // 根據是否首次填寫設置狀態
                 if (!existingTodayLog)
@@ -88,50 +85,8 @@ namespace PointsManagementAPI.Services
                     Console.WriteLine($"當日已有日誌，不加分");
                 }
 
-                // 先檢查並設置分類
-                var categoryId = workLog.CategoryId ?? 6;
-                var category = await _context.LogCategories
-                    .FirstOrDefaultAsync(c => c.Id == categoryId);
-
-                if (category == null)
-                {
-                    // 如果分類不存在，創建默認分類
-                    category = new LogCategory
-                    {
-                        Id = categoryId,
-                        Name = categoryId == 6 ? "其他事項" : "一般事項",
-                        Description = "自動創建的分類",
-                        Color = "#6B7280",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.LogCategories.Add(category);
-                    await _context.SaveChangesAsync();
-                    Console.WriteLine($"已創建新分類: ID={categoryId}, Name={category.Name}");
-                }
-
-                workLog.CategoryId = category.Id;
-
-                // 處理附件
-                if (!string.IsNullOrEmpty(workLog.Attachments))
-                {
-                    try
-                    {
-                        // 驗證 JSON 格式
-                        var attachments = System.Text.Json.JsonSerializer.Deserialize<List<object>>(workLog.Attachments);
-                        // 如果解析成功，保持原樣
-                    }
-                    catch
-                    {
-                        // 如果解析失敗，設為 null
-                        workLog.Attachments = null;
-                        Console.WriteLine("附件格式無效，已設為 null");
-                    }
-                }
-
                 // 保存工作日誌
-                var entry = _context.Entry(workLog);
-                entry.State = EntityState.Added;
+                _context.WorkLogs.Add(workLog);
                 await _context.SaveChangesAsync();
 
                 // 如果是首次填寫，創建積分記錄
@@ -140,7 +95,7 @@ namespace PointsManagementAPI.Services
                     var pointsEntry = new PointsEntry
                     {
                         EmployeeId = workLog.EmployeeId,
-                        StandardId = 40, // 使用工作日誌積分項目ID
+                        StandardId = 41, // 工作日誌積分項目ID
                         EntryDate = workLog.LogDate,
                         BasePoints = 0.1m,
                         PointsEarned = 0.1m,
@@ -165,13 +120,7 @@ namespace PointsManagementAPI.Services
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                Console.WriteLine($"創建工作日誌錯誤: {ex.Message}");
-                Console.WriteLine($"堆疊追蹤: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"內部錯誤: {ex.InnerException.Message}");
-                    Console.WriteLine($"內部堆疊追蹤: {ex.InnerException.StackTrace}");
-                }
+                Console.WriteLine($"創建工作日誌失敗: {ex.Message}");
                 throw;
             }
         }

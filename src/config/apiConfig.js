@@ -11,6 +11,7 @@
 // 報工系統API配置
 export const REPORT_API = {
   BASE_URL: 'http://127.0.0.1:7117/api',
+  // BASE_URL: 'http://192.168.1.10:7117/api',  // 報工系統 IP 串接修改這裡
   ENDPOINTS: {
     // KPI概覽API
     kpiOverviewYear: '/AREditior/KPIOverviewByYear',  // 年度KPI概覽 - 參數: year (number)
@@ -27,6 +28,7 @@ export const REPORT_API = {
 export const API_CONFIG = {
   // 基礎URL配置 - 後端API服務地址 (後端運行Port修改處)
   BASE_URL: 'http://localhost:5001/api',
+  // BASE_URL: 'http://192.168.1.10:5001/api',  // 員工下拉列表串接報工系統 IP 修改這裡
   
   // API端點配置 - 按功能模組分類組織
   ENDPOINTS: {

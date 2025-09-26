@@ -85,21 +85,19 @@ const WorkLogEntry = () => {
       console.log('在積分類型中找到:', type, '鍵值:', key);
       // 根據鍵值映射到對應的ID
       const keyToIdMap = {
-        'management': 1,
-        'production': 2, 
-        'quality': 3,
-        'maintenance': 4,
-        'improvement': 5,
-        'training': 6,
-        'general': 6
+        'general': 1,        // 一般積分項目
+        'professional': 2,   // 專業積分項目
+        'management': 3,     // 管理積分項目
+        'temporary': 4,      // 臨時工作項目
+        'misc': 5           // 雜項事件
       };
-      const mappedId = keyToIdMap[key] || 6; // 預設為6（其他事項）
+      const mappedId = keyToIdMap[key] || 1; // 預設為1（一般積分項目）
       console.log('映射的ID:', mappedId);
       return mappedId;
     }
     
-    console.warn('找不到分類ID，使用預設值6');
-    return 6; // 預設為「其他事項」
+    console.warn('找不到分類ID，使用預設值1');
+    return 1; // 預設為「一般積分項目」
   }, []);
 
   // 檔案上傳函數
@@ -749,7 +747,7 @@ const WorkLogEntry = () => {
     if (!formData.category && !editingLog) {
       setFormData(prev => ({
         ...prev,
-        category: '雜項事件' // 預設選擇一般積分項目
+        category: '一般積分項目' // 預設選擇一般積分項目
       }));
     }
   }, [formData.category, editingLog]);

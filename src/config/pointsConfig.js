@@ -116,12 +116,11 @@ export const pointsConfig = {
 
   // 工作日誌分類
   workLogCategories: [
-    { id: 1, name: '生產作業', color: '#10B981' },
-    { id: 2, name: '品質檢驗', color: '#3B82F6' },
-    { id: 3, name: '設備維護', color: '#F59E0B' },
-    { id: 4, name: '改善提案', color: '#8B5CF6' },
-    { id: 5, name: '教育訓練', color: '#EF4444' },
-    { id: 6, name: '其他事項', color: '#6B7280' }
+    { id: 1, name: '一般積分項目', color: '#10B981' },
+    { id: 2, name: '專業積分項目', color: '#8B5CF6' },
+    { id: 3, name: '管理積分項目', color: '#F59E0B' },
+    { id: 4, name: '臨時工作項目', color: '#06B6D4' },
+    { id: 5, name: '雜項事件', color: '#6B7280' }
   ],
 
   // 部門設定（支援權限控制）

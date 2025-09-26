@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS "Employees" (
     "Id" SERIAL PRIMARY KEY,
     "Name" VARCHAR(50) NOT NULL,
     "EmployeeNumber" VARCHAR(20) NOT NULL UNIQUE,
-    "Username" VARCHAR(50) UNIQUE NOT NULL,
     "Password" VARCHAR(255) NOT NULL,
     "Email" VARCHAR(100),
     "Phone" VARCHAR(20),
@@ -145,6 +144,19 @@ BEGIN
     
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'LogCategories') THEN
         TRUNCATE TABLE "LogCategories" RESTART IDENTITY CASCADE;
+        
+        -- 初始化工作日誌分類
+        INSERT INTO "LogCategories" ("Id", "Name", "Description", "Color", "IsActive")
+        VALUES 
+        (1, '一般積分項目', '基本工作項目', '#10B981', true),
+        (2, '專業積分項目', '專業技術項目', '#8B5CF6', true),
+        (3, '管理積分項目', '管理職能項目', '#F59E0B', true),
+        (4, '臨時工作項目', '臨時性工作項目', '#06B6D4', true),
+        (5, '雜項事件', '其他事件', '#6B7280', true)
+        ON CONFLICT ("Id") DO UPDATE SET
+            "Name" = EXCLUDED."Name",
+            "Description" = EXCLUDED."Description",
+            "Color" = EXCLUDED."Color";
     END IF;
     
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Notifications') THEN
@@ -438,10 +450,14 @@ BEGIN
     
     -- 插入部門資料
     INSERT INTO "Departments" ("Id", "Name", "Description") VALUES
-    (1, '製造部', '負責產品製造生產'),
-    (2, '品質工程部', '負責品質管控和工程技術'),
-    (3, '管理部', '負責公司管理事務'),
-    (4, '業務部', '負責客戶關係和業務拓展')
+    (1, '管理者', '管理部門人員'),
+    (2, '加工', '加工部門人員'),
+    (3, '檢驗', '檢驗部門人員'),
+    (4, '品保', '品保部門人員'),
+    (5, '生管', '生管部門人員'),
+    (6, '技師', '技術部門人員'),
+    (7, '業助', '業務部門人員'),
+    (8, '其它', '其他部門人員')
     ON CONFLICT ("Id") DO UPDATE SET
         "Name" = EXCLUDED."Name",
         "Description" = EXCLUDED."Description";
