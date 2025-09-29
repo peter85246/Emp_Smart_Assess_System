@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API測試</title>
+</head>
+<body>
+    <h1>API連接測試</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // 測試健康檢查端點
+                const healthResponse = await fetch('http://localhost:5001/api/Health');
+                resultDiv.innerHTML += `<p>健康檢查: ${healthResponse.status} - ${healthResponse.ok ? '成功' : '失敗'}</p>`;
+                
+                // 測試員工列表端點
+                const employeesResponse = await fetch('http://localhost:5001/api/auth/employees');
+                resultDiv.innerHTML += `<p>員工列表: ${employeesResponse.status} - ${employeesResponse.ok ? '成功' : '失敗'}</p>`;
+                
+                if (employeesResponse.ok) {
+                    const employees = await employeesResponse.json();
+                    resultDiv.innerHTML += `<p>員工數量: ${employees.length}</p>`;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<p>錯誤: ${error.message}</p>`;
+            }
+        }
+        
+        // 頁面載入後執行測試
+        window.onload = testAPI;
+    </script>
+</body>
+</html>

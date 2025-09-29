@@ -303,7 +303,6 @@ public async Task<ActionResult<WorkLog>> ReviewWorkLog(int id, [FromBody] Review
         return BadRequest(new { message = "審核失敗", error = ex.Message });
     }
 }
-
         /// <summary>
         /// 【GET】 /api/worklog/daily-count - 獲取員工當月填寫日誌天數
         /// 功能：計算員工指定月份的工作日誌填寫天數（去重）
@@ -357,6 +356,46 @@ public async Task<ActionResult<WorkLog>> ReviewWorkLog(int id, [FromBody] Review
             {
                 var workLogs = await _workLogService.GetWorkLogsForApprovalAsync(
                     page, pageSize, keyword, status, startDate, endDate);
+
+                return Ok(workLogs);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// 【GET】 /api/worklog/all-employees - 獲取所有員工工作日誌列表（管理員/老闆專用）
+        /// 功能：分頁查詢所有員工的工作日誌，支援員工、日期、關鍵字篩選
+        /// 前端使用：管理員/老闆瀏覽所有員工工作日誌
+        /// </summary>
+        /// <param name="page">頁碼</param>
+        /// <param name="pageSize">每頁數量</param>
+        /// <param name="keyword">關鍵字（標題/內容）</param>
+        /// <param name="employeeId">員工ID篩選</param>
+        /// <param name="startDate">開始日期</param>
+        /// <param name="endDate">結束日期</param>
+        /// <param name="year">年份篩選</param>
+        /// <param name="month">月份篩選</param>
+        /// <param name="day">日期篩選</param>
+        /// <returns>分頁的工作日誌列表</returns>
+        [HttpGet("all-employees")]
+        public async Task<ActionResult> GetAllEmployeesWorkLogs(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string keyword = "",
+            [FromQuery] int? employeeId = null,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null,
+            [FromQuery] int? year = null,
+            [FromQuery] int? month = null,
+            [FromQuery] int? day = null)
+        {
+            try
+            {
+                var workLogs = await _workLogService.GetAllEmployeesWorkLogsAsync(
+                    page, pageSize, keyword, employeeId, startDate, endDate, year, month, day);
 
                 return Ok(workLogs);
             }

@@ -24,5 +24,8 @@ namespace PointsManagementAPI.Services
         // 新增缺少的方法
         Task<int> GetWorkLogDaysCountAsync(int employeeId, int year, int month);
         Task<object> GetWorkLogsForApprovalAsync(int page, int pageSize, string keyword, string status, DateTime? startDate, DateTime? endDate);
+
+        // 管理員/老闆查看所有員工工作日誌
+        Task<object> GetAllEmployeesWorkLogsAsync(int page, int pageSize, string keyword, int? employeeId, DateTime? startDate, DateTime? endDate, int? year, int? month, int? day);
     }
 }

@@ -321,9 +321,15 @@ const WorkLogEntry = () => {
 
   // 檢查是否為圖片檔案
   const isImageFile = (fileName) => {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-    const extension = '.' + fileName.split('.').pop().toLowerCase();
-    return imageExtensions.includes(extension);
+    if (!fileName) return false;
+    try {
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+      const extension = '.' + fileName.split('.').pop().toLowerCase();
+      return imageExtensions.includes(extension);
+    } catch (error) {
+      console.warn('檢查檔案類型失敗:', error);
+      return false;
+    }
   };
 
   // 獲取檔案預覽URL - 修復URL生成邏輯
@@ -670,6 +676,20 @@ const WorkLogEntry = () => {
       showNotification('此工作日誌正在等待編輯審核，暫時無法再次編輯', 'warning');
       return;
     }
+
+    // 檢查編輯次數限制
+    const editCount = workLogAPI.getWorkLogEditCount(log.id);
+    if (editCount >= 2) {
+      showNotification('此工作日誌已達到最大編輯次數限制（2次）', 'error');
+      return;
+    }
+
+    // 顯示剩餘編輯次數提示
+    const remainingEdits = 2 - editCount;
+    showNotification(
+      `開始編輯工作日誌（剩餘 ${remainingEdits} 次編輯機會）`,
+      'info'
+    );
 
     setEditingLog(log);
     setFormData({
@@ -1098,6 +1118,21 @@ const WorkLogEntry = () => {
                         {log.category}
                       </span>
                     )}
+                    {(() => {
+                      const editCount = workLogAPI.getWorkLogEditCount(log.id);
+                      const remainingEdits = 2 - editCount;
+                      return (
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          remainingEdits > 0
+                            ? 'bg-green-600/20 text-green-300 border border-green-500/30'
+                            : 'bg-red-600/20 text-red-300 border border-red-500/30'
+                        }`}>
+                          {remainingEdits > 0
+                            ? `剩餘 ${remainingEdits} 次編輯`
+                            : '已達編輯上限'}
+                        </span>
+                      );
+                    })()}
                     {log.tags && (
                       <span className="flex items-center">
                         <Tag className="h-4 w-4 mr-1" />
@@ -1107,12 +1142,28 @@ const WorkLogEntry = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(log)}
-                    className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-600/20 rounded-lg transition-colors"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
+                  {(() => {
+                    const editCount = workLogAPI.getWorkLogEditCount(log.id);
+                    const remainingEdits = 2 - editCount;
+                    return (
+                      <button
+                        onClick={() => handleEdit(log)}
+                        className={`p-2 ${
+                          remainingEdits > 0
+                            ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-600/20'
+                            : 'text-slate-500 cursor-not-allowed'
+                        } rounded-lg transition-colors`}
+                        disabled={remainingEdits <= 0}
+                        title={
+                          remainingEdits > 0
+                            ? `編輯工作日誌（剩餘 ${remainingEdits} 次編輯機會）`
+                            : '已達到最大編輯次數限制'
+                        }
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                    );
+                  })()}
                   <button
                     onClick={() => handleDelete(log.id)}
                     className="p-2 text-red-400 hover:text-red-300 hover:bg-red-600/20 rounded-lg transition-colors"

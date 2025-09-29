@@ -94,8 +94,32 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
       try {
         const summaryResponse = await pointsAPI.getEmployeePointsSummary(employeeId, selectedMonth);
         console.log('獲取積分摘要成功:', summaryResponse.data);
+        
+        // 使用API返回的摘要數據
+        const apiSummary = summaryResponse.data;
+        const stats = {
+          total: apiSummary.monthlyTotal,
+          targetPoints: 100,
+          achievementRate: Math.round((apiSummary.monthlyTotal / 100) * 100),
+          byType: apiSummary.categoryTotals,
+          grade: pointsUtils?.getGradeName 
+            ? pointsUtils.getGradeName(Math.round((apiSummary.monthlyTotal / 100) * 100))
+            : (apiSummary.monthlyTotal >= 80 ? 'A' : apiSummary.monthlyTotal >= 60 ? 'B' : 'C'),
+          gradeColor: pointsUtils?.getGradeColor 
+            ? pointsUtils.getGradeColor(Math.round((apiSummary.monthlyTotal / 100) * 100))
+            : (apiSummary.monthlyTotal >= 80 ? '#10B981' : apiSummary.monthlyTotal >= 60 ? '#F59E0B' : '#EF4444'),
+          entriesCount: transformedPointsData.filter(item => 
+            item.entryDate.startsWith(selectedMonth)).length,
+          selectedMonth: selectedMonth
+        };
+        
+        setMonthlyStats(stats);
+        console.log('設置API返回的月度統計:', stats);
       } catch (summaryError) {
-        console.log('積分摘要API可能尚未實現，使用計算值');
+        console.log('積分摘要API錯誤，使用計算值:', summaryError);
+        // 如果API失敗，使用本地計算
+        const stats = calculateMonthlyStats(transformedPointsData, selectedMonth);
+        setMonthlyStats(stats);
       }
 
       // 生成趨勢數據（基於實際數據）
@@ -105,14 +129,10 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
       setPointsData(transformedPointsData);
       setTrendData(trendData);
       
-      // 計算月度統計 - 傳入選擇的月份
-      const stats = calculateMonthlyStats(transformedPointsData, selectedMonth);
-      setMonthlyStats(stats);
-      
       console.log('個人數據載入完成:', {
         pointsCount: transformedPointsData.length,
         trendDataPoints: trendData.length,
-        monthlyStats: stats
+        monthlyStats: monthlyStats
       });
       
     } catch (error) {
@@ -309,18 +329,35 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
     console.log('計算月度統計 - 輸入數據總數:', allData.length);
     
     // 根據選擇的月份篩選數據
-    const monthData = filterDataByMonth(allData, selectedMonth);
+    const monthData = allData.filter(item => {
+      const itemMonth = new Date(item.entryDate).toISOString().slice(0, 7);
+      const match = itemMonth === selectedMonth;
+      if (match) {
+        console.log('找到匹配的數據:', item);
+      }
+      return match;
+    });
+    
     console.log('月份篩選後數據數量:', monthData.length);
     
     // 只計算已核准的積分
-    const approvedData = monthData.filter(item => item.status === 'approved');
+    const approvedData = monthData.filter(item => 
+      item.status === 'approved' || item.status === 'auto_approved'
+    );
     console.log('已核准的數據數量:', approvedData.length);
     
-    const total = approvedData.reduce((sum, item) => sum + (item.pointsEarned || 0), 0);
+    // 計算總積分（包括基礎積分和獎勵積分）
+    const total = approvedData.reduce((sum, item) => {
+      const basePoints = item.pointsEarned || 0;
+      const bonusPoints = item.bonusPoints || 0;
+      return sum + basePoints + bonusPoints;
+    }, 0);
+
+    // 按類型統計積分
     const byType = approvedData.reduce((acc, item) => {
-      // 使用映射後的類型進行統計
       const mappedType = mapPointsType(item.pointsType, item.standardName);
-      acc[mappedType] = (acc[mappedType] || 0) + (item.pointsEarned || 0);
+      const itemTotal = (item.pointsEarned || 0) + (item.bonusPoints || 0);
+      acc[mappedType] = (acc[mappedType] || 0) + itemTotal;
       return acc;
     }, {});
 
@@ -1093,8 +1130,82 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
           <input
             type="month"
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            onChange={(e) => {
+              const newMonth = e.target.value;
+              console.log('月份變更:', { oldMonth: selectedMonth, newMonth });
+              setSelectedMonth(newMonth);
+              // 觸發數據重新載入
+              loadPersonalData();
+            }}
             className="bg-slate-700 border border-slate-500 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+      </div>
+
+      {/* 選定月份統計 */}
+      <div className="bg-gradient-to-br from-slate-800 to-slate-800/50 backdrop-blur-sm rounded-lg p-4 mb-4 border border-slate-700/50 shadow-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <TrendingUp className="h-4 w-4 text-blue-400" />
+            <div>
+              <h3 className="text-sm font-semibold text-white">月度績效概覽</h3>
+              <p className="text-xs text-slate-400">{selectedMonth.split('-')[0]}年{selectedMonth.split('-')[1]}月</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-1.5 bg-slate-700/30 px-2 py-0.5 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
+            <span className="text-xs text-slate-300">即時</span>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-slate-700/30 rounded-lg p-2">
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400 mb-1">當前積分</span>
+              <div className="flex items-baseline">
+                <span className="text-lg font-bold text-blue-400">
+                  {monthlyStats.total?.toFixed(1) || '0.0'}
+                </span>
+                <span className="text-xs text-slate-400 ml-1">分</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-700/30 rounded-lg p-2">
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400 mb-1">達成率</span>
+              <div className="flex items-baseline">
+                <span className={`text-lg font-bold ${
+                  (monthlyStats.achievementRate || 0) >= 80 ? 'text-green-400' :
+                  (monthlyStats.achievementRate || 0) >= 60 ? 'text-yellow-400' :
+                  'text-red-400'
+                }`}>
+                  {monthlyStats.achievementRate || 0}
+                </span>
+                <span className="text-xs text-slate-400 ml-1">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-700/30 rounded-lg p-2">
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400 mb-1">目標</span>
+              <div className="flex items-baseline">
+                <span className="text-lg font-semibold text-white">{monthlyStats.targetPoints || 100}</span>
+                <span className="text-xs text-slate-400 ml-1">分</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2 w-full bg-slate-600/50 rounded-full h-1.5">
+          <div
+            className={`rounded-full h-1.5 transition-all duration-500 ease-out ${
+              (monthlyStats.achievementRate || 0) >= 80 ? 'bg-green-400' :
+              (monthlyStats.achievementRate || 0) >= 60 ? 'bg-yellow-400' :
+              'bg-red-400'
+            }`}
+            style={{ width: `${Math.min(monthlyStats.achievementRate || 0, 100)}%` }}
           />
         </div>
       </div>

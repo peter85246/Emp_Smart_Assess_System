@@ -49,16 +49,43 @@ namespace PointsManagementAPI.Models.WorkLogModels
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public DateTime? UpdatedAt { get; set; }
+        // �ק� UpdatedAt ���w�q�A��l�Ȭ� null
+        public DateTime? UpdatedAt { get; set; } = null;
 
         // Helper property to work with attachments as list
         [NotMapped]
         public List<WorkLogAttachment> AttachmentsList
         {
-            get => string.IsNullOrEmpty(Attachments) 
-                ? new List<WorkLogAttachment>() 
-                : JsonSerializer.Deserialize<List<WorkLogAttachment>>(Attachments) ?? new List<WorkLogAttachment>();
-            set => Attachments = JsonSerializer.Serialize(value);
+            get
+            {
+                if (string.IsNullOrEmpty(Attachments))
+                    return new List<WorkLogAttachment>();
+
+                try
+                {
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    };
+                    return JsonSerializer.Deserialize<List<WorkLogAttachment>>(Attachments, options) ?? new List<WorkLogAttachment>();
+                }
+                catch (JsonException ex)
+                {
+                    Console.WriteLine($"解析附件失敗: {ex.Message}");
+                    Console.WriteLine($"原始附件數據: {Attachments}");
+                    return new List<WorkLogAttachment>();
+                }
+            }
+            set
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                };
+                Attachments = JsonSerializer.Serialize(value, options);
+            }
         }
 
         // Helper property to work with tags as list
@@ -74,11 +101,14 @@ namespace PointsManagementAPI.Models.WorkLogModels
 
     public class WorkLogAttachment
     {
-        public string FileName { get; set; } = string.Empty;
-        public string FilePath { get; set; } = string.Empty;
-        public string FileType { get; set; } = string.Empty;
-        public long FileSize { get; set; }
-        public DateTime UploadDate { get; set; } = DateTime.UtcNow;
+        public string id { get; set; } = string.Empty;
+        public string name { get; set; } = string.Empty;
+        public long size { get; set; }
+        public string type { get; set; } = string.Empty;
+        public string url { get; set; } = string.Empty;
+        public DateTime uploadDate { get; set; }
+        public bool isNew { get; set; }
+        public object? file { get; set; }
     }
 
 

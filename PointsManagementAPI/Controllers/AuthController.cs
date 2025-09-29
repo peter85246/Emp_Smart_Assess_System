@@ -451,6 +451,47 @@ namespace PointsManagementAPI.Controllers
         }
 
         /// <summary>
+        /// 【GET】 /api/auth/employees - 獲取員工清單
+        /// 功能：提供前端下拉選單使用的員工資料（管理員專用）
+        /// 權限：管理員以上級別
+        /// </summary>
+        /// <returns>員工ID、姓名、員工編號列表</returns>
+        [HttpGet("employees")]
+        [SwaggerOperation(
+            Summary = "取得員工清單",
+            Description = "獲取所有活躍員工選項，供管理功能使用",
+            OperationId = "GetEmployees",
+            Tags = new[] { "🔐 帳號認證管理" }
+        )]
+        [SwaggerResponse(200, "員工清單", typeof(List<object>))]
+        [SwaggerResponse(500, "伺服器錯誤", typeof(object))]
+        public async Task<ActionResult> GetEmployees()
+        {
+            try
+            {
+                var employees = await _context.Employees
+                    .Where(e => e.IsActive)
+                    .Include(e => e.Department)
+                    .Select(e => new {
+                        id = e.Id,
+                        name = e.Name,
+                        employeeNumber = e.EmployeeNumber,
+                        position = e.Position,
+                        departmentId = e.DepartmentId,
+                        departmentName = e.Department != null ? e.Department.Name : "未分配"
+                    })
+                    .OrderBy(e => e.employeeNumber)
+                    .ToListAsync();
+
+                return Ok(employees);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "獲取員工列表時發生錯誤", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// 職位可用性檢查
         /// </summary>
         /// <remarks>

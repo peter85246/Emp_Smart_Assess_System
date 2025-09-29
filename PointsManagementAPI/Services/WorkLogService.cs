@@ -4,6 +4,8 @@ using PointsManagementAPI.Models.WorkLogModels;
 using PointsManagementAPI.Models.UserModels;
 using PointsManagementAPI.Models.PointsModels;
 using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace PointsManagementAPI.Services
 {
@@ -41,12 +43,14 @@ namespace PointsManagementAPI.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 設置創建時間
+                // 設置創建時間為 UTC
                 workLog.CreatedAt = DateTime.UtcNow;
-                if (workLog.LogDate == default(DateTime))
-                {
-                    workLog.LogDate = DateTime.UtcNow;
-                }
+                
+                // 設置日誌日期為當前日期（不帶時間）
+                workLog.LogDate = DateTime.UtcNow.Date;
+                
+                // 初始化時不設置更新時間
+                workLog.UpdatedAt = null;
 
                 // 修正日期比較邏輯 - 避免使用 date_trunc
                 var logDate = workLog.LogDate.Date;
@@ -451,6 +455,97 @@ namespace PointsManagementAPI.Services
                     EmployeeName = w.Employee.Name,
                     EmployeeId = w.EmployeeId,
                     CategoryName = w.Category != null ? w.Category.Name : null
+                })
+                .ToListAsync();
+
+            return new
+            {
+                Items = items,
+                Total = total,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)total / pageSize)
+            };
+        }
+
+        /// <summary>
+        /// 獲取所有員工工作日誌列表（管理員/老闆專用）
+        /// </summary>
+        public async Task<object> GetAllEmployeesWorkLogsAsync(int page, int pageSize, string keyword, int? employeeId, DateTime? startDate, DateTime? endDate, int? year, int? month, int? day)
+        {
+            var query = _context.WorkLogs
+                .Include(w => w.Employee)
+                .Include(w => w.Category)
+                .AsQueryable();
+
+            // 關鍵字篩選（標題或內容）
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(w => w.Title.Contains(keyword) ||
+                                        (w.Content != null && w.Content.Contains(keyword)) ||
+                                        w.Employee.Name.Contains(keyword));
+            }
+
+            // 員工篩選
+            if (employeeId.HasValue)
+            {
+                query = query.Where(w => w.EmployeeId == employeeId.Value);
+            }
+
+            // 日期範圍篩選
+            if (startDate.HasValue)
+            {
+                query = query.Where(w => w.LogDate >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(w => w.LogDate <= endDate.Value);
+            }
+
+            // 年月日精確篩選
+            if (year.HasValue)
+            {
+                query = query.Where(w => w.LogDate.Year == year.Value);
+            }
+
+            if (month.HasValue)
+            {
+                query = query.Where(w => w.LogDate.Month == month.Value);
+            }
+
+            if (day.HasValue)
+            {
+                query = query.Where(w => w.LogDate.Day == day.Value);
+            }
+
+            // 計算總數
+            var total = await query.CountAsync();
+
+            // 分頁查詢
+            var items = await query
+                .OrderByDescending(w => w.LogDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(w => new
+                {
+                    w.Id,
+                    w.Title,
+                    w.Content,
+                    w.LogDate,
+                    w.Status,
+                    w.CreatedAt,
+                    w.UpdatedAt,
+                    w.ReviewComments,
+                    w.Tags,
+                    w.Attachments,
+                    w.PointsClaimed,
+                    EmployeeName = w.Employee.Name,
+                    EmployeeId = w.EmployeeId,
+                    EmployeeNumber = w.Employee.EmployeeNumber,
+                    DepartmentId = w.Employee.DepartmentId,
+                    CategoryName = w.Category != null ? w.Category.Name : null,
+                    CategoryId = w.CategoryId
                 })
                 .ToListAsync();
 

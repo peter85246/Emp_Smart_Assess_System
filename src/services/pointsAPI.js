@@ -454,9 +454,35 @@ export const workLogAPI = {
     }
   },
 
+  // 獲取工作日誌編輯次數
+  getWorkLogEditCount(id) {
+    const editCounts = JSON.parse(localStorage.getItem('workLogEditCounts') || '{}');
+    return editCounts[id] || 0;
+  },
+
+  // 增加工作日誌編輯次數
+  incrementWorkLogEditCount(id) {
+    const editCounts = JSON.parse(localStorage.getItem('workLogEditCounts') || '{}');
+    editCounts[id] = (editCounts[id] || 0) + 1;
+    localStorage.setItem('workLogEditCounts', JSON.stringify(editCounts));
+    return editCounts[id];
+  },
+
+  // 檢查是否可以編輯工作日誌
+  canEditWorkLog(id) {
+    const MAX_EDIT_COUNT = 2;
+    const currentCount = this.getWorkLogEditCount(id);
+    return currentCount < MAX_EDIT_COUNT;
+  },
+
   // 更新工作日誌
   async updateWorkLog(id, data) {
     try {
+      // 檢查編輯次數限制
+      if (!this.canEditWorkLog(id)) {
+        throw new Error('已達到最大編輯次數限制（2次）');
+      }
+
       console.log('更新工作日誌API調用:', {
         id: id,
         url: getApiUrl(`/worklog/${id}`),
@@ -495,7 +521,17 @@ export const workLogAPI = {
 
       const result = await response.json();
       console.log('更新工作日誌成功響應:', result);
-      return result;
+      
+      // 增加編輯次數
+      const newEditCount = this.incrementWorkLogEditCount(id);
+      console.log(`工作日誌 ${id} 已編輯 ${newEditCount} 次`);
+      
+      // 在結果中添加編輯次數信息
+      return {
+        ...result,
+        editCount: newEditCount,
+        remainingEdits: 2 - newEditCount
+      };
     } catch (error) {
       console.error('更新工作日誌錯誤:', error);
       throw error;

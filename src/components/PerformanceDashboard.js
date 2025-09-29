@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Tabs } from 'antd';
 import WorkLogApproval from './worklog/WorkLogApproval';
 import WorkLogHistory from './worklog/WorkLogHistory';
+import WorkLogBrowse from './worklog/WorkLogBrowse';
 import { useAuth } from '../contexts/AuthContext';
 import { pointsConfig } from '../config/pointsConfig';
 import {
@@ -1536,11 +1537,14 @@ export default function PerformanceDashboard() {
   const WorkLogManagement = () => {
     return (
       <div className="worklog-management-container">
-        <Tabs defaultActiveKey="approval">
-          <Tabs.TabPane tab="審核管理" key="approval">
+        <Tabs defaultActiveKey="browse">
+          <Tabs.TabPane tab="📋 瀏覽所有日誌" key="browse">
+            <WorkLogBrowse />
+          </Tabs.TabPane>
+          <Tabs.TabPane tab="⚖️ 審核管理" key="approval">
             <WorkLogApproval />
           </Tabs.TabPane>
-          <Tabs.TabPane tab="編輯歷史" key="history">
+          <Tabs.TabPane tab="📝 編輯歷史" key="history">
             <WorkLogHistory />
           </Tabs.TabPane>
         </Tabs>

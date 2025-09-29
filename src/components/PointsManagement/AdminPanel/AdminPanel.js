@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Settings, Users, BarChart3, FileText, Target, Award, Info } from 'lucide-react';
 import WorkLogApproval from '../../worklog/WorkLogApproval';
 import WorkLogHistory from '../../worklog/WorkLogHistory';
+import WorkLogBrowse from '../../worklog/WorkLogBrowse';
 import ManagerReviewForm from './ManagerReviewForm';
 import { pointsAPI } from '../../../services/pointsAPI';
 import { getApiUrl } from '../../../config/apiConfig';
@@ -221,7 +222,7 @@ const TargetScoreView = ({ currentUser }) => (
 );
 
 const WorkLogManagement = ({ currentUser }) => {
-  const [activeTab, setActiveTab] = useState('approval');
+  const [activeTab, setActiveTab] = useState('browse');
 
   return (
     <div className="min-h-screen p-6 flex flex-col">
@@ -230,6 +231,16 @@ const WorkLogManagement = ({ currentUser }) => {
         <div className="border-b border-slate-600/50">
           <div className="flex">
             <button
+              onClick={() => setActiveTab('browse')}
+              className={`px-6 py-3 font-medium text-sm transition-colors ${
+                activeTab === 'browse'
+                  ? 'border-b-2 border-blue-400 text-blue-300 bg-slate-600/50'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-600/30'
+              }`}
+            >
+              瀏覽日誌
+            </button>
+            {/* <button
               onClick={() => setActiveTab('approval')}
               className={`px-6 py-3 font-medium text-sm transition-colors ${
                 activeTab === 'approval'
@@ -248,11 +259,13 @@ const WorkLogManagement = ({ currentUser }) => {
               }`}
             >
               編輯歷史
-            </button>
+            </button> */}
           </div>
         </div>
         <div className="p-6">
-          {activeTab === 'approval' ? (
+          {activeTab === 'browse' ? (
+            <WorkLogBrowse currentUser={currentUser} />
+          ) : activeTab === 'approval' ? (
             <WorkLogApproval currentUser={currentUser} />
           ) : (
             <WorkLogHistory currentUser={currentUser} />
@@ -281,7 +294,6 @@ const AdminPanel = ({ currentUser }) => {
   const [departmentStats, setDepartmentStats] = useState({
     totalEmployees: 0,
     pendingReviews: 0,
-    averageScore: 0,
     completionRate: 0
   });
   const [loading, setLoading] = useState(true);
@@ -369,49 +381,6 @@ const AdminPanel = ({ currentUser }) => {
           );
         }
         
-      case 'averageScore':
-        if (currentUser?.role === 'boss') {
-          return (
-            <div>
-              <div className="font-medium text-slate-100 mb-2">這個數字代表全公司員工的平均積分表現</div>
-              <div className="mb-2">📈 <strong className="text-blue-300">項目說明：</strong>所有員工的積分總和除以員工人數</div>
-              <div className="mb-2">✅ <strong className="text-blue-300">包含項目：</strong>只計算已通過審核的積分項目</div>
-              <div className="mb-2">👥 <strong className="text-blue-300">涵蓋人員：</strong>包含所有員工，即使是零積分的員工</div>
-              <div className="text-slate-400">💡 這個指標幫助您了解公司整體績效水準和員工表現</div>
-            </div>
-          );
-        } else if (currentUser?.role === 'president') {
-          return (
-            <div>
-              <div className="font-medium text-slate-100 mb-2">這個數字代表您管理範圍內員工的平均積分</div>
-              <div className="mb-2">📈 <strong className="text-blue-300">項目說明：</strong>管理範圍內員工積分總和除以員工人數</div>
-              <div className="mb-2">✅ <strong className="text-blue-300">包含項目：</strong>只計算已通過審核的積分項目</div>
-              <div className="mb-2">👥 <strong className="text-blue-300">涵蓋人員：</strong>除董事長外的所有員工（含零積分員工）</div>
-              <div className="text-slate-400">💡 此指標反映您管理團隊的整體績效表現</div>
-            </div>
-          );
-        } else if (currentUser?.role === 'admin') {
-          return (
-            <div>
-              <div className="font-medium text-slate-100 mb-2">這個數字代表您負責審核員工的平均積分</div>
-              <div className="mb-2">📈 <strong className="text-blue-300">項目說明：</strong>可審核員工的積分總和除以員工人數</div>
-              <div className="mb-2">✅ <strong className="text-blue-300">包含項目：</strong>只計算已通過審核的積分項目</div>
-              <div className="mb-2">👥 <strong className="text-blue-300">涵蓋人員：</strong>您有審核權限的部門員工（含零積分員工）</div>
-              <div className="text-slate-400">💡 這幫助您了解負責範圍內的員工績效狀況</div>
-            </div>
-          );
-        } else {
-          return (
-            <div>
-              <div className="font-medium text-slate-100 mb-2">這個數字代表您部門員工的平均積分表現</div>
-              <div className="mb-2">📈 <strong className="text-blue-300">項目說明：</strong>部門員工積分總和除以員工人數</div>
-              <div className="mb-2">✅ <strong className="text-blue-300">包含項目：</strong>只計算已通過審核的積分項目</div>
-              <div className="mb-2">👥 <strong className="text-blue-300">涵蓋人員：</strong>部門所有員工（含零積分員工）</div>
-              <div className="text-slate-400">💡 此指標幫助您評估部門整體績效和員工表現水準</div>
-            </div>
-          );
-        }
-        
       case 'completionRate':
         return (
           <div>
@@ -444,8 +413,8 @@ const AdminPanel = ({ currentUser }) => {
         
         // 獲取待審核數據（根據用戶角色選擇API）
         let pendingData = [];
-        if (currentUser?.role === 'boss' || currentUser?.role === 'president') {
-          // 董事長和總經理可以看所有數據
+        if (currentUser?.role === 'boss' || currentUser?.role === 'admin' || currentUser?.role === 'president') {
+          // 董事長、管理員和總經理可以看所有數據
           const response = await pointsAPI.getPendingEntries();
           let allPendingData = response.data || response || [];
           
@@ -472,13 +441,12 @@ const AdminPanel = ({ currentUser }) => {
         // 計算統計數據
         const pendingCount = Array.isArray(pendingData) ? pendingData.length : 0;
         
-        // 獲取員工數和平均分數
+        // 獲取員工數
         let totalEmployees = 0;
-        let averageScore = 0;
         
         try {
-          if (currentUser?.role === 'boss' || currentUser?.role === 'president') {
-            // 董事長和總經理：獲取全公司統計
+          if (currentUser?.role === 'boss' || currentUser?.role === 'admin' || currentUser?.role === 'president') {
+            // 董事長、管理員和總經理：獲取全公司統計
             console.log('獲取全公司員工統計...');
             
             try {
@@ -540,22 +508,8 @@ const AdminPanel = ({ currentUser }) => {
                     allEmployeesCount += deptRanking.totalEmployees || 0;
                     }
                     
-                    // 計算該部門的平均積分
-                    if (deptRanking.ranking && Array.isArray(deptRanking.ranking)) {
-                      deptRanking.ranking.forEach(emp => {
-                        // 修正：President角色排除董事長數據
-                        const excludeBoss = currentUser?.role === 'president' && 
-                                          (emp.position === '董事長' || emp.employeeName?.includes('董事長'));
-                        
-                        if (!excludeBoss) {
-                          // 修正：包含零積分員工，計算真實平均值
-                          totalAllPoints += emp.totalPoints || 0;
-                          totalAllPointsCount++;
-                        } else {
-                          console.log('President排除董事長數據:', emp.employeeName);
-                        }
-                      });
-                    }
+                    // 移除平均積分計算邏輯，因為不再需要
+                    console.log(`部門 ${deptId} 數據載入完成`);
                   } else {
                     console.log(`部門 ${deptId} API 不可用或無數據`);
                   }
@@ -566,18 +520,15 @@ const AdminPanel = ({ currentUser }) => {
               
               if (allEmployeesCount > 0) {
                 totalEmployees = allEmployeesCount;
-                averageScore = totalAllPointsCount > 0 ? (totalAllPoints / totalAllPointsCount) : 0;
-                console.log('全公司統計結果:', { totalEmployees, averageScore });
+                console.log('全公司統計結果:', { totalEmployees });
               } else {
                 console.log('無法獲取部門數據，使用固定值');
                 // 如果API都失效，使用資料庫已知的員工數
                 totalEmployees = 5; // 根據您的資料庫顯示有5個員工
-                averageScore = 0;
               }
             } catch (overallError) {
               console.log('獲取統計數據失敗，使用固定值:', overallError);
               totalEmployees = 5; // 使用已知的員工總數
-              averageScore = 0;
             }
           } else {
             // 主管和管理員：只統計部門數據
@@ -609,30 +560,7 @@ const AdminPanel = ({ currentUser }) => {
                    totalEmployees = deptRanking.totalEmployees || 0;
                    }
                    
-                   // 修正：計算部門平均積分（包含零積分員工）
-                   if (deptRanking.ranking && Array.isArray(deptRanking.ranking)) {
-                     let deptTotalPoints = 0;
-                     let eligibleEmployees = deptRanking.ranking;
-                     
-                     // Admin角色只計算可審核員工的積分
-                     if (currentUser?.role === 'admin') {
-                       eligibleEmployees = deptRanking.ranking.filter(emp => 
-                         emp.employeeId !== currentUser.id &&
-                         (emp.position !== '董事長' && emp.position !== '總經理')
-                       );
-                     }
-                     
-                     // 修正：包含零積分員工，計算真實平均值
-                     eligibleEmployees.forEach(emp => {
-                       deptTotalPoints += emp.totalPoints || 0; // 包含零積分
-                     });
-                     
-                     averageScore = eligibleEmployees.length > 0 ? 
-                       (deptTotalPoints / eligibleEmployees.length) : 0;
-                     console.log('修正後平均積分計算:', { deptTotalPoints, employeeCount: eligibleEmployees.length, averageScore });
-                   }
-                   
-                   console.log('部門統計結果:', { totalEmployees, averageScore });
+                    console.log('部門統計結果:', { totalEmployees });
                  } else {
                    console.log('獲取部門排名失敗，使用備用統計方法');
                    // 備用方法：從待審核數據統計
@@ -669,7 +597,7 @@ const AdminPanel = ({ currentUser }) => {
             }
           });
           totalEmployees = Math.max(uniqueEmployees.size, 1);
-          averageScore = 0;
+          
         }
 
         // 修正：計算真實的審核完成率（基於實際項目數量）
@@ -746,7 +674,6 @@ const AdminPanel = ({ currentUser }) => {
         setDepartmentStats({
           totalEmployees: totalEmployees,
           pendingReviews: pendingCount,
-          averageScore: averageScore,
           completionRate: Math.min(100, completionRate)
         });
 
@@ -756,7 +683,6 @@ const AdminPanel = ({ currentUser }) => {
         setDepartmentStats({
           totalEmployees: 0,
           pendingReviews: 0,
-          averageScore: 0,
           completionRate: 0
         });
       } finally {
@@ -798,13 +724,13 @@ const AdminPanel = ({ currentUser }) => {
     //   description: '查看所有員工的目標達成率',
     //   component: TargetScoreView
     // },
-    // {
-    //   id: 'worklog',
-    //   name: '工作日誌管理',
-    //   icon: Users,
-    //   description: '搜索與分類管理工作日誌',
-    //   component: WorkLogManagement
-    // }
+    {
+      id: 'worklog',
+      name: '工作日誌管理',
+      icon: Users,
+      description: '搜索與分類管理工作日誌',
+      component: WorkLogManagement
+    }
   ];
 
   const ActiveComponent = menuItems.find(item => item.id === activeView)?.component || StandardSettingsPanel;
@@ -849,13 +775,6 @@ const AdminPanel = ({ currentUser }) => {
                 value={`${departmentStats.pendingReviews}項`}
                 tooltip={getTooltipContent('pendingReviews')}
                 valueClassName={`text-sm font-medium ${departmentStats.pendingReviews > 0 ? 'text-yellow-400' : 'text-green-400'}`}
-              />
-              
-              <StatisticItem
-                label="平均積分"
-                value={departmentStats.averageScore > 0 ? departmentStats.averageScore.toFixed(1) : '0.0'}
-                tooltip={getTooltipContent('averageScore')}
-                valueClassName="text-sm font-medium text-green-400"
               />
               
               <StatisticItem
@@ -907,17 +826,17 @@ const AdminPanel = ({ currentUser }) => {
             快速操作
           </h4>
           <div className="space-y-2">
+            <button className="w-full text-left text-xs text-blue-300 hover:text-blue-200 flex items-center">
+              <span className="text-blue-400 mr-1">🔍</span>
+              待審核項目篩選
+            </button>
             <button className="w-full text-left text-xs text-yellow-300 hover:text-yellow-200 flex items-center">
               <span className="text-yellow-400 mr-1">⚡</span>
               批量審核積分記錄
             </button>
             <button className="w-full text-left text-xs text-green-300 hover:text-green-200 flex items-center">
-              <span className="text-green-400 mr-1">📊</span>
-              導出月度報表
-            </button>
-            <button className="w-full text-left text-xs text-blue-300 hover:text-blue-200 flex items-center">
-              <span className="text-blue-400 mr-1">⚙️</span>
-              設定推廣期參數
+              <span className="text-green-400 mr-1">💬</span>
+              審核評語管理
             </button>
           </div>
         </div>

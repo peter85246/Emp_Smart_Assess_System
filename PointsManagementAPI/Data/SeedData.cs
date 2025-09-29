@@ -159,43 +159,50 @@ namespace PointsManagementAPI.Data
             }
 
             // 檢查是否已有工作日誌分類資料
+            // 注意：這些分類與前端 pointsConfig.js 中的 workLogCategories 配置相對應
+            // 只有在資料庫完全空白時才會執行初始化
             if (!await context.LogCategories.AnyAsync())
             {
                 var logCategories = new List<LogCategory>
                 {
+                    // ID: 1 - 基礎工作項目分類
                     new LogCategory
                     {
-                        Name = "生產作業",
-                        Description = "生產線作業相關工作記錄",
-                        Color = "#10B981",
+                        Name = "一般積分項目",
+                        Description = "基本工作項目",
+                        Color = "#10B981", // 綠色
                         IsActive = true
                     },
+                    // ID: 2 - 專業技術相關分類
                     new LogCategory
                     {
-                        Name = "品質檢驗",
-                        Description = "產品品質檢驗相關工作記錄",
-                        Color = "#3B82F6",
+                        Name = "專業積分項目",
+                        Description = "專業技術項目",
+                        Color = "#8B5CF6", // 紫色
                         IsActive = true
                     },
+                    // ID: 3 - 管理職能相關分類
                     new LogCategory
                     {
-                        Name = "設備維護",
-                        Description = "設備保養維護相關工作記錄",
-                        Color = "#F59E0B",
+                        Name = "管理積分項目",
+                        Description = "管理職能項目",
+                        Color = "#F59E0B", // 橙色
                         IsActive = true
                     },
+                    // ID: 4 - 臨時性工作分類
                     new LogCategory
                     {
-                        Name = "改善提案",
-                        Description = "工作流程改善提案記錄",
-                        Color = "#8B5CF6",
+                        Name = "臨時工作項目",
+                        Description = "臨時性工作項目",
+                        Color = "#06B6D4", // 藍色
                         IsActive = true
                     },
+                    // ID: 5 - 其他雜項分類
                     new LogCategory
                     {
-                        Name = "教育訓練",
-                        Description = "教育訓練參與記錄",
-                        Color = "#EF4444",
+                        Name = "雜項事件",
+                        Description = "其他事件",
+                        Color = "#6B7280", // 灰色
                         IsActive = true
                     }
                 };
