@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, Calendar, Tag, FileText, Edit, Trash2, X, Download, Eye, Image, Loader, Save } from 'lucide-react';
 import { workLogAPI, fileUploadAPI } from '../../../services/pointsAPI';
-import { pointsConfig } from '../../../config/pointsConfig';
+import { pointsConfig, pointsUtils } from '../../../config/pointsConfig';
+import axios from 'axios';
 import useNotification from '../hooks/useNotification';
 import useConfirmDialog from '../hooks/useConfirmDialog';
 import NotificationToast from '../shared/NotificationToast';
@@ -146,44 +147,45 @@ const WorkLogEntry = () => {
     try {
       console.log('開始載入工作日誌，員工ID:', employeeId);
       const response = await workLogAPI.getEmployeeWorkLogs(employeeId);
-      console.log('載入工作日誌回應:', response);
-      console.log('響應類型:', typeof response);
-      console.log('是否為數組:', Array.isArray(response));
-
-      // 處理不同的響應格式
-      let workLogsData = [];
-      if (Array.isArray(response)) {
-        // 直接是數組
-        workLogsData = response;
-        console.log('使用直接數組格式');
-      } else if (response && Array.isArray(response.data)) {
-        // 包裝在data字段中
-        workLogsData = response.data;
-        console.log('使用data字段格式');
-      } else if (response && response.data && Array.isArray(response.data.data)) {
-        // 雙重包裝
-        workLogsData = response.data.data;
-        console.log('使用雙重包裝格式');
-      } else {
-        console.log('未知的響應格式:', response);
-        console.log('響應的所有鍵:', response ? Object.keys(response) : 'null');
-        workLogsData = [];
-      }
-
-      console.log('解析後的工作日誌數據:', workLogsData);
-      console.log('工作日誌數量:', workLogsData.length);
       
+      let workLogsData = Array.isArray(response) ? response :
+                        Array.isArray(response.data) ? response.data :
+                        response.data?.data || [];
+
       if (workLogsData.length > 0) {
-        const transformedWorkLogs = workLogsData.map(log => ({
-          id: log.id,
-          title: log.title || '工作日誌',
-          content: log.content || '',
-          category: getCategoryName(log.category || log.categoryId),
-          tags: log.tags || '',
-          logDate: log.logDate ? new Date(log.logDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          createdAt: log.createdAt || new Date().toISOString(),
-          attachments: parseAttachments(log.attachments)
-        }));
+        // 對每個工作日誌處理附件
+        const transformedWorkLogs = workLogsData.map(log => {
+          let attachments = [];
+          
+          // 解析 attachments 字符串
+          if (log.attachments) {
+            try {
+              attachments = typeof log.attachments === 'string' 
+                ? JSON.parse(log.attachments)
+                : log.attachments;
+            } catch (error) {
+              console.error(`解析工作日誌 ${log.id} 的附件失敗:`, error);
+            }
+          }
+
+          return {
+            id: log.id,
+            title: log.title || '工作日誌',
+            content: log.content || '',
+            category: getCategoryName(log.category || log.categoryId),
+            tags: log.tags || '',
+            logDate: log.logDate ? new Date(log.logDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            createdAt: log.createdAt || new Date().toISOString(),
+            attachments: attachments.map(attachment => ({
+              id: attachment.id,
+              name: attachment.name,
+              size: attachment.size,
+              type: attachment.type,
+              url: attachment.url,
+              uploadDate: attachment.uploadDate
+            }))
+          };
+        });
         
         setWorkLogs(transformedWorkLogs);
         console.log('轉換後的工作日誌:', transformedWorkLogs);
@@ -248,58 +250,71 @@ const WorkLogEntry = () => {
 
     setUploadingFiles(true);
     const startTime = Date.now();
-    const minimumLoadingTime = 2000; // 2秒最小加載時間
+    const minimumLoadingTime = 2000;
 
     try {
       const uploadedFiles = [];
       
       for (const file of files) {
-        // 驗證檔案大小
-        if (file.size > 10 * 1024 * 1024) {
-          showNotification(`檔案 ${file.name} 超過 10MB 限制`, 'error');
-          continue;
-        }
-
-        // 驗證檔案格式
-        const allowedTypes = ['.jpg', '.jpeg', '.png', '.pdf', '.docx', '.xlsx'];
-        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-        if (!allowedTypes.includes(fileExtension)) {
-          showNotification(`檔案 ${file.name} 格式不支援`, 'error');
+        // 驗證檔案
+        const validation = pointsUtils.validateFile(file);
+        if (!validation.isValid) {
+          showNotification(validation.errors[0], 'error');
           continue;
         }
 
         // 檢查檔案數量限制
-        if (formData.attachments.length + uploadedFiles.length >= 5) {
-          showNotification('最多只能上傳 5 個檔案', 'error');
+        if (formData.attachments.length + uploadedFiles.length >= pointsConfig.fileUpload.maxFiles) {
+          showNotification(`最多只能上傳 ${pointsConfig.fileUpload.maxFiles} 個檔案`, 'error');
           break;
         }
 
-        // 添加檔案到列表 - 修復ID生成邏輯
-        uploadedFiles.push({
-          id: Date.now() + Math.floor(Math.random() * 1000), // 確保是整數
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          url: URL.createObjectURL(file),
-          uploadDate: new Date().toISOString(),
-          isNew: true,
-          file: file
-        });
+        // 準備上傳資料
+        const formDataObj = new FormData();
+        formDataObj.append('file', file);
+        formDataObj.append('entityType', 'WorkLog');
+        formDataObj.append('entityId', editingLog ? editingLog.id : 0);
+        formDataObj.append('uploadedBy', employeeId);
+
+        // 上傳到後端
+        try {
+          const response = await axios.post(
+            `${pointsConfig.apiEndpoints.base}/fileupload/upload`,
+            formDataObj,
+            {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            }
+          );
+
+          if (response.data) {
+            uploadedFiles.push({
+              id: response.data.id,
+              name: response.data.fileName,
+              size: file.size,
+              type: file.type,
+              url: `${pointsConfig.apiEndpoints.base}/fileupload/download/${response.data.id}`,
+              uploadDate: new Date().toISOString()
+            });
+          }
+        } catch (uploadError) {
+          console.error(`檔案 ${file.name} 上傳失敗:`, uploadError);
+          showNotification(`檔案 ${file.name} 上傳失敗`, 'error');
+        }
       }
 
-      setFormData(prev => ({
-        ...prev,
-        attachments: [...prev.attachments, ...uploadedFiles]
-      }));
-      
       if (uploadedFiles.length > 0) {
-        showNotification(`成功選擇 ${uploadedFiles.length} 個檔案`, 'success');
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...prev.attachments, ...uploadedFiles]
+        }));
+        showNotification(`成功上傳 ${uploadedFiles.length} 個檔案`, 'success');
       }
     } catch (error) {
-      console.error('檔案上傳失敗:', error);
+      console.error('檔案上傳處理失敗:', error);
       showNotification('檔案上傳失敗，請重試', 'error');
     } finally {
-      // 確保最小加載時間
       const elapsedTime = Date.now() - startTime;
       if (elapsedTime < minimumLoadingTime) {
         setTimeout(() => {
@@ -332,51 +347,10 @@ const WorkLogEntry = () => {
     }
   };
 
-  // 獲取檔案預覽URL - 修復URL生成邏輯
+  // 獲取檔案預覽URL
   const getFilePreviewUrl = (file) => {
-    console.log('生成檔案預覽URL:', file);
-
-    try {
-      // 如果已經有 url 且是 blob url，直接返回
-      if (file.url && typeof file.url === 'string' && file.url.startsWith('blob:')) {
-        console.log('使用現有Blob URL:', file.url);
-        return file.url;
-      }
-
-      // 如果是已保存的檔案（有ID）
-      if (file.id && !file.isNew) {
-        const intFileId = parseInt(file.id);
-        if (!isNaN(intFileId)) {
-          const url = `${pointsConfig.apiEndpoints.base}/fileupload/download/${intFileId}`;
-          console.log('生成API下載URL:', url);
-          return url;
-        }
-      }
-
-      // 如果有 file 對象（新上傳的檔案）
-      if (file.file instanceof Blob) {
-        console.log('從file對象生成Blob URL');
-        return URL.createObjectURL(file.file);
-      }
-
-      // 如果直接是 Blob 對象
-      if (file instanceof Blob) {
-        console.log('從Blob對象生成URL');
-        return URL.createObjectURL(file);
-      }
-
-      // 如果有其他類型的 URL
-      if (file.url && typeof file.url === 'string') {
-        console.log('使用現有URL:', file.url);
-        return file.url;
-      }
-
-      console.warn('無法生成檔案預覽URL:', file);
-      return null;
-    } catch (error) {
-      console.error('生成預覽URL錯誤:', error);
-      return null;
-    }
+    if (!file || !file.id) return null;
+    return `${pointsConfig.apiEndpoints.base}/fileupload/download/${file.id}`;
   };
 
   // 預覽檔案（帶loading效果）
@@ -429,85 +403,32 @@ const WorkLogEntry = () => {
 
   // 下載檔案（帶loading效果）
   const downloadFile = async (file) => {
-    const fileName = file.name || file.FileName || '未知檔案';
-    const fileKey = file.id || fileName;
-    setDownloadLoading(prev => ({ ...prev, [fileKey]: true }));
+    if (!file || !file.id) {
+      showNotification('無效的檔案', 'error');
+      return;
+    }
+
+    const fileName = file.name || '未知檔案';
+    setDownloadLoading(prev => ({ ...prev, [file.id]: true }));
 
     const startTime = Date.now();
     const minimumLoadingTime = 2000;
 
     try {
-      console.log('開始下載檔案:', {
-        fileName: fileName,
-        fileInfo: file
-      });
-
-      let blob = null;
-
-      // 如果是已保存的檔案（有ID）
-      if (file.id && !file.isNew) {
-        const intFileId = parseInt(file.id);
-        if (isNaN(intFileId)) {
-          throw new Error(`無效的檔案ID: ${file.id}`);
-        }
-        console.log('通過API下載檔案，ID:', intFileId);
-        const response = await fileUploadAPI.downloadFile(intFileId);
-        blob = new Blob([response], { type: file.type });
-      }
-      // 如果有 file 對象（新上傳的檔案）
-      else if (file.file instanceof Blob) {
-        console.log('使用file對象下載');
-        blob = file.file;
-      }
-      // 如果有 blob URL
-      else if (file.url && file.url.startsWith('blob:')) {
-        console.log('從Blob URL獲取數據');
-        const response = await fetch(file.url);
-        blob = await response.blob();
-      }
-      // 如果直接是 Blob 對象
-      else if (file instanceof Blob) {
-        console.log('直接使用Blob對象');
-        blob = file;
-      }
-      // 如果有其他類型的 URL
-      else if (file.url && typeof file.url === 'string') {
-        console.log('從URL下載數據');
-        const response = await fetch(file.url);
-        blob = await response.blob();
-      }
-
-      if (!blob) {
-        throw new Error('無法獲取檔案數據');
-      }
-
-      // 創建新的 blob URL
-      const downloadUrl = URL.createObjectURL(blob);
-      
-      // 創建下載連結
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      // 釋放 blob URL
-      URL.revokeObjectURL(downloadUrl);
-
+      // 使用後端 API 下載檔案
+      window.open(`${pointsConfig.apiEndpoints.base}/fileupload/download/${file.id}`);
       showNotification(`正在下載 ${fileName}`, 'success');
     } catch (error) {
       console.error('下載檔案失敗:', error);
       showNotification('下載失敗，請重試', 'error');
     } finally {
-      // 確保最小加載時間
       const elapsedTime = Date.now() - startTime;
       if (elapsedTime < minimumLoadingTime) {
         setTimeout(() => {
-          setDownloadLoading(prev => ({ ...prev, [fileKey]: false }));
+          setDownloadLoading(prev => ({ ...prev, [file.id]: false }));
         }, minimumLoadingTime - elapsedTime);
       } else {
-        setDownloadLoading(prev => ({ ...prev, [fileKey]: false }));
+        setDownloadLoading(prev => ({ ...prev, [file.id]: false }));
       }
     }
   };

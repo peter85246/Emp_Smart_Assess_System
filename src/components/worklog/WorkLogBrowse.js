@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Input, Select, DatePicker, Table, Button, Modal, message, Space } from 'antd';
-import { EyeOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons';
+import { EyeOutlined, SearchOutlined, FilterOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import '../../styles/worklog.css';
+
 import { getApiUrl } from '../../config/apiConfig';
+
 import { workLogAPI } from '../../services/pointsAPI';
+
+dayjs.extend(utc);
 
 // 添加自定義樣式
 const customStyles = `
@@ -354,16 +359,37 @@ const WorkLogBrowse = () => {
       let startDate = null;
       let endDate = null;
       if (searchParams.dateRange && searchParams.dateRange.length === 2) {
-        if (searchParams.dateRange[0]) {
-          startDate = dayjs(searchParams.dateRange[0])
+        const [start, end] = searchParams.dateRange;
+        
+        if (start) {
+          // 設置開始日期為選擇日期的 00:00:00 UTC
+          startDate = dayjs(start)
             .startOf('day')
-            .format('YYYY-MM-DDTHH:mm:ss[Z]');
+            .utc()
+            .format('YYYY-MM-DD[T]HH:mm:ss[Z]');
         }
-        if (searchParams.dateRange[1]) {
-          endDate = dayjs(searchParams.dateRange[1])
+        
+        if (end) {
+          // 設置結束日期為選擇日期的 23:59:59 UTC
+          endDate = dayjs(end)
             .endOf('day')
-            .format('YYYY-MM-DDTHH:mm:ss[Z]');
+            .utc()
+            .format('YYYY-MM-DD[T]HH:mm:ss[Z]');
         }
+
+        // 如果是同一天，確保時間範圍正確
+        if (start && end && dayjs(start).isSame(end, 'day')) {
+          startDate = dayjs(start)
+            .startOf('day')
+            .utc()
+            .format('YYYY-MM-DD[T]HH:mm:ss[Z]');
+          endDate = dayjs(end)
+            .endOf('day')
+            .utc()
+            .format('YYYY-MM-DD[T]HH:mm:ss[Z]');
+        }
+
+        console.log('日期範圍 (UTC):', { startDate, endDate });
       }
 
       // 移除空值和未定義的參數
@@ -652,6 +678,9 @@ const WorkLogBrowse = () => {
             width={800}
             footer={null}
             onCancel={() => setDetailVisible(false)}
+            style={{
+              top: '5vh', // 調整模態框的垂直位置，從頂部算起
+            }}
             styles={{
               content: {
                 background: 'rgba(15, 23, 42, 0.95)',
@@ -761,6 +790,133 @@ const WorkLogBrowse = () => {
                         color: '#e2e8f0'
                       }}>
                         {currentRecord.reviewComments}
+                      </div>
+                    </Col>
+                  )}
+                  
+                  {/* 添加附件預覽區域 */}
+                  {currentRecord.attachments && (
+                    <Col span={24}>
+                      <p style={{ marginBottom: '12px' }}><strong style={{ color: '#94a3b8' }}>附件：</strong></p>
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        padding: '16px',
+                        background: 'rgba(30, 41, 59, 0.8)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                      }}>
+                        {(() => {
+                          try {
+                            const attachments = typeof currentRecord.attachments === 'string'
+                              ? JSON.parse(currentRecord.attachments)
+                              : currentRecord.attachments;
+
+                            return attachments.map((attachment, index) => (
+                              <div
+                                key={attachment.id}
+                                style={{
+                                  background: 'rgba(15, 23, 42, 0.95)',
+                                  borderRadius: '6px',
+                                  padding: '12px',
+                                  border: '1px solid rgba(148, 163, 184, 0.2)',
+                                  width: '200px',
+                                }}
+                              >
+                                {/* 圖片預覽 */}
+                                {attachment.type.startsWith('image/') ? (
+                                  <div style={{ marginBottom: '8px' }}>
+                                    <img
+                                      src={attachment.url}
+                                      alt={attachment.name}
+                                      style={{
+                                        width: '100%',
+                                        height: '120px',
+                                        objectFit: 'cover',
+                                        borderRadius: '4px',
+                                      }}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '120px',
+                                    background: 'rgba(30, 41, 59, 0.5)',
+                                    borderRadius: '4px',
+                                    marginBottom: '8px',
+                                  }}>
+                                    <FileTextOutlined style={{ fontSize: '48px', color: '#60a5fa' }} />
+                                  </div>
+                                )}
+
+                                {/* 檔案信息和下載按鈕容器 */}
+                                <div style={{ 
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  height: 'calc(100% - 128px)', // 減去圖片/圖標的高度
+                                  justifyContent: 'space-between'
+                                }}>
+                                  {/* 檔案信息 */}
+                                  <div>
+                                    <p style={{
+                                      color: '#e2e8f0',
+                                      fontSize: '14px',
+                                      marginBottom: '4px',
+                                      wordBreak: 'break-all',
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: '2',
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      lineHeight: '1.3',
+                                      height: '36px' // 固定高度為兩行
+                                    }}>
+                                      {attachment.name}
+                                    </p>
+                                    <p style={{ 
+                                      color: '#94a3b8', 
+                                      fontSize: '12px',
+                                      marginBottom: '0'
+                                    }}>
+                                      {(attachment.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+
+                                  {/* 下載按鈕 */}
+                                  <Button
+                                    type="link"
+                                    icon={<DownloadOutlined style={{ fontSize: '14px' }} />}
+                                    onClick={() => {
+                                      const link = document.createElement('a');
+                                      link.href = attachment.url;
+                                      link.download = attachment.name;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      padding: '4px 0',
+                                      marginTop: 'auto'
+                                    }}
+                                    className="text-blue-500 hover:text-blue-300 transition-colors duration-300"
+                                  >
+                                    下載
+                                  </Button>
+                                </div>
+                              </div>
+                            ));
+                          } catch (error) {
+                            console.error('解析附件失敗:', error);
+                            return <p style={{ color: '#ef4444' }}>附件解析失敗</p>;
+                          }
+                        })()}
                       </div>
                     </Col>
                   )}
