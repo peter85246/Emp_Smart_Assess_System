@@ -332,7 +332,6 @@ catch (Exception ex)
     Console.ResetColor();
     Environment.Exit(1);
 }
-
 // 動態端口配置輔助類
 public static class PortHelper
 {

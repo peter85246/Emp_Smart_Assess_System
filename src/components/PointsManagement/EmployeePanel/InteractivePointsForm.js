@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { pointsUtils, departmentUtils, pointsConfig } from '../../../config/pointsConfig';
 import { pointsAPI } from '../../../services/pointsAPI';
 import NotificationToast from '../shared/NotificationToast';
@@ -26,14 +26,8 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
   const [pointsStandards, setPointsStandards] = useState([]);
   const [loadingStandards, setLoadingStandards] = useState(true);
   
-  // 新增：當前選中的積分類別和展開狀態
+  // 當前選中的積分類別
   const [activeCategory, setActiveCategory] = useState('general');
-  const [expandedCategories, setExpandedCategories] = useState({
-    general: true,
-    professional: false,
-    management: false,
-    temporary: false
-  });
 
   // 獲取用戶可見的積分項目結構（基於184項架構和部門權限）
   const visiblePointsStructure = departmentUtils.getVisiblePointsStructure(currentUser.departmentId || 1);
@@ -318,13 +312,6 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
     return { filledItems, totalItems, categoryPoints };
   };
 
-  // 切換分類展開狀態
-  const toggleCategory = (categoryKey) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [categoryKey]: !prev[categoryKey]
-    }));
-  };
 
   // 渲染表單項目
   const renderFormItem = (item) => {
@@ -488,91 +475,181 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
         </ul>
       </div>
 
-      {/* 積分類別（184項新架構） */}
+      {/* 積分類別選擇（卡片式UI） */}
       {loadingStandards ? (
         <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-8 border border-slate-600/50 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-slate-300">載入積分項目中...</p>
         </div>
       ) : (
-      <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">📂 積分項目清單（共 {totalVisibleItems} 項）</h3>
-            <div className="text-sm text-slate-400">
-              部門：{pointsConfig.departments.find(d => d.id === (currentUser.departmentId || 1))?.name}
+        <div className="space-y-6">
+          {/* 積分類別選擇卡片 */}
+          <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-6 border border-slate-600/50">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center">
+                <span className="text-xl mr-2">📂</span>
+                積分類別選擇
+              </h3>
+              <div className="text-sm text-slate-400">
+                部門：{pointsConfig.departments.find(d => d.id === (currentUser.departmentId || 1))?.name}
+              </div>
             </div>
-          </div>
-          
-          {/* 積分類別展開列表 */}
-          <div className="space-y-4">
-            {Object.entries(visiblePointsStructure).map(([categoryKey, categoryConfig]) => {
-              const isExpanded = expandedCategories[categoryKey];
-              const categoryData = organizedPoints[categoryKey] || {};
-              const stats = getCategoryStats(categoryKey);
             
-            return (
-                <div key={categoryKey} className="bg-slate-600/20 backdrop-blur-sm rounded-lg border border-slate-500/30">
-              <button
-                    onClick={() => toggleCategory(categoryKey)}
-                    className="w-full p-4 text-left flex items-center justify-between hover:bg-slate-600/30 transition-colors"
+            {/* 卡片式選擇區域 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Object.entries(visiblePointsStructure).map(([categoryKey, categoryConfig]) => {
+                const stats = getCategoryStats(categoryKey);
+                const isActive = activeCategory === categoryKey;
+                
+                // 為每個分類定義獨特的顏色和圖標（保持原有樣式風格）
+                const categoryStyles = {
+                  general: {
+                    icon: '🔧',
+                    bgColor: 'bg-slate-600/30',
+                    borderColor: 'border-green-500/50',
+                    textColor: 'text-slate-200',
+                    hoverBg: 'hover:bg-slate-600/50',
+                    activeBg: 'bg-green-500/20',
+                    activeBorder: 'border-green-400'
+                  },
+                  professional: {
+                    icon: '⚡',
+                    bgColor: 'bg-slate-600/30',
+                    borderColor: 'border-purple-500/50',
+                    textColor: 'text-slate-200',
+                    hoverBg: 'hover:bg-slate-600/50',
+                    activeBg: 'bg-purple-500/20',
+                    activeBorder: 'border-purple-400'
+                  },
+                  management: {
+                    icon: '👥',
+                    bgColor: 'bg-slate-600/30',
+                    borderColor: 'border-orange-500/50',
+                    textColor: 'text-slate-200',
+                    hoverBg: 'hover:bg-slate-600/50',
+                    activeBg: 'bg-orange-500/20',
+                    activeBorder: 'border-orange-400'
+                  },
+                  temporary: {
+                    icon: '⏰',
+                    bgColor: 'bg-slate-600/30',
+                    borderColor: 'border-cyan-500/50',
+                    textColor: 'text-slate-200',
+                    hoverBg: 'hover:bg-slate-600/50',
+                    activeBg: 'bg-cyan-500/20',
+                    activeBorder: 'border-cyan-400'
+                  },
+                  core: {
+                    icon: '⭐',
+                    bgColor: 'bg-slate-600/30',
+                    borderColor: 'border-red-500/50',
+                    textColor: 'text-slate-200',
+                    hoverBg: 'hover:bg-slate-600/50',
+                    activeBg: 'bg-red-500/20',
+                    activeBorder: 'border-red-400'
+                  },
+                  misc: {
+                    icon: '📋',
+                    bgColor: 'bg-slate-600/30',
+                    borderColor: 'border-orange-500/50',
+                    textColor: 'text-slate-200',
+                    hoverBg: 'hover:bg-slate-600/50',
+                    activeBg: 'bg-orange-500/20',
+                    activeBorder: 'border-orange-400'
+                  }
+                };
+                
+                const style = categoryStyles[categoryKey] || categoryStyles.general;
+                
+                return (
+                  <button
+                    key={categoryKey}
+                    onClick={() => setActiveCategory(categoryKey)}
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                      isActive
+                        ? `${style.activeBorder} ${style.activeBg} shadow-lg transform scale-105`
+                        : `${style.borderColor} ${style.bgColor} ${style.hoverBg} hover:shadow-md`
+                    }`}
                   >
-                    <div className="flex items-center space-x-3">
-                      {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                      <span className="text-xl">{categoryConfig.icon || '📋'}</span>
+                    <div className="flex flex-col items-center text-center space-y-2">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
+                        isActive ? 'bg-blue-500' : 'bg-slate-500'
+                      }`}>
+                        {style.icon}
+                      </div>
                       <div>
-                        <h4 className="text-lg font-semibold text-white">{categoryConfig.name}</h4>
-                        <p className="text-sm text-slate-400">{categoryConfig.description}</p>
-                </div>
-                </div>
-                    <div className="text-right">
-                      <div className="text-sm text-slate-300">
-                  {stats.filledItems}/{stats.totalItems} 項目
-                </div>
-                {stats.categoryPoints > 0 && (
-                        <div className="text-sm font-medium text-blue-300">
-                    {stats.categoryPoints.toFixed(1)} 積分
-                  </div>
-                )}
-                    </div>
-              </button>
-                  
-                  {isExpanded && (
-                    <div className="px-4 pb-4">
-                      {/* 渲染子分類或主要項目 */}
-                      {categoryConfig.subcategories ? (
-                        Object.entries(categoryConfig.subcategories).map(([subKey, subConfig]) => {
-                          const subItems = categoryData[subKey] || [];
-                          return (
-                            <div key={subKey} className="mb-4">
-                              <div className="flex items-center space-x-2 mb-3">
-                                <span>{subConfig.icon}</span>
-                                <h5 className="font-medium text-white">{subConfig.name}</h5>
-                                <span className="text-sm text-slate-400">({subItems.length} 項)</span>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
-                                {subItems.map(renderFormItem)}
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {(categoryData.main || []).map(renderFormItem)}
-                        </div>
+                        <h4 className={`font-semibold text-sm ${style.textColor}`}>
+                          {categoryConfig.name}
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {categoryConfig.description}
+                        </p>
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        {stats.filledItems}/{stats.totalItems} 項目
+                      </div>
+                      {isActive && (
+                        <div className="text-xs text-blue-300 font-medium">✓ 已選擇</div>
                       )}
                     </div>
-                  )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 選中類別的積分項目列表 */}
+          {activeCategory && (
+            <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-6 border border-slate-600/50">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white flex items-center">
+                  <span className="text-xl mr-2">{visiblePointsStructure[activeCategory]?.icon || '📋'}</span>
+                  {visiblePointsStructure[activeCategory]?.name} 積分項目
+                </h3>
+                <div className="text-sm text-slate-400">
+                  共 {getCategoryStats(activeCategory).totalItems} 項
                 </div>
-            );
-          })}
-        </div>
+              </div>
+              
+              <div className="space-y-4">
+                {(() => {
+                  const categoryData = organizedPoints[activeCategory] || {};
+                  const categoryConfig = visiblePointsStructure[activeCategory];
+                  
+                  if (categoryConfig.subcategories) {
+                    return Object.entries(categoryConfig.subcategories).map(([subKey, subConfig]) => {
+                      const subItems = categoryData[subKey] || [];
+                      return (
+                        <div key={subKey} className="mb-6">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <span className="text-lg">{subConfig.icon}</span>
+                            <h5 className="font-medium text-white text-lg">{subConfig.name}</h5>
+                            <span className="text-sm text-slate-400">({subItems.length} 項)</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {subItems.map(renderFormItem)}
+                          </div>
+                        </div>
+                      );
+                    });
+                  } else {
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {(categoryData.main || []).map(renderFormItem)}
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
+            </div>
+          )}
 
           {Object.keys(visiblePointsStructure).length === 0 && (
             <div className="text-center text-slate-400 py-8">
               <p>您的部門暫無可用的積分項目</p>
               <p className="text-sm mt-2">請聯繫管理員確認權限設定</p>
-              </div>
-            )}
+            </div>
+          )}
         </div>
       )}
 

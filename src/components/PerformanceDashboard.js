@@ -96,7 +96,7 @@ const ProgressBar = ({ value, color }) => {
  * - 歷史趨勢圖表
  * - 改進建議
  */
-const PerformanceCard = ({ metric, data }) => {
+const PerformanceCard = ({ metric, data, viewMode = 'monthly' }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showLevelGuide, setShowLevelGuide] = useState(false);
   const breakdown = getScoreBreakdown(metric, data);
@@ -125,7 +125,7 @@ const PerformanceCard = ({ metric, data }) => {
     scoreValue = data?.attendance || 0;
   } else if (metric.scoreCalculation) {
     // 維護指標等使用特殊評分計算
-    scoreValue = metric.scoreCalculation(data);
+    scoreValue = metric.scoreCalculation(data, viewMode);
   } else {
     // 一般指標使用顯示值
     scoreValue = value;
@@ -955,7 +955,7 @@ const PerformanceCard = ({ metric, data }) => {
                             values = recentData.map(item => {
                               // 如果是當前月份且有詳細數據，使用評分計算
                               if (item === recentData[recentData.length - 1] && data?.maintenance_Count !== undefined) {
-                                return metric.scoreCalculation(data);
+                                return metric.scoreCalculation(data, viewMode);
                               }
                               // 歷史數據：計算評分
                               const maintenanceCount = item[dataKey] || 0;
@@ -2082,9 +2082,10 @@ const metrics = [
       target: 85,
       weight: 0.125,
       // 評分計算：工作時間轉換為效率百分比
-      scoreCalculation: (data) => {
+      scoreCalculation: (data, viewMode) => {
         const hours = data?.total_Hours || 0;
-        const standardHours = 176; // 標準月工作時數
+        // 根據檢視模式動態調整標準值
+        const standardHours = viewMode === 'yearly' ? 2112 : 176; // 年度: 176*12, 月度: 176
         return hours > 0 ? Number(((hours / standardHours) * 100).toFixed(2)) : 0;
       },
     },
@@ -2132,9 +2133,10 @@ const metrics = [
       target: 80,
       weight: 0.125,
       // 評分計算：機台運行時間轉換為效率百分比
-      scoreCalculation: (data) => {
+      scoreCalculation: (data, viewMode) => {
         const runHours = data?.machine_Run_Hours || 0;
-        const standardRunHours = 720; // 標準月運行時數 (30天 * 24小時)
+        // 根據檢視模式動態調整標準值
+        const standardRunHours = viewMode === 'yearly' ? 8640 : 720; // 年度: 720*12, 月度: 720
         return runHours > 0 ? Number(((runHours / standardRunHours) * 100).toFixed(2)) : 0;
       },
     },
@@ -2203,7 +2205,7 @@ const metrics = [
    * 在metrics定義之後計算員工等級
    */
   // 動態計算員工等級
-  const calculateEmployeeGrade = (employeeId) => {
+  const calculateEmployeeGrade = (employeeId, viewMode = 'monthly') => {
     const data = mockEmployeeData[employeeId];
     if (!data) return 'E';
     
@@ -2212,7 +2214,7 @@ const metrics = [
       let scoreValue;
       if (metric.scoreCalculation) {
         // 使用特殊評分計算（如維護指標）
-        scoreValue = metric.scoreCalculation(data);
+        scoreValue = metric.scoreCalculation(data, viewMode);
       } else {
         // 使用一般數值
         scoreValue = metric.value(data);
@@ -3595,6 +3597,7 @@ const metrics = [
                       key={metric.id}
                       metric={metric}
                       data={currentEmployeeData}
+                      viewMode={viewMode}
                     />
                   ))}
                 </div>
@@ -3710,7 +3713,7 @@ const metrics = [
                         let scoreValue;
                         if (metric.scoreCalculation) {
                           // 使用特殊評分計算（維護指標、工作時間、機台運行狀態）
-                          scoreValue = metric.scoreCalculation(currentEmployeeData);
+                          scoreValue = metric.scoreCalculation(currentEmployeeData, viewMode);
                         } else if (metric.id === 'attendance') {
                           // 出勤率使用百分比數值
                           scoreValue = currentEmployeeData?.attendance || 0;
@@ -3809,7 +3812,7 @@ const metrics = [
                   let scoreValue;
                   if (metric.scoreCalculation) {
                     // 使用特殊評分計算（維護指標、工作時間、機台運行狀態）
-                    scoreValue = metric.scoreCalculation(currentEmployeeData);
+                    scoreValue = metric.scoreCalculation(currentEmployeeData, viewMode);
                   } else if (metric.id === 'attendance') {
                     // 出勤率使用百分比數值
                     scoreValue = currentEmployeeData?.attendance || 0;

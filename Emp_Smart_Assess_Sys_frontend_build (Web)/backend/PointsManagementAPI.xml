@@ -157,6 +157,14 @@
             <response code="200">成功取得部門清單</response>
             <response code="500">伺服器內部錯誤</response>
         </member>
+        <member name="M:PointsManagementAPI.Controllers.AuthController.GetEmployees">
+            <summary>
+            【GET】 /api/auth/employees - 獲取員工清單
+            功能：提供前端下拉選單使用的員工資料（管理員專用）
+            權限：管理員以上級別
+            </summary>
+            <returns>員工ID、姓名、員工編號列表</returns>
+        </member>
         <member name="M:PointsManagementAPI.Controllers.AuthController.CheckPositionAvailability(System.String)">
             <summary>
             職位可用性檢查
@@ -606,6 +614,23 @@
             <param name="endDate">結束日期（可選）</param>
             <returns>工作日誌列表</returns>
         </member>
+        <member name="M:PointsManagementAPI.Controllers.WorkLogController.GetAllEmployeesWorkLogs(System.Int32,System.Int32,System.String,System.Nullable{System.Int32},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Nullable{System.Int32},System.Nullable{System.Int32},System.Nullable{System.Int32})">
+            <summary>
+            【GET】 /api/worklog/all-employees - 獲取所有員工工作日誌列表（管理員/老闆專用）
+            功能：分頁查詢所有員工的工作日誌，支援員工、日期、關鍵字篩選
+            前端使用：管理員/老闆瀏覽所有員工工作日誌
+            </summary>
+            <param name="page">頁碼</param>
+            <param name="pageSize">每頁數量</param>
+            <param name="keyword">關鍵字（標題/內容）</param>
+            <param name="employeeId">員工ID篩選</param>
+            <param name="startDate">開始日期</param>
+            <param name="endDate">結束日期</param>
+            <param name="year">年份篩選</param>
+            <param name="month">月份篩選</param>
+            <param name="day">日期篩選</param>
+            <returns>分頁的工作日誌列表</returns>
+        </member>
         <member name="M:PointsManagementAPI.Controllers.WorkLogController.GetEmployeeAttendance(System.String,System.Int32,System.Int32)">
             <summary>
             【GET】 /api/worklog/attendance/{employeeName} - 獲取員工出勤率數據
@@ -917,6 +942,11 @@
         <member name="M:PointsManagementAPI.Services.WorkLogService.GetWorkLogsForApprovalAsync(System.Int32,System.Int32,System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
             <summary>
             獲取待審核工作日誌列表（分頁）
+            </summary>
+        </member>
+        <member name="M:PointsManagementAPI.Services.WorkLogService.GetAllEmployeesWorkLogsAsync(System.Int32,System.Int32,System.String,System.Nullable{System.Int32},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Nullable{System.Int32},System.Nullable{System.Int32},System.Nullable{System.Int32})">
+            <summary>
+            獲取所有員工工作日誌列表（管理員/老闆專用）
             </summary>
         </member>
     </members>
