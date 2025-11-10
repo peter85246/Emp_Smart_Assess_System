@@ -486,11 +486,13 @@ const WorkLogBrowse = () => {
   ]);
 
   return (
-    <div className="worklog-browse-container" style={{ padding: '0' }}>
+    <div className="worklog-browse-container" style={{ padding: '0', overflow: 'hidden' }}>
       <div className="worklog-content" style={{
         background: 'transparent',
         minHeight: '100vh',
         width: '100%',
+        maxWidth: '100%',
+        overflowX: 'hidden',
       }}>
         <Card 
           title={<span style={{ color: '#e2e8f0' }}>📋 所有員工 - 工作日誌瀏覽</span>}
@@ -513,9 +515,9 @@ const WorkLogBrowse = () => {
           }}
         >
           {/* 搜索和篩選區 */}
-          <div className="filter-section" style={{ marginBottom: '16px' }}>
+          <div className="filter-section" style={{ marginBottom: '16px', overflow: 'hidden' }}>
             <Row gutter={[12, 12]}>
-              <Col span={6}>
+              <Col xs={24} sm={12} md={6}>
                 <div className="custom-input-wrapper" style={{ width: '100%' }}>
                   <Input
                     placeholder="搜索標題/內容/員工姓名"
@@ -540,7 +542,7 @@ const WorkLogBrowse = () => {
                   />
                 </div>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={12} md={6}>
                 <Select
                   placeholder="選擇員工"
                   style={{ width: '100%' }}
@@ -559,7 +561,7 @@ const WorkLogBrowse = () => {
                   ))}
                 </Select>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={12} md={6}>
                 <RangePicker
                   value={searchParams.dateRange}
                   onChange={dates => setSearchParams(prev => ({ ...prev, dateRange: dates || [] }))}
@@ -584,7 +586,7 @@ const WorkLogBrowse = () => {
 
             {/* 年月日精確篩選器 */}
             <Row gutter={[12, 12]} style={{ marginTop: '12px' }}>
-              <Col span={4}>
+              <Col xs={12} sm={8} md={4}>
                 <Select
                   placeholder="年份"
                   style={{ width: '100%' }}
@@ -602,7 +604,7 @@ const WorkLogBrowse = () => {
                   })}
                 </Select>
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} md={4}>
                 <Select
                   placeholder="月份"
                   style={{ width: '100%' }}
@@ -617,7 +619,7 @@ const WorkLogBrowse = () => {
                   ))}
                 </Select>
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} md={4}>
                 <Select
                   placeholder="日期"
                   style={{ width: '100%' }}
@@ -632,8 +634,8 @@ const WorkLogBrowse = () => {
                   ))}
                 </Select>
               </Col>
-              <Col span={6}>
-                <Space>
+              <Col xs={24} sm={24} md={6}>
+                <Space wrap>
                   <Button 
                     type="primary" 
                     icon={<FilterOutlined />}
@@ -650,37 +652,43 @@ const WorkLogBrowse = () => {
           </div>
 
           {/* 數據表格 */}
-          <Table
-            columns={columns}
-            dataSource={worklogList}
-            loading={loading}
-            pagination={{
-              ...pagination,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 條，共 ${total} 條記錄`,
-            }}
-            onChange={(pag) => setPagination(pag)}
-            rowKey="id"
-            scroll={{ x: 1200 }}
-            className="custom-table"
-            style={{
-              background: 'rgba(30, 41, 59, 0.5)',
-              borderRadius: '8px',
-              overflow: 'hidden'
-            }}
-          />
+          <div style={{
+            width: '100%',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            marginBottom: '16px',
+            position: 'relative',
+            maxWidth: '100vw'
+          }}>
+            <Table
+              columns={columns}
+              dataSource={worklogList}
+              loading={loading}
+              pagination={{
+                ...pagination,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 條，共 ${total} 條記錄`,
+              }}
+              onChange={(pag) => setPagination(pag)}
+              rowKey="id"
+              scroll={{ x: 1400 }}
+              className="custom-table"
+              style={{
+                background: 'rgba(30, 41, 59, 0.5)',
+                borderRadius: '8px'
+              }}
+            />
+          </div>
 
           {/* 查看詳情彈窗 */}
           <Modal
             open={detailVisible}
             title={<span style={{ color: '#e2e8f0' }}>工作日誌詳情</span>}
-            width={800}
+            width="95%"
+            style={{ maxWidth: '800px', top: '5vh' }}
             footer={null}
             onCancel={() => setDetailVisible(false)}
-            style={{
-              top: '5vh', // 調整模態框的垂直位置，從頂部算起
-            }}
             styles={{
               content: {
                 background: 'rgba(15, 23, 42, 0.95)',
@@ -695,7 +703,7 @@ const WorkLogBrowse = () => {
                 marginBottom: '8px',
               },
               body: {
-                padding: '24px',
+                padding: '12px 16px',
               },
             }}
             modalRender={modal => (
@@ -709,18 +717,18 @@ const WorkLogBrowse = () => {
             )}
           >
             {currentRecord && (
-              <div className="detail-content" style={{ color: '#e2e8f0' }}>
+              <div className="detail-content" style={{ color: '#e2e8f0', maxWidth: '100%', overflowX: 'hidden' }}>
                 <Row gutter={[16, 16]}>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <p><strong style={{ color: '#94a3b8' }}>員工：</strong>{currentRecord.employeeName}</p>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <p><strong style={{ color: '#94a3b8' }}>員工編號：</strong>{currentRecord.employeeNumber}</p>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <p><strong style={{ color: '#94a3b8' }}>日誌日期：</strong>{dayjs(currentRecord.logDate).format('YYYY-MM-DD')}</p>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <p><strong style={{ color: '#94a3b8' }}>分類：</strong>{currentRecord.categoryName || '無'}</p>
                   </Col>
                   <Col span={24}>
@@ -746,21 +754,21 @@ const WorkLogBrowse = () => {
                       <p><strong style={{ color: '#94a3b8' }}>標籤：</strong>{currentRecord.tags}</p>
                     </Col>
                   )}
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <p><strong style={{ color: '#94a3b8' }}>狀態：</strong>{getStatusTag(currentRecord.status)}</p>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <p><strong style={{ color: '#94a3b8' }}>積分：</strong>{currentRecord.pointsClaimed || 0}</p>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <p><strong style={{ color: '#94a3b8' }}>創建時間：</strong>{dayjs(currentRecord.createdAt).format('YYYY-MM-DD HH:mm:ss')}</p>
                   </Col>
                   {currentRecord.updatedAt && (
-                    <Col span={12}>
+                    <Col xs={24} sm={12}>
                       <p><strong style={{ color: '#94a3b8' }}>更新時間：</strong>{dayjs(currentRecord.updatedAt).format('YYYY-MM-DD HH:mm:ss')}</p>
                     </Col>
                   )}
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     {(() => {
                       const editCount = workLogAPI.getWorkLogEditCount(currentRecord.id);
                       const remainingEdits = 2 - editCount;

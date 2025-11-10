@@ -249,44 +249,44 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
         </div>
 
         {/* 統計卡片 */}
-        <div className="p-6 border-b border-slate-600/50">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-slate-700/50 backdrop-blur-sm p-4 rounded-lg border border-slate-600/50">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-blue-400" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-300">總員工數</p>
-                  <p className="text-2xl font-bold text-white">{dashboardStats.totalEmployees}</p>
+        <div className="p-4 sm:p-6 border-b border-slate-600/50">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-slate-700/50 backdrop-blur-sm p-3 sm:p-4 rounded-lg border border-slate-600/50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center">
+                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400 mb-2 sm:mb-0" />
+                <div className="sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-blue-300">總員工數</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{dashboardStats.totalEmployees}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-700/50 backdrop-blur-sm p-4 rounded-lg border border-slate-600/50">
-              <div className="flex items-center">
-                <Award className="h-8 w-8 text-green-400" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-green-300">總積分</p>
-                  <p className="text-2xl font-bold text-white">{dashboardStats.totalPoints}</p>
+            <div className="bg-slate-700/50 backdrop-blur-sm p-3 sm:p-4 rounded-lg border border-slate-600/50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center">
+                <Award className="h-6 w-6 sm:h-8 sm:w-8 text-green-400 mb-2 sm:mb-0" />
+                <div className="sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-green-300">總積分</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{dashboardStats.totalPoints}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-700/50 backdrop-blur-sm p-4 rounded-lg border border-slate-600/50">
-              <div className="flex items-center">
-                <TrendingUp className="h-8 w-8 text-yellow-400" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-yellow-300">平均分數</p>
-                  <p className="text-2xl font-bold text-white">{dashboardStats.averageScore}%</p>
+            <div className="bg-slate-700/50 backdrop-blur-sm p-3 sm:p-4 rounded-lg border border-slate-600/50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center">
+                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400 mb-2 sm:mb-0" />
+                <div className="sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-yellow-300">平均分數</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{dashboardStats.averageScore}%</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-700/50 backdrop-blur-sm p-4 rounded-lg border border-slate-600/50">
-              <div className="flex items-center">
-                <FileText className="h-8 w-8 text-purple-400" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-purple-300">待審核</p>
-                  <p className="text-2xl font-bold text-white">{dashboardStats.pendingReviews}</p>
+            <div className="bg-slate-700/50 backdrop-blur-sm p-3 sm:p-4 rounded-lg border border-slate-600/50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center">
+                <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-purple-400 mb-2 sm:mb-0" />
+                <div className="sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-purple-300">待審核</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{dashboardStats.pendingReviews}</p>
                 </div>
               </div>
             </div>
@@ -294,26 +294,26 @@ const PointsManagementDashboard = ({ onClose, currentUser: propCurrentUser, isFu
         </div>
 
         {/* 功能切換標籤 */}
-        <div className="flex space-x-0 border-b border-slate-600/50">
+        <div className="flex space-x-0 border-b border-slate-600/50 overflow-x-auto">
           {isAdmin && (
             <button
               onClick={() => setActiveTab('admin')}
-              className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'admin'
                   ? 'border-blue-400 text-blue-300 bg-slate-700/50'
                   : 'border-transparent text-slate-300 hover:text-white hover:bg-slate-700/30'
               }`}
             >
-              <div className="flex items-center space-x-2">
-                <Settings className="h-4 w-4" />
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span>管理功能</span>
               </div>
             </button>
           )}
-          
+
           <button
             onClick={() => setActiveTab('employee')}
-            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'employee'
                 ? 'border-blue-400 text-blue-300 bg-slate-700/50'
                 : 'border-transparent text-slate-300 hover:text-white hover:bg-slate-700/30'

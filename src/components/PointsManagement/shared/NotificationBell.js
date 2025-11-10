@@ -414,7 +414,8 @@ const NotificationBell = ({ currentUser }) => {
 
       {/* 通知下拉列表 */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 max-h-96 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-[90vw] sm:w-96 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-[9999] max-h-[85vh] overflow-hidden"
+             style={{ maxWidth: '400px' }}>
           {/* 標題欄 */}
           <div className="p-4 border-b border-slate-600 flex items-center justify-between">
             <h3 className="text-white font-semibold">通知中心</h3>
@@ -438,7 +439,7 @@ const NotificationBell = ({ currentUser }) => {
           </div>
 
           {/* 通知列表 */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center text-slate-400">
                 載入中...

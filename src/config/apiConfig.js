@@ -8,10 +8,11 @@
  * - ENDPOINTS: 所有API端點的路徑定義
  * - 超時設定、重試邏輯等配置
  */
-// 報工系統API配置
+// 報工系統API配置 - 使用智能偵測
 export const REPORT_API = {
-  BASE_URL: 'http://127.0.0.1:7117/api',
-  // BASE_URL: 'http://192.168.1.10:7117/api',  // 報工系統 IP 串接修改這裡
+  // 從 appsetting.js 讀取，如果沒有則使用預設值
+  BASE_URL: (typeof window !== 'undefined' && window.reportApiUrl) || 'http://127.0.0.1:7117/api',
+  // 手動設定範例: localStorage.setItem('EMP_reportApiUrl', 'http://192.168.1.10:7117/api')
   ENDPOINTS: {
     // KPI概覽API
     kpiOverviewYear: '/AREditior/KPIOverviewByYear',  // 年度KPI概覽 - 參數: year (number)
@@ -26,9 +27,10 @@ export const REPORT_API = {
 };
 
 export const API_CONFIG = {
-  // 基礎URL配置 - 後端API服務地址 (後端運行Port修改處)
-  BASE_URL: 'http://localhost:5001/api',
-  // BASE_URL: 'http://192.168.1.10:5001/api',  // 員工下拉列表串接報工系統 IP 修改這裡
+  // 基礎URL配置 - 使用智能偵測系統
+  // 從 appsetting.js 讀取，支援自動偵測和手動設定
+  BASE_URL: (typeof window !== 'undefined' && window.apiUrl) || 'http://localhost:5001/api',
+  // 手動設定範例: window.saveNetworkSettings('192.168.1.10', '5001', 'http')
   
   // API端點配置 - 按功能模組分類組織
   ENDPOINTS: {

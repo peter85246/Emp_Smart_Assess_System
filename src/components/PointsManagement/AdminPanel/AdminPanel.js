@@ -225,14 +225,14 @@ const WorkLogManagement = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState('browse');
 
   return (
-    <div className="min-h-screen p-6 flex flex-col">
-      <h3 className="text-xl font-bold text-white mb-4">工作日誌管理</h3>
+    <div className="min-h-screen p-3 sm:p-4 lg:p-6 flex flex-col">
+      <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">工作日誌管理</h3>
       <div className="flex-1 bg-slate-700/30 backdrop-blur-sm rounded-lg border border-slate-600/50">
-        <div className="border-b border-slate-600/50">
-          <div className="flex">
+        <div className="border-b border-slate-600/50 overflow-x-auto">
+          <div className="flex min-w-max">
             <button
               onClick={() => setActiveTab('browse')}
-              className={`px-6 py-3 font-medium text-sm transition-colors ${
+              className={`px-4 sm:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
                 activeTab === 'browse'
                   ? 'border-b-2 border-blue-400 text-blue-300 bg-slate-600/50'
                   : 'text-slate-300 hover:text-white hover:bg-slate-600/30'
@@ -262,7 +262,7 @@ const WorkLogManagement = ({ currentUser }) => {
             </button> */}
           </div>
         </div>
-        <div className="p-6">
+        <div className="p-3 sm:p-4 lg:p-6">
           {activeTab === 'browse' ? (
             <WorkLogBrowse currentUser={currentUser} />
           ) : activeTab === 'approval' ? (
@@ -736,9 +736,9 @@ const AdminPanel = ({ currentUser }) => {
   const ActiveComponent = menuItems.find(item => item.id === activeView)?.component || StandardSettingsPanel;
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-slate-800 to-slate-900">
-      {/* 左側導航 */}
-      <div className="w-80 bg-gradient-to-b from-slate-700/50 to-slate-800/50 border-r border-slate-600/50 p-6 shadow-sm flex-shrink-0">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-gradient-to-br from-slate-800 to-slate-900">
+      {/* 左側導航 - 手機版頂部，桌面版左側 */}
+      <div className="w-full lg:w-80 bg-gradient-to-b from-slate-700/50 to-slate-800/50 border-b lg:border-b-0 lg:border-r border-slate-600/50 p-4 sm:p-6 shadow-sm flex-shrink-0 overflow-y-auto">
         <div className="mb-4">
           <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
             <Settings className="h-5 w-5 text-blue-400 mr-2" />
@@ -843,7 +843,7 @@ const AdminPanel = ({ currentUser }) => {
       </div>
 
       {/* 右側內容區域 */}
-      <div className="flex-1 min-h-screen overflow-auto bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800">
+      <div className="flex-1 min-h-screen overflow-auto bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 p-4 sm:p-6">
         <div className="h-full">
           <ActiveComponent currentUser={currentUser} />
         </div>

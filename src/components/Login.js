@@ -83,14 +83,14 @@ export default function Login() {
       </div>
 
       {/* 主要登入卡片 */}
-      <div className="max-w-md w-full space-y-8 relative z-10">
-        <div className="bg-slate-700/60 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-600/30">
+      <div className="max-w-md w-full space-y-6 md:space-y-8 relative z-10">
+        <div className="bg-slate-700/60 backdrop-blur-xl p-6 sm:p-8 rounded-2xl shadow-2xl border border-slate-600/30">
           {/* Logo 區域 */}
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mb-6 shadow-lg">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-lg">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 text-white"
+                className="h-8 w-8 sm:h-10 sm:w-10 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -103,16 +103,16 @@ export default function Login() {
                 />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-white mb-2 text-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 text-center">
               積分管理系統
             </h2>
-            <p className="text-slate-300 text-sm mb-8">
+            <p className="text-slate-300 text-sm mb-6 sm:mb-8 text-center">
               請輸入您的員工編號和密碼
             </p>
           </div>
 
           {/* 表單區域 */}
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
             <div className="space-y-4">
               <div>
                 <label
@@ -126,7 +126,7 @@ export default function Login() {
                   name="employeeNumber"
                   type="text"
                   required
-                  className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/25 rounded-lg text-white placeholder-slate-400 transition-all duration-200"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-800/50 border border-slate-600/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/25 rounded-lg text-white placeholder-slate-400 transition-all duration-200 text-base"
                   placeholder="例如: EMP001"
                   value={employeeNumber}
                   onChange={(e) => setEmployeeNumber(e.target.value)}
@@ -144,7 +144,7 @@ export default function Login() {
                   name="password"
                   type="password"
                   required
-                  className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/25 rounded-lg text-white placeholder-slate-400 transition-all duration-200"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-800/50 border border-slate-600/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/25 rounded-lg text-white placeholder-slate-400 transition-all duration-200 text-base"
                   placeholder="請輸入密碼"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -156,7 +156,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-2.5 px-4 rounded-lg text-white font-medium transition-all duration-200 ${
+              className={`w-full py-3 sm:py-2.5 px-4 rounded-lg text-white font-medium transition-all duration-200 min-h-[44px] ${
                 loading
                   ? "bg-blue-500/50 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-blue-500/25"

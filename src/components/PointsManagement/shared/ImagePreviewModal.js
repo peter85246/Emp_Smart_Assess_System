@@ -94,67 +94,67 @@ const ImagePreviewModal = ({
         {/* 小視窗樣式的模態框 */}
         <div className="bg-slate-800 rounded-xl shadow-2xl max-w-4xl max-h-[90vh] w-full overflow-hidden border border-slate-600">
           {/* 標題欄 */}
-          <div className="flex items-center justify-between p-4 border-b border-slate-600 bg-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <div className="text-white font-medium">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border-b border-slate-600 bg-slate-700/50 gap-3">
+            <div className="flex items-center space-x-3 w-full sm:w-auto">
+              <div className="text-white font-medium text-sm sm:text-base truncate">
                 {fileName || '圖片預覽'}
               </div>
             </div>
 
             {/* 工具按鈕 */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-end flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
               <button
                 onClick={handleZoomOut}
-                className="p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors"
+                className="p-2.5 sm:p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="縮小 (-)"
               >
-                <ZoomOut className="h-4 w-4" />
+                <ZoomOut className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
 
-              <span className="text-slate-300 text-sm min-w-[50px] text-center">
+              <span className="text-slate-300 text-xs sm:text-sm min-w-[40px] sm:min-w-[50px] text-center">
                 {Math.round(zoom * 100)}%
               </span>
 
               <button
                 onClick={handleZoomIn}
-                className="p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors"
+                className="p-2.5 sm:p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="放大 (+)"
               >
-                <ZoomIn className="h-4 w-4" />
+                <ZoomIn className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
 
               <button
                 onClick={handleRotate}
-                className="p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors"
+                className="p-2.5 sm:p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="旋轉 (R)"
               >
-                <RotateCw className="h-4 w-4" />
+                <RotateCw className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
 
               <button
                 onClick={handleResetZoom}
-                className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-600/20 rounded transition-colors"
+                className="p-2.5 sm:p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-600/20 rounded transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="重置 (0)"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </button>
 
               <button
                 onClick={handleDownload}
-                className="p-2 text-green-400 hover:text-green-300 hover:bg-green-600/20 rounded transition-colors"
+                className="p-2.5 sm:p-2 text-green-400 hover:text-green-300 hover:bg-green-600/20 rounded transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="下載圖片"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
 
               <button
                 onClick={onClose}
-                className="p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors"
+                className="p-2.5 sm:p-2 text-slate-300 hover:text-white hover:bg-slate-600 rounded transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="關閉"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
             </div>
           </div>
@@ -232,8 +232,8 @@ const ImagePreviewModal = ({
               </div>
             )}
 
-            {/* 快捷鍵提示 */}
-            <div className="absolute top-4 right-4 bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2">
+            {/* 快捷鍵提示 - 只在桌面版顯示 */}
+            <div className="hidden md:block absolute top-4 right-4 bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2">
               <div className="text-slate-300 text-xs space-y-1">
                 <p>🖱️ 滾輪縮放</p>
                 <p>⌨️ +/- 縮放</p>

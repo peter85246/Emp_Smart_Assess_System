@@ -1111,7 +1111,7 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center h-full bg-transparent">
+      <div className="p-3 sm:p-4 lg:p-6 flex items-center justify-center min-h-[400px] bg-transparent">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">載入中...</p>
@@ -1121,10 +1121,10 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-transparent">
+    <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 bg-transparent">
       {/* 標題和月份選擇 */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">個人積分統計</h2>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-white">個人積分統計</h2>
         <div className="flex items-center space-x-3">
           <Calendar className="h-5 w-5 text-slate-400" />
           <input
@@ -1158,7 +1158,7 @@ const PersonalScoreView = ({ currentUser, refreshTrigger }) => {
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <div className="bg-slate-700/30 rounded-lg p-2">
             <div className="flex flex-col">
               <span className="text-xs text-slate-400 mb-1">當前積分</span>

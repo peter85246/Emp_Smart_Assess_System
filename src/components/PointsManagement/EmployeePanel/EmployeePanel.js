@@ -213,9 +213,9 @@ const EmployeePanel = ({ currentUser }) => {
   ];
 
   return (
-    <div className="h-full flex bg-gradient-to-br from-slate-800 to-slate-900">
-      {/* 左側導航 */}
-      <div className="w-80 bg-gradient-to-b from-slate-700/50 to-slate-800/50 border-r border-slate-600/50 p-6 shadow-sm overflow-y-auto pb-8">
+    <div className="h-full flex flex-col lg:flex-row bg-gradient-to-br from-slate-800 to-slate-900">
+      {/* 左側導航 - 手機版頂部，桌面版左側 */}
+      <div className="w-full lg:w-80 bg-gradient-to-b from-slate-700/50 to-slate-800/50 border-b lg:border-b-0 lg:border-r border-slate-600/50 p-4 sm:p-6 shadow-sm overflow-y-auto pb-4 sm:pb-8">
         {/* 個人統計卡片 */}
         <div className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-4 mb-6 shadow-md border border-slate-600/50">
           <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
@@ -310,7 +310,7 @@ const EmployeePanel = ({ currentUser }) => {
       </div>
 
       {/* 右側內容區域 */}
-      <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 pb-8">
+      <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 p-4 sm:p-6 lg:pb-8 min-h-[400px]">
         {activeView === 'score' && (
           <PersonalScoreView 
             currentUser={currentUser} 
@@ -326,7 +326,7 @@ const EmployeePanel = ({ currentUser }) => {
         )}
 
         {activeView === 'worklog' && (
-          <WorkLogEntry />
+          <WorkLogEntry currentUser={currentUser} />
         )}
       </div>
     </div>

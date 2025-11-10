@@ -694,11 +694,11 @@ const WorkLogEntry = () => {
   }, [formData.category, editingLog]);
 
   return (
-    <div className="p-6 space-y-6 min-h-full">
+    <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 min-h-[400px]">
       {/* 頁面標題與新增按鈕 */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">工作日誌</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">工作日誌</h2>
           <p className="text-sm text-slate-300 mt-1">
             📝 記錄每日工作內容和心得，支持檔案附件上傳
           </p>
@@ -743,15 +743,15 @@ const WorkLogEntry = () => {
       </div>
 
       {/* 搜索和篩選 - 移到上方 */}
-      <div className="flex gap-4">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="flex-1 w-full">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full pl-10 pr-3 py-2.5 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-base focus:ring-2 focus:ring-green-500 focus:border-transparent"
               placeholder="搜索工作日誌..."
             />
           </div>
@@ -759,7 +759,7 @@ const WorkLogEntry = () => {
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-base focus:ring-2 focus:ring-green-500 focus:border-transparent overflow-hidden"
         >
           <option value="">所有分類</option>
           {categoryOptions.map(categoryName => (
@@ -772,7 +772,7 @@ const WorkLogEntry = () => {
 
       {/* 表單 - 深色背景配綠色邊框 */}
       {showForm && (
-        <div className="bg-slate-800/50 backdrop-blur-sm border-2 border-green-500/50 rounded-xl p-6 shadow-lg">
+        <div className="bg-slate-800/50 backdrop-blur-sm border-2 border-green-500/50 rounded-xl p-4 sm:p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-white mb-4">
             {editingLog ? '編輯工作日誌' : '新增工作日誌'}
           </h3>
@@ -809,13 +809,13 @@ const WorkLogEntry = () => {
 
             {/* 分類 */}
             <div>
-              <label className="block text-sm font-medium text-green-200 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-green-200 mb-2">
                 分類
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                className="w-full px-3 py-2.5 sm:py-2 bg-slate-700 border border-green-500/30 rounded-lg text-white text-base focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               >
                 <option value="">請選擇分類</option>
                 {categoryOptions.map(categoryName => (
@@ -1007,13 +1007,13 @@ const WorkLogEntry = () => {
           </div>
         ) : (
           filteredWorkLogs.map(log => (
-            <div key={log.id} className="bg-slate-800/50 backdrop-blur-sm border border-slate-500/50 rounded-xl p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-white mb-2">
+            <div key={log.id} className="bg-slate-800/50 backdrop-blur-sm border border-slate-500/50 rounded-xl p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-3">
+                <div className="flex-1 w-full sm:w-auto">
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-2">
                     {log.title}
                   </h3>
-                  <div className="flex items-center gap-4 text-sm text-slate-400">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-400">
                     <span className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
                       {(() => {
@@ -1062,7 +1062,7 @@ const WorkLogEntry = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
                   {(() => {
                     const editCount = workLogAPI.getWorkLogEditCount(log.id);
                     const remainingEdits = 2 - editCount;

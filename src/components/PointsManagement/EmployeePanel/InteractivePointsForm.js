@@ -319,14 +319,14 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
     const files = uploadedFiles[item.id] || [];
 
     return (
-      <div key={item.id} className="bg-slate-600/30 backdrop-blur-sm border border-slate-500/50 rounded-lg p-4 space-y-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h4 className="font-medium text-white">{item.name}</h4>
-            <p className="text-sm text-slate-300 mt-1">{item.description}</p>
+      <div key={item.id} className="bg-slate-600/30 backdrop-blur-sm border border-slate-500/50 rounded-lg p-3 sm:p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:justify-between gap-2">
+          <div className="flex-1 w-full sm:w-auto">
+            <h4 className="font-medium text-white text-sm sm:text-base">{item.name}</h4>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1">{item.description}</p>
           </div>
-          <div className="text-right ml-4">
-            <div className="text-sm text-blue-300 font-medium">
+          <div className="text-left sm:text-right w-full sm:w-auto sm:ml-4">
+            <div className="text-xs sm:text-sm text-blue-300 font-medium">
               {itemData.calculatedPoints ? `${itemData.calculatedPoints.toFixed(1)} 積分` : `${item.points} 積分`}
             </div>
           </div>
@@ -393,14 +393,14 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
 
           {/* 檔案上傳 */}
           <div>
-            <label className="block text-sm text-slate-200 mb-1">證明文件:</label>
-            <div className="flex items-center space-x-2">
+            <label className="block text-xs sm:text-sm text-slate-200 mb-1">證明文件:</label>
+            <div className="flex items-center w-full overflow-hidden">
               <input
                 type="file"
                 multiple
                 accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx"
                 onChange={(e) => handleFileUpload(item.id, e.target.files)}
-                className="text-sm text-slate-200 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-slate-600 file:text-slate-200 hover:file:bg-slate-500"
+                className="w-full text-xs sm:text-sm text-slate-200 file:mr-2 file:py-1.5 sm:file:py-1 file:px-2 file:rounded file:border-0 file:text-xs sm:file:text-sm file:bg-slate-600 file:text-slate-200 hover:file:bg-slate-500 truncate"
               />
             </div>
 
@@ -408,11 +408,11 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
             {files.length > 0 && (
               <div className="mt-2 space-y-1">
                 {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between text-xs bg-slate-600/50 p-2 rounded border border-slate-500/50">
-                    <span className="text-slate-200">{file.name}</span>
+                  <div key={index} className="flex items-center justify-between text-xs bg-slate-600/50 p-2 rounded border border-slate-500/50 gap-2">
+                    <span className="text-slate-200 truncate flex-1 min-w-0">{file.name}</span>
                     <button
                       onClick={() => removeFile(item.id, index)}
-                      className="text-red-400 hover:text-red-300"
+                      className="text-red-400 hover:text-red-300 flex-shrink-0 p-1"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -428,9 +428,9 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
 
   // 主要渲染函數
   return (
-    <div className="p-6 space-y-6 bg-transparent">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">
+    <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 bg-transparent min-h-[400px]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-white">
           📋 積分得分辦法填寫表單
         </h2>
         <div className="text-right">
@@ -496,7 +496,7 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
             </div>
             
             {/* 卡片式選擇區域 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {Object.entries(visiblePointsStructure).map(([categoryKey, categoryConfig]) => {
                 const stats = getCategoryStats(categoryKey);
                 const isActive = activeCategory === categoryKey;
@@ -626,7 +626,7 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
                             <h5 className="font-medium text-white text-lg">{subConfig.name}</h5>
                             <span className="text-sm text-slate-400">({subItems.length} 項)</span>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 gap-3 sm:gap-4">
                             {subItems.map(renderFormItem)}
                           </div>
                         </div>
@@ -634,7 +634,7 @@ const InteractivePointsForm = ({ currentUser, onSubmissionSuccess }) => {
                     });
                   } else {
                     return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-3 sm:gap-4">
                         {(categoryData.main || []).map(renderFormItem)}
                       </div>
                     );

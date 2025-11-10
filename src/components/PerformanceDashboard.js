@@ -678,13 +678,13 @@ const PerformanceCard = ({ metric, data, viewMode = 'monthly' }) => {
 
       {/* Modal Content */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4">
+          <div className="bg-slate-800 rounded-xl w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-hidden flex flex-col shadow-2xl">
             {/* Modal Header */}
-            <div className="p-4 border-b border-slate-600 flex justify-between items-center sticky top-0 bg-slate-800 z-10">
+            <div className="p-3 sm:p-4 border-b border-slate-600 flex justify-between items-center bg-slate-800 z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <span className={metric.color}>{metric.icon}</span>
-                <h3 className="text-xl font-bold text-white">
+                <h3 className="text-lg sm:text-xl font-bold text-white">
                   {metric.title}詳細資訊
                 </h3>
               </div>
@@ -697,16 +697,15 @@ const PerformanceCard = ({ metric, data, viewMode = 'monthly' }) => {
             </div>
 
             <div
-              className="overflow-y-auto p-4 space-y-6"
+              className="overflow-y-auto overflow-x-hidden p-3 sm:p-4 space-y-4 sm:space-y-6 flex-1"
               style={{
-                maxHeight: "calc(80vh - 60px)",
                 scrollbarWidth: "thin",
                 scrollbarColor: "#475569 #1e293b",
               }}
             >
               {/* 當前績效表現 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-700 p-4 rounded-lg text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-slate-700 p-3 sm:p-4 rounded-lg text-center">
                   <p className="text-slate-300 mb-1">績效表現</p>
                   <p className={`text-3xl font-bold ${metric.color} animate-glow`}>
                     {value === 'N/A' ? 'N/A' : `${value}${metric.unit}`}
@@ -729,8 +728,8 @@ const PerformanceCard = ({ metric, data, viewMode = 'monthly' }) => {
               </div>
               
               {/* 目標與升級資訊 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-700 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-slate-700 p-3 sm:p-4 rounded-lg">
                   <p className="text-slate-300 mb-2">目標設定</p>
                   <div className="space-y-1">
                     <p className="text-white">目標百分比: {metric.target}%</p>
@@ -824,8 +823,8 @@ const PerformanceCard = ({ metric, data, viewMode = 'monthly' }) => {
                 <h4 className="text-lg font-semibold text-white">
                   詳細評分依據
                 </h4>
-                <div className="bg-slate-700 rounded-lg p-4 space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="bg-slate-700 rounded-lg p-3 sm:p-4 space-y-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div className="bg-slate-600/50 rounded p-3">
                       <h6 className="text-green-400 font-medium mb-2">A級標準（90-100分）</h6>
                       <p className="text-sm text-slate-300">90%以上 → 優秀表現</p>
@@ -861,8 +860,8 @@ const PerformanceCard = ({ metric, data, viewMode = 'monthly' }) => {
                   <Activity className="w-5 h-5" />
                   績效洞察分析
                 </h4>
-                <div className="bg-slate-700 p-4 rounded-lg">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-slate-700 p-3 sm:p-4 rounded-lg overflow-x-hidden">
+                  <div className="grid grid-cols-1 gap-4">
                     {/* 左側：趨勢軌跡 */}
                     <div className="space-y-3">
                       <h5 className="text-white font-medium flex items-center gap-2">
@@ -1379,8 +1378,8 @@ const PerformanceCard = ({ metric, data, viewMode = 'monthly' }) => {
 
       {/* 新增：等級說明彈窗 */}
       {showLevelGuide && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-white">績效等級說明</h3>
               <button
@@ -1947,10 +1946,10 @@ const PerformanceTrendChart = ({ data, viewMode }) => {
   };
 
   return (
-    <div className="w-full bg-slate-800 rounded-lg p-4 mt-6" style={{ minHeight: '400px' }}>
+    <div className="w-full bg-slate-800 rounded-lg p-3 sm:p-4 mt-4 sm:mt-6" style={{ minHeight: '350px' }}>
       {data && data.length > 0 ? (
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data} margin={{ top: 30, right: 50, left: 20, bottom: 20 }}>
+        <ResponsiveContainer width="100%" height={450} className="min-h-[350px] sm:min-h-[450px]">
+          <LineChart data={data} margin={{ top: 30, right: 30, left: 10, bottom: 30 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis 
               dataKey="date" 
@@ -2385,9 +2384,11 @@ const metrics = [
     const intervalId = setInterval(() => {
       console.log('執行30秒定時更新...');
       if (selectedEmployee) {
-        const isDaily = viewMode === "daily";
+        // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+        // const isDaily = viewMode === "daily";
         const isYearly = viewMode === "yearly";
-        const currentDay = isDaily ? selectedDay : null;
+        // const currentDay = isDaily ? selectedDay : null;
+        const currentDay = null; // 每日統計已註釋，固定為null
         const currentMonth = isYearly ? 1 : selectedMonth;
 
         loadEmployeeData(
@@ -2405,7 +2406,7 @@ const metrics = [
       clearInterval(intervalId);
       console.log('清理定時更新');
     };
-  }, [selectedEmployee, selectedYear, selectedMonth, selectedDay, viewMode]);
+  }, [selectedEmployee, selectedYear, selectedMonth, /* selectedDay, */ viewMode]); // selectedDay已註釋
 
   // 載入員工KPI資料的函數
   const loadEmployeeData = async (employeeId, targetYear, targetMonth, targetDay, isYearly = false) => {
@@ -2421,7 +2422,9 @@ const metrics = [
         targetYear, 
         targetMonth, 
         targetDay,
-        mode: isYearly ? '年度統計' : targetDay ? '每日統計' : '月度統計'
+        // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+        // mode: isYearly ? '年度統計' : targetDay ? '每日統計' : '月度統計'
+        mode: isYearly ? '年度統計' : '月度統計' // 每日統計已註釋，固定為月度統計
       });
 
       // 同時發送兩個API請求
@@ -2877,7 +2880,9 @@ const metrics = [
           targetYear,
           targetMonth,
           targetDay,
-          mode: targetDay ? '每日統計' : '年度統計'
+          // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+          // mode: targetDay ? '每日統計' : '年度統計'
+          mode: '年度統計' // 每日統計已註釋，固定為年度統計
         });
         
         console.log('查找員工數據:', {
@@ -2912,7 +2917,9 @@ const metrics = [
         console.log('找到的員工數據:', employeeData);
         
         // 使用已經處理好的 employeeData
-        console.log('使用的數據來源:', selectedDay ? '每日統計' : '月度統計');
+        // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+        // console.log('使用的數據來源:', selectedDay ? '每日統計' : '月度統計');
+        console.log('使用的數據來源:', '月度統計'); // 每日統計已註釋，固定為月度統計
         console.log('最終使用的數據:', employeeData);
         
         // 構建最終數據結構
@@ -2999,9 +3006,11 @@ const metrics = [
 
       try {
         // 根據當前檢視方式載入數據
-        const isDaily = viewMode === "daily";
+        // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+        // const isDaily = viewMode === "daily";
         const isYearly = viewMode === "yearly";
-        const currentDay = isDaily ? 1 : null;
+        // const currentDay = isDaily ? 1 : null;
+        const currentDay = null; // 每日統計已註釋，固定為null
         const currentMonth = isYearly ? 1 : selectedMonth;
 
         console.log('初始化數據:', {
@@ -3035,7 +3044,7 @@ const metrics = [
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [selectedEmployee, selectedYear, selectedMonth, selectedDay, viewMode]);
+  }, [selectedEmployee, selectedYear, selectedMonth, /* selectedDay, */ viewMode]); // selectedDay已註釋
 
   const handleEmployeeChange = async (e) => {
     const employeeId = e.target.value;
@@ -3051,9 +3060,11 @@ const metrics = [
     if (employeeId) {
       try {
         // 根據當前檢視方式載入數據
-        const isDaily = viewMode === "daily";
+        // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+        // const isDaily = viewMode === "daily";
         const isYearly = viewMode === "yearly";
-        const currentDay = isDaily ? 1 : null;
+        // const currentDay = isDaily ? 1 : null;
+        const currentDay = null; // 每日統計已註釋，固定為null
         const currentMonth = isYearly ? 1 : selectedMonth;
         
         console.log('載入新員工數據:', {
@@ -3163,60 +3174,60 @@ const metrics = [
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 p-6 relative">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 p-4 sm:p-6 relative">
         {isLoading && <LoadingOverlay />}
         <div className="max-w-7xl mx-auto">
           {/* 頁面頭部：標題和用戶選項 */}
-          <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6">
             {/* 第一行：標題和基本操作 */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
               <div className="flex flex-col">
-                <h1 className="text-3xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors duration-200 flex items-center gap-2">
-                  <Activity className="w-8 h-8" />
+                <h1 className="text-2xl sm:text-3xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors duration-200 flex items-center gap-2">
+                  <Activity className="w-6 h-6 sm:w-8 sm:h-8" />
                   員工智慧考核系統
                 </h1>
                 <LoginUserInfo />
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                 {/* 積分管理按鈕 */}
                 <button
                   onClick={() => setShowPointsManagement(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex-1 sm:flex-initial justify-center text-sm sm:text-base"
                   title="開啟積分管理系統"
                 >
-                  <Calculator className="w-5 h-5" />
+                  <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span>積分管理</span>
                 </button>
 
                 {/* 用戶選單 */}
-                <div className="relative user-menu">
+                <div className="relative user-menu flex-1 sm:flex-initial">
                   <button
-                    className="flex items-center gap-2 bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition-colors"
+                    className="flex items-center gap-2 bg-slate-700 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-600 transition-colors w-full justify-center text-sm sm:text-base"
                     onClick={() => setShowUserMenu(!showUserMenu)}
                   >
-                    <User className="w-5 h-5" />
+                    <User className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>用戶選項</span>
                   </button>
 
                   {/* 下拉選單 */}
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-slate-700 rounded-lg shadow-lg py-1 z-10">
+                    <div className="absolute right-0 mt-2 w-40 sm:w-48 bg-slate-700 rounded-lg shadow-lg py-1 z-[9999]">
                       <button
-                        className="flex items-center gap-2 px-4 py-2 text-white hover:bg-slate-600 w-full text-left"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 text-white hover:bg-slate-600 w-full text-left text-sm sm:text-base min-h-[44px]"
                         onClick={() => {
                           // TODO: 實現修改密碼功能
                           alert("修改密碼功能待實現");
                         }}
                       >
                         <Key className="w-4 h-4" />
-                        修改密碼
+                        <span>修改密碼</span>
                       </button>
                       <button
-                        className="flex items-center gap-2 px-4 py-2 text-white hover:bg-slate-600 w-full text-left text-red-400 hover:text-red-300"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 text-white hover:bg-slate-600 w-full text-left text-red-400 hover:text-red-300 text-sm sm:text-base min-h-[44px]"
                         onClick={handleLogout}
                       >
                         <LogOut className="w-4 h-4" />
-                        登出
+                        <span>登出</span>
                       </button>
                     </div>
                   )}
@@ -3225,12 +3236,12 @@ const metrics = [
             </div>
 
             {/* 第二行：員工選擇和日期選擇 */}
-            <div className="flex items-center gap-4 bg-slate-700/50 p-4 rounded-lg">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 bg-slate-700/50 p-3 sm:p-4 rounded-lg">
               <div className="flex items-center gap-2">
-                <span className="text-white">員工：</span>
+                <span className="text-white text-sm sm:text-base whitespace-nowrap">員工：</span>
                 {canViewAllEmployees ? (
                   <select
-                    className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 min-w-[200px] cursor-pointer hover:bg-slate-600 transition-colors"
+                    className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 flex-1 sm:min-w-[200px] cursor-pointer hover:bg-slate-600 transition-colors text-sm sm:text-base"
                     value={selectedEmployee}
                     onChange={handleEmployeeChange}
                   >
@@ -3246,36 +3257,38 @@ const metrics = [
                     )}
                   </select>
                 ) : (
-                  <div className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 min-w-[200px]">
+                  <div className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 flex-1 sm:min-w-[200px] text-sm sm:text-base">
                     {`${user.name} ( ${pointsConfig.userRoles[user.role] || user.role} )`}
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-white">年份：</span>
-                  <div className="relative inline-block">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                  <span className="text-white text-sm sm:text-base whitespace-nowrap">年份：</span>
+                  <div className="relative flex-1 sm:inline-block">
                     <select
                       value={selectedYear}
                       onChange={async (e) => {
                         const newYear = parseInt(e.target.value);
-                        
+
                         // 設置loading狀態
                         setIsLoading(true);
-                        
+
                         try {
                           // 先更新年份
                           setSelectedYear(newYear);
-                          
+
                           // 等待一個極短的時間以確保狀態更新
                           await new Promise(resolve => setTimeout(resolve, 10));
-                          
+
                           // 根據當前檢視模式決定是否需要重置月份
                           const currentMonth = viewMode === "yearly" ? 1 : selectedMonth;
-                          const currentDay = viewMode === "daily" ? selectedDay : null;
+                          // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+                          // const currentDay = viewMode === "daily" ? selectedDay : null;
+                          const currentDay = null; // 每日統計已註釋，固定為null
                           const isYearlyView = viewMode === "yearly";
-                          
+
                           // 重新加載數據
                           await loadEmployeeData(
                             selectedEmployee,
@@ -3284,7 +3297,7 @@ const metrics = [
                             currentDay,
                             isYearlyView
                           );
-                          
+
                           console.log('年份變更:', {
                             newYear,
                             currentMonth,
@@ -3298,10 +3311,10 @@ const metrics = [
                           setIsLoading(false);
                         }
                       }}
-                      className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
-                        hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 
-                        transition-all duration-200 cursor-pointer min-w-[120px] backdrop-blur-sm
-                        shadow-sm hover:shadow-md"
+                      className="appearance-none bg-slate-700 text-white px-3 sm:px-4 py-2 pr-8 sm:pr-10 rounded-lg border border-slate-600
+                        hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20
+                        transition-all duration-200 cursor-pointer w-full sm:min-w-[120px] backdrop-blur-sm
+                        shadow-sm hover:shadow-md text-sm sm:text-base"
                     >
                       {availableYears.map(year => (
                         <option 
@@ -3322,9 +3335,9 @@ const metrics = [
                 </div>
                 
                 {viewMode !== "yearly" && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-white">月份：</span>
-                    <div className="relative inline-block">
+                  <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                    <span className="text-white text-sm sm:text-base whitespace-nowrap">月份：</span>
+                    <div className="relative flex-1 sm:inline-block">
                       <select
                         value={selectedMonth}
                         onChange={async (e) => {
@@ -3339,23 +3352,27 @@ const metrics = [
 
                           // 等待狀態更新
                           await new Promise(resolve => setTimeout(resolve, 10));
-                          
+
                           // 重新加載數據
                           console.log('開始加載新月份數據:', {
                             employee: selectedEmployee,
                             year: selectedYear,
                             month: newMonth,
-                            day: selectedDay,
-                            mode: selectedDay ? '每日統計' : '月度統計'
+                            // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+                            // day: selectedDay,
+                            day: null, // 每日統計已註釋，固定為null
+                            mode: '月度統計' // 每日統計已註釋，固定為月度統計
                           });
-                          
+
                           try {
                             // 確保使用新的月份
                             await loadEmployeeData(
                               selectedEmployee,
                               selectedYear,
                               newMonth,
-                              selectedDay,
+                              // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+                              // selectedDay,
+                              null, // 每日統計已註釋，固定為null
                               false  // 不是年度統計
                             );
                           } catch (error) {
@@ -3366,10 +3383,10 @@ const metrics = [
                             setIsLoading(false);
                           }
                         }}
-                        className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
-                          hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 
-                          transition-all duration-200 cursor-pointer min-w-[100px] backdrop-blur-sm
-                          shadow-sm hover:shadow-md"
+                        className="appearance-none bg-slate-700 text-white px-3 sm:px-4 py-2 pr-8 sm:pr-10 rounded-lg border border-slate-600
+                          hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20
+                          transition-all duration-200 cursor-pointer w-full sm:min-w-[100px] backdrop-blur-sm
+                          shadow-sm hover:shadow-md text-sm sm:text-base"
                       >
                         {Array.from({length: 12}, (_, i) => i + 1).map(month => (
                           <option 
@@ -3459,7 +3476,11 @@ const metrics = [
                     >
                       <option value="yearly" className="bg-slate-700 text-white hover:bg-slate-600">年度統計</option>
                       <option value="monthly" className="bg-slate-700 text-white hover:bg-slate-600">月度統計</option>
+                      {/* TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+                          相關問題：每日統計依賴work_Day字段，目前數據源無法提供正確的日期匹配
+                          恢復條件：後端API提供正確的work_Day數據格式
                       <option value="daily" className="bg-slate-700 text-white hover:bg-slate-600">每日統計</option>
+                      */}
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
                       <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
@@ -3467,6 +3488,7 @@ const metrics = [
                       </svg>
                     </div>
                   </div>
+                  {/* TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
                   {viewMode === "daily" && (
                     <div className="relative inline-block">
                       <select
@@ -3503,10 +3525,10 @@ const metrics = [
                             setIsLoading(false);
                           }
                         }}
-                        className="appearance-none bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 
-                          hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 
-                          transition-all duration-200 cursor-pointer min-w-[100px] backdrop-blur-sm
-                          shadow-sm hover:shadow-md"
+                        className="appearance-none bg-slate-700 text-white px-3 sm:px-4 py-2 pr-8 sm:pr-10 rounded-lg border border-slate-600
+                          hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20
+                          transition-all duration-200 cursor-pointer w-full sm:min-w-[100px] backdrop-blur-sm
+                          shadow-sm hover:shadow-md text-sm sm:text-base"
                       >
                         {Array.from({length: 31}, (_, i) => i + 1).map(day => (
                           <option 
@@ -3525,6 +3547,7 @@ const metrics = [
                       </div>
                     </div>
                   )}
+                  */}
                 </div>
               </div>
             </div>
@@ -3581,7 +3604,10 @@ const metrics = [
                     <>
                       已成功載入 {selectedEmployee} 在 {selectedYear}年
                       {viewMode !== "yearly" ? `${selectedMonth}月` : ""}
+                      {/* TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
                       {viewMode === "daily" ? `${selectedDay}日` : ""} 的績效數據。
+                      */}
+                      的績效數據。
                     </>
                   )}
                 </p>
@@ -3604,12 +3630,13 @@ const metrics = [
 
                 {/* 績效趨勢圖表 */}
                 <div className="mt-6">
-                  <div className="bg-slate-800 rounded-lg p-6 relative">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-200">績效趨勢分析</h3>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="absolute top-4 right-6 flex items-center gap-3">
-                        <div className={`flex items-center bg-slate-700/50 rounded-lg py-1 px-1.5 border border-slate-600 ${viewMode !== 'monthly' ? 'opacity-0 pointer-events-none' : ''}`}>
-                          <span className="text-slate-300 text-sm px-2">月份：</span>
+                  <div className="bg-slate-800 rounded-lg p-4 sm:p-6 relative">
+                    {/* 標題和篩選器容器 - 手機版垂直排列，桌面版一行 */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+                      <h3 className="text-lg sm:text-xl font-semibold text-slate-200">績效趨勢分析</h3>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <div className={`flex items-center bg-slate-700/50 rounded-lg py-1 px-1.5 border border-slate-600 ${viewMode !== 'monthly' ? 'hidden' : ''}`}>
+                          <span className="text-slate-300 text-xs sm:text-sm px-1 sm:px-2 whitespace-nowrap">月份：</span>
                           <select
                             value={selectedMonth}
                             onChange={async (e) => {
@@ -3623,7 +3650,9 @@ const metrics = [
                                     selectedEmployee,
                                     selectedYear,
                                     newMonth,
-                                    viewMode === "daily" ? 1 : null,
+                                    // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+                                    // viewMode === "daily" ? 1 : null,
+                                    null, // 每日統計已註釋，固定為null
                                     viewMode === "yearly"
                                   );
                                 } catch (error) {
@@ -3635,17 +3664,17 @@ const metrics = [
                                 setIsLoading(false);
                               }
                             }}
-                            className="bg-slate-800 text-white rounded px-4 text-sm font-medium min-w-[100px] h-[38px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                            className="bg-slate-800 text-white rounded px-2 sm:px-4 text-xs sm:text-sm font-medium w-20 sm:min-w-[100px] h-[32px] sm:h-[38px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                           >
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                               <option key={month} value={month}>{month}月</option>
                             ))}
                           </select>
                         </div>
-                        <div className="flex items-center bg-slate-700/50 rounded-lg py-1 px-1.5 border border-slate-600">
+                        <div className="flex items-center bg-slate-700/50 rounded-lg py-1 px-1 sm:px-1.5 border border-slate-600">
                           <button
                             onClick={() => setViewMode('yearly')}
-                            className={`h-[38px] px-3 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${
+                            className={`h-[32px] sm:h-[38px] px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 flex items-center whitespace-nowrap ${
                               viewMode === 'yearly'
                                 ? 'bg-blue-500 text-white'
                                 : 'text-slate-300 hover:text-white'
@@ -3655,7 +3684,7 @@ const metrics = [
                           </button>
                           <button
                             onClick={() => setViewMode('monthly')}
-                            className={`h-[38px] px-3 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${
+                            className={`h-[32px] sm:h-[38px] px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 flex items-center whitespace-nowrap ${
                               viewMode === 'monthly'
                                 ? 'bg-blue-500 text-white'
                                 : 'text-slate-300 hover:text-white'
@@ -3675,7 +3704,9 @@ const metrics = [
                         viewMode,
                         selectedYear,
                         selectedMonth,
-                        selectedDay
+                        // TODO: 每日統計功能暫時註釋 - 等待後端API支援work_Day字段
+                        // selectedDay
+                        null // 每日統計已註釋，固定為null
                       )}
                       viewMode={viewMode}
                     />
@@ -3687,24 +3718,26 @@ const metrics = [
 
             {/* 詳細數據視圖 */}
             {activeTab === "details" && (
-              <div className="bg-slate-700 rounded-xl p-6 text-white">
-                <h3 className="text-xl font-bold mb-4">詳細績效數據</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-600">
-                    <thead>
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase">
-                          評估項目
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase">
-                          數值
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase">
-                          目標
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase">
-                          狀態
-                        </th>
+              <div className="bg-slate-700 rounded-xl p-4 sm:p-6 text-white">
+                <h3 className="text-lg sm:text-xl font-bold mb-4">詳細績效數據</h3>
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <div className="inline-block min-w-full align-middle">
+                    <div className="overflow-hidden">
+                      <table className="min-w-full divide-y divide-slate-600">
+                        <thead>
+                          <tr>
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase whitespace-nowrap">
+                              評估項目
+                            </th>
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase whitespace-nowrap">
+                              數值
+                            </th>
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase whitespace-nowrap">
+                              目標
+                            </th>
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase whitespace-nowrap">
+                              狀態
+                            </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-600">
@@ -3746,27 +3779,27 @@ const metrics = [
                             key={metric.id}
                             className="hover:bg-slate-600/50 transition-colors"
                           >
-                            <td className="px-6 py-4 whitespace-nowrap text-slate-200">
+                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-slate-200">
                               <div className="flex items-center">
                                 <span
-                                  className={`mr-2 animate-glow ${metric.color}`}
+                                  className={`mr-2 animate-glow ${metric.color} text-sm sm:text-base`}
                                 >
                                   {metric.icon}
                                 </span>
-                                <span className="animate-glow">
+                                <span className="animate-glow text-sm sm:text-base">
                                   {metric.title}
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                              <span className="animate-glow">
+                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-slate-200">
+                              <span className="animate-glow text-sm sm:text-base">
                                 {displayValue}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-slate-200">
-                              <span className="animate-glow">{metric.target}%</span>
+                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-slate-200">
+                              <span className="animate-glow text-sm sm:text-base">{metric.target}%</span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                               <span
                                 className={`px-2 py-1 rounded-full text-sm animate-glow ${
                                   scoreValue === 100
@@ -3799,7 +3832,9 @@ const metrics = [
                         );
                       })}
                     </tbody>
-                  </table>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

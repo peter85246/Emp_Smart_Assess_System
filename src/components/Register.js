@@ -320,14 +320,14 @@ export default function Register() {
       </div>
 
       {/* 主要註冊卡片 */}
-      <div className="max-w-lg w-full space-y-8 relative z-10">
-        <div className="bg-slate-700/60 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-600/30">
+      <div className="max-w-lg w-full space-y-6 md:space-y-8 relative z-10">
+        <div className="bg-slate-700/60 backdrop-blur-xl p-6 sm:p-8 rounded-2xl shadow-2xl border border-slate-600/30">
           {/* Logo 區域 */}
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center mb-6 shadow-lg">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-lg">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 text-white"
+                className="h-8 w-8 sm:h-10 sm:w-10 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -340,10 +340,10 @@ export default function Register() {
                 />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-white mb-2 text-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 text-center">
               員工註冊
             </h2>
-            <p className="text-slate-300 text-center mb-8">
+            <p className="text-slate-300 text-center text-sm sm:text-base mb-6 sm:mb-8">
               創建您的積分管理系統帳號
             </p>
           </div>
@@ -381,10 +381,10 @@ export default function Register() {
             </div>
           </div> */}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* 姓名 */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
                 姓名 *
               </label>
               <input
@@ -393,7 +393,7 @@ export default function Register() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-slate-600/50 border border-slate-500/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-600/50 border border-slate-500/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base"
                 placeholder="請輸入姓名"
               />
             </div>
@@ -430,7 +430,7 @@ export default function Register() {
             </div>
 
             {/* 部門和職位 */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   部門 *

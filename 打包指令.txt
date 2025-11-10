@@ -1,11 +1,11 @@
 # 1. 切換到前端專案目錄
-cd C:\Users\user\Desktop\潤股-智慧評估系統\employee_smart_assessment_system
+cd C:\Users\user\Desktop\潤鼓-智慧評估系統\employee_smart_assessment_system
 
 # 2. 執行建置
 npm run build
 
 # 3. 複製建置檔案到目標資料夾
-xcopy /E /I /Y build "C:\Users\user\Desktop\潤股-智慧評估系統\employee_smart_assessment_system\Emp_Smart_Assess_Sys_frontend_build (Web)\frontend"
+xcopy /E /I /Y build "C:\Users\user\Desktop\潤鼓-智慧評估系統\employee_smart_assessment_system\Emp_Smart_Assess_Sys_frontend_build (Web)\frontend"
 
 
 ===============================================================================================
@@ -15,7 +15,7 @@ xcopy /E /I /Y build "C:\Users\user\Desktop\潤股-智慧評估系統\employee_s
 ### 打包步驟
 1. 切換到專案根目錄：
 ```bash
-cd C:\Users\user\Desktop\潤股-智慧評估系統\employee_smart_assessment_system
+cd C:\Users\user\Desktop\潤鼓-智慧評估系統\employee_smart_assessment_system
 ```
 
 2. 執行建置指令：
@@ -25,7 +25,7 @@ npm run build
 
 3. 複製建置檔案到目標資料夾：
 ```bash
-xcopy /E /I /Y build "C:\Users\user\Desktop\潤股-智慧評估系統\employee_smart_assessment_system\Emp_Smart_Assess_Sys_frontend_build (Web)\frontend"
+xcopy /E /I /Y build "C:\Users\user\Desktop\潤鼓-智慧評估系統\employee_smart_assessment_system\Emp_Smart_Assess_Sys_frontend_build (Web)\frontend"
 ```
 
 ### 前端打包檔案說明

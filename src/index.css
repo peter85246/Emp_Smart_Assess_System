@@ -123,3 +123,267 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 116, 139, 0.7) rgba(71, 85, 105, 0.3);
 }
+
+/* ====================================
+   響應式設計 (RWD) - 全局樣式
+   ==================================== */
+
+/* 全局響應式容器 - 防止內容溢出 */
+@media (max-width: 768px) {
+  /* 防止水平溢出 */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+
+  /* 所有主容器確保不溢出 */
+  #root, #root > div {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+  }
+
+  /* 確保所有絕對定位元素不會導致溢出 */
+  .absolute, [class*="absolute"] {
+    max-width: calc(100vw - 2rem);
+  }
+
+  /* 圖表容器不溢出 */
+  .recharts-wrapper, .recharts-surface {
+    max-width: 100% !important;
+  }
+}
+
+/* 表格橫向滾動容器 - 手機版 */
+@media (max-width: 768px) {
+  /* Ant Design 表格響應式 */
+  .ant-table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: 100vw !important;
+    position: relative;
+  }
+
+  .ant-table {
+    min-width: 1400px !important; /* 確保表格有最小寬度，啟動橫向滾動 */
+  }
+
+  .ant-table-content {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* 表格內文字不換行，保持可讀性 */
+  .ant-table-cell {
+    white-space: nowrap !important;
+    min-width: 100px;
+    padding: 8px 12px !important;
+  }
+
+  /* 表格固定列 */
+  .ant-table-cell-fix-left,
+  .ant-table-cell-fix-right {
+    position: sticky !important;
+  }
+
+  /* Card 組件響應式 */
+  .ant-card {
+    margin: 0 !important;
+  }
+
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  /* 確保表格可以正常滾動 */
+  .worklog-card .ant-card-body {
+    overflow-x: visible !important;
+    padding: 16px 12px !important;
+  }
+
+  /* 輸入框防止 iOS 自動縮放 */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* 限制下拉選單選項的最大高度 */
+  select {
+    max-height: 44px;
+    /* iOS Safari 強制使用原生選擇器，防止超出畫面 */
+    -webkit-appearance: menulist;
+    -moz-appearance: menulist;
+    appearance: menulist;
+  }
+
+  /* iOS Safari 下拉選單樣式優化 */
+  select option {
+    padding: 8px;
+    font-size: 16px;
+    background-color: #1e293b;
+    color: #ffffff;
+  }
+
+  /* 確保下拉選單容器不會溢出 */
+  select:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+
+  /* iOS 下拉選單彈出層限制 */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS Safari 特定樣式 */
+    select {
+      position: relative;
+      z-index: 1000;
+    }
+  }
+
+  /* 優化 Modal 在手機上的顯示 */
+  .ant-modal {
+    max-width: 95vw !important;
+    margin: 10px auto !important;
+  }
+
+  .ant-modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* 優化按鈕點擊區域 - 符合觸控標準(最小44px) */
+  button, .ant-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* 優化輸入框 */
+  input, select, textarea, .ant-input, .ant-select-selector {
+    min-height: 44px;
+    font-size: 16px !important; /* 防止 iOS 自動縮放 */
+  }
+}
+
+/* 平板版優化 */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .ant-table {
+    font-size: 14px;
+  }
+}
+
+/* 圖表響應式 */
+@media (max-width: 640px) {
+  /* Recharts 圖表容器 */
+  .recharts-wrapper {
+    margin: 0 auto;
+    height: 300px !important; /* 手機版增加高度，防止擠壓 */
+  }
+
+  .recharts-surface {
+    overflow: visible;
+  }
+
+  /* 圖表文字縮小 */
+  .recharts-text {
+    font-size: 10px !important;
+  }
+
+  .recharts-legend-wrapper {
+    font-size: 11px !important;
+  }
+
+  /* 圖表容器增加下方空間 */
+  .recharts-responsive-container {
+    min-height: 300px !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .recharts-wrapper {
+    height: 350px !important;
+  }
+}
+
+/* 確保所有可交互元素在觸控設備上易於點擊 */
+@media (hover: none) and (pointer: coarse) {
+  a, button, [role="button"], .clickable {
+    min-height: 44px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
+/* 防止文字選擇導致的誤操作 */
+@media (max-width: 768px) {
+  button, .ant-btn {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
+/* 優化卡片在小螢幕的間距 */
+@media (max-width: 640px) {
+  .ant-card {
+    margin-bottom: 12px;
+  }
+
+  .ant-card-body {
+    padding: 16px 12px;
+  }
+}
+
+/* 表單響應式優化 */
+@media (max-width: 640px) {
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+
+  .ant-form-item-label {
+    padding-bottom: 4px;
+  }
+}
+
+/* 績效卡片和容器響應式 */
+@media (max-width: 768px) {
+  /* 所有包含 grid 的容器 */
+  [class*="grid"] {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* 特定的2欄grid保留 */
+  [class*="grid-cols-2"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* 卡片內容自動適應 */
+  [class*="max-w-"] {
+    max-width: 100% !important;
+  }
+
+  /* 防止文字被截斷 */
+  [class*="truncate"], [class*="overflow-hidden"] {
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+}
+
+/* 選擇器在小螢幕上的優化 */
+@media (max-width: 640px) {
+  select {
+    font-size: 14px;
+    padding-left: 8px;
+    padding-right: 32px;
+  }
+
+  /* 下拉箭頭圖示調整 */
+  select + div svg {
+    width: 14px;
+    height: 14px;
+  }
+}

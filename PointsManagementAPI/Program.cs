@@ -188,50 +188,50 @@ builder.Services.AddDbContext<PointsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
-// Add CORS - 支持動態端口配置
-// builder.Services.AddCors(options =>
-// {
-//     options.AddPolicy("AllowReactApp", policy =>
-//     {
-//         if (builder.Environment.IsDevelopment())
-//         {
-//             // 開發環境：允許來自任何本地端口的請求
-//             policy.SetIsOriginAllowed(origin =>
-//             {
-//                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-//                 {
-//                     return uri.Host == "localhost" || 
-//                            uri.Host == "127.0.0.1" || 
-//                            uri.Host == "::1";
-//                 }
-//                 return false;
-//             })
-//             .AllowAnyHeader()
-//             .AllowAnyMethod()
-//             .AllowCredentials();
-//         }
-//         else
-//         {
-//             // 生產環境：限制特定來源
-//             policy.WithOrigins("https://yourdomain.com")
-//                   .AllowAnyHeader()
-//                   .AllowAnyMethod()
-//                   .AllowCredentials();
-//         }
-//     });
-// });
-
+// Add CORS - 支持動態端口配置和區域網路IP (參考 WebAR 專案設計)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:3000",   // React 開發環境
-                "https://yourdomain.com"   // 正式上線網域
-            )
+        if (builder.Environment.IsDevelopment())
+        {
+            // 開發環境：允許來自本地和區域網路的請求
+            policy.SetIsOriginAllowed(origin =>
+            {
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    // 允許 localhost 和 127.0.0.1
+                    if (uri.Host == "localhost" ||
+                        uri.Host == "127.0.0.1" ||
+                        uri.Host == "::1")
+                    {
+                        return true;
+                    }
+
+                    // 允許區域網路 IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+                    if (uri.Host.StartsWith("192.168.") ||
+                        uri.Host.StartsWith("10.") ||
+                        (uri.Host.StartsWith("172.") &&
+                         int.TryParse(uri.Host.Split('.')[1], out int secondOctet) &&
+                         secondOctet >= 16 && secondOctet <= 31))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
+        }
+        else
+        {
+            // 生產環境：限制特定來源
+            policy.WithOrigins("https://yourdomain.com")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
     });
 });
 
